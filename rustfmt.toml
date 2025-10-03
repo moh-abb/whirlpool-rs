@@ -1,0 +1,6 @@
+max_width = 80
+use_small_heuristics = "Max"
+chain_width = 40
+imports_granularity = "Item"
+group_imports = "StdExternalCrate"
+empty_item_single_line = true
