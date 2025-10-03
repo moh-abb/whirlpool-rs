@@ -4,3 +4,15 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+no_alloc = "0.1.0"
+proptest = "1.8.0"
+proptest-derive = "0.6.0"
+spin = "0.10.0"
+spin-lock = "0.2.1"
+
+[dependencies.chumsky]
+version = "0.11.1"
+features = ["pratt"]
+
+[features]
+std = ["chumsky/std"]
