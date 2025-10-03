@@ -4,6 +4,7 @@
 
 # Rust
 target/
+Cargo.lock
 
 # OS-specific
 .DS_Store
