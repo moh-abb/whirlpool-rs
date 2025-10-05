@@ -5,4 +5,8 @@
 #![allow(clippy::let_and_return)]
 #![deny(missing_docs, clippy::undocumented_unsafe_blocks, dead_code)]
 
+/// Used by [alloc_types].
+extern crate alloc;
+
+mod alloc_types;
 mod arena;
