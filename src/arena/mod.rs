@@ -2,6 +2,7 @@ pub mod chain;
 pub mod equality;
 pub mod handler;
 pub mod index;
+mod templates;
 pub mod tuple;
 
 use index::Index;
