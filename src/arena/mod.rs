@@ -1,7 +1,8 @@
-pub mod index;
 pub mod chain;
-pub mod tuple;
+pub mod equality;
 pub mod handler;
+pub mod index;
+pub mod tuple;
 
 use index::Index;
 
