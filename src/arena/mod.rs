@@ -1,5 +1,7 @@
 pub mod index;
 pub mod chain;
+pub mod tuple;
+pub mod handler;
 
 use index::Index;
 
