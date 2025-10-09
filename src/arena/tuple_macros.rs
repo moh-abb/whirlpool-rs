@@ -1,3 +1,7 @@
+#[rustfmt::skip]
+#[cfg(doc)]
+use super::{Arena, handler::ArenaHandler, tuple::RightTuple};
+
 /// A way to create a right-associated [RightTuple] of types. Used to implement
 /// the [ArenaHandler::Indices] type, by passing in a nonempty list of types
 /// (separated by commas) for which indices of that type are referred to in the
