@@ -4,6 +4,7 @@ pub mod handler;
 pub mod index;
 mod templates;
 pub mod tuple;
+mod tuple_macros;
 
 use index::Index;
 
