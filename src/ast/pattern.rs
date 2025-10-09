@@ -1,9 +1,9 @@
-use crate::arena::chain::Chain;
-use crate::arena::index::Index;
-use super::note::NoteUnit;
-
 #[cfg(test)]
 use proptest_derive::Arbitrary;
+
+use super::note::NoteUnit;
+use crate::arena::chain::Chain;
+use crate::arena::index::Index;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(test, derive(Arbitrary))]
