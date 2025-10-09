@@ -35,3 +35,12 @@ pub enum Letter {
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct Frequency(pub f32);
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(test, derive(Arbitrary))]
+pub enum NoteUnit {
+    Letter(Letter),
+    Number(Number),
+    Frequency(Frequency),
+}
