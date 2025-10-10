@@ -1,8 +1,8 @@
 pub mod chain;
 pub mod equality;
+pub mod extension;
 pub mod handler;
 pub mod index;
-mod templates;
 pub mod tuple;
 mod tuple_macros;
 
