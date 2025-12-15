@@ -1,5 +1,6 @@
 use super::Arena;
 use super::ArenaItem;
+use super::error::ArenaResult;
 use super::index::Index;
 
 /// A helper trait for constructing a value from an array of indices after
@@ -13,8 +14,16 @@ pub trait AllocMany<T: ArenaItem>: Arena<T> {
         &mut self,
         values: [T; N],
         constructor: impl FnOnce([Index<T>; N]) -> U,
-    ) -> U {
-        constructor(values.map(|v| self.alloc(v)))
+    ) -> ArenaResult<U> {
+        let mut result = [const { None }; N];
+        values
+            .into_iter()
+            .enumerate()
+            .try_for_each(|(index, value)| {
+                result[index] = Some(self.alloc(value)?);
+                Ok(())
+            })?;
+        Ok(constructor(result.map(Option::unwrap)))
     }
 }
 
@@ -27,11 +36,15 @@ impl<T: ArenaItem, A: Arena<T> + ?Sized> AllocMany<T> for A {}
 /// needs to operate with a temporary value (lifetime) of `&T`.
 #[allow(unused)]
 pub trait Inspect<T: ArenaItem>: Arena<T> {
-    fn inspect<U>(&self, index: Index<T>, func: impl FnOnce(&T) -> U) -> U {
-        let x = self.take(index.copy());
+    fn inspect<U>(
+        &self,
+        index: Index<T>,
+        func: impl FnOnce(&T) -> U,
+    ) -> ArenaResult<U> {
+        let x = self.take(index.copy())?;
         let y = func(&x);
-        self.insert(index, x);
-        y
+        self.insert(index, x)?;
+        Ok(y)
     }
 
     #[cfg(test)]
@@ -39,11 +52,11 @@ pub trait Inspect<T: ArenaItem>: Arena<T> {
         &self,
         index: Index<T>,
         func: impl FnOnce(&mut T) -> U,
-    ) -> U {
-        let mut x = self.take(index.copy());
+    ) -> ArenaResult<U> {
+        let mut x = self.take(index.copy())?;
         let y = func(&mut x);
-        self.insert(index, x);
-        y
+        self.insert(index, x)?;
+        Ok(y)
     }
 }
 
