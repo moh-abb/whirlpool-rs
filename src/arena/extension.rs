@@ -41,7 +41,7 @@ pub trait Inspect<T: ArenaItem>: Arena<T> {
         index: Index<T>,
         func: impl FnOnce(&T) -> U,
     ) -> ArenaResult<U> {
-        let x = self.take(index.copy())?;
+        let x = self.take(index.clone())?;
         let y = func(&x);
         self.insert(index, x)?;
         Ok(y)
@@ -53,7 +53,7 @@ pub trait Inspect<T: ArenaItem>: Arena<T> {
         index: Index<T>,
         func: impl FnOnce(&mut T) -> U,
     ) -> ArenaResult<U> {
-        let mut x = self.take(index.copy())?;
+        let mut x = self.take(index.clone())?;
         let y = func(&mut x);
         self.insert(index, x)?;
         Ok(y)
