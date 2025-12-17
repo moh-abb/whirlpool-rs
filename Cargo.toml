@@ -7,6 +7,7 @@ edition = "2024"
 no_alloc = "0.1.0"
 proptest = "1.8.0"
 proptest-derive = "0.6.0"
+scapegoat = "2.3.0"
 spin = "0.10.0"
 spin-lock = "0.2.1"
 
