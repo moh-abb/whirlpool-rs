@@ -11,8 +11,8 @@ mod tuple_macros;
 use error::ArenaResult;
 use index::Index;
 
-pub trait ArenaItem: 'static {}
-impl<T> ArenaItem for T where T: 'static {}
+pub trait ArenaItem: Ord + 'static {}
+impl<T> ArenaItem for T where T: Ord + 'static {}
 
 /// A trait to represent a simple arena, where items can be inserted, appended
 /// (allocated), deleted (taken), and queried for occupied status based on an
