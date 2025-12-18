@@ -7,7 +7,6 @@ use super::handler::ArenaHandler;
 mod right_tuple {
     pub trait Sealed {}
     impl Sealed for () {}
-    impl Sealed for &() {}
     impl<T, TS: super::RightTuple> Sealed for (T, TS) {}
 }
 
@@ -48,10 +47,10 @@ pub trait ArenaTuple<T: RightTuple>: arena_tuple::Sealed + Copy {
     fn to_dyn_arenas(self) -> Self::DynArenaTuple;
 }
 
-impl<'a> ArenaTuple<()> for &'a () {
-    type DynArenaTuple = &'a ();
+impl ArenaTuple<()> for &'_ () {
+    type DynArenaTuple = ();
     fn to_dyn_arenas(self) -> Self::DynArenaTuple {
-        self
+        *self
     }
 }
 
