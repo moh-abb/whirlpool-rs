@@ -60,6 +60,16 @@ const CLONE_AND_CHECK_EQUAL: TesterFn = |arena_tuple, pattern| {
     let equals = ArenaEq::eq_in(&pattern, &cloned, &arena_tuple, &arena_tuple);
     assert!(equals, "Pattern {pattern:?} and cloned {cloned:?} are distinct")
 };
+const CLONE_AND_DROP_AND_CHECK_EQUAL: TesterFn = |arena_tuple, pattern| {
+    let cloned = pattern.clone_in(&arena_tuple);
+    let cloned_2 = cloned.clone_in(&arena_tuple);
+    cloned.drop_in(&arena_tuple);
+    let cloned_3 = cloned_2.clone_in(&arena_tuple);
+    cloned_2.drop_in(&arena_tuple);
+    let equals =
+        ArenaEq::eq_in(&cloned_3, &pattern, &arena_tuple, &arena_tuple);
+    assert!(equals, "Pattern {pattern:?} and cloned {cloned_3:?} are distinct")
+};
 
 #[test]
 fn can_allocate_in_growable_arenas_once() {
@@ -89,4 +99,14 @@ fn can_clone_and_result_is_equal_once() {
 #[test]
 fn can_clone_and_result_is_equal_multiple() {
     with_reused_arenas(CLONE_AND_CHECK_EQUAL)
+}
+
+#[test]
+fn can_clone_and_drop_many_times_and_result_stays_equal_once() {
+    with_regenerated_arenas(CLONE_AND_DROP_AND_CHECK_EQUAL);
+}
+
+#[test]
+fn can_clone_and_drop_many_times_and_result_stays_equal_multiple() {
+    with_reused_arenas(CLONE_AND_DROP_AND_CHECK_EQUAL);
 }
