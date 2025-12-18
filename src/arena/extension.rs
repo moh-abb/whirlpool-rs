@@ -47,7 +47,6 @@ pub trait Inspect<T: ArenaItem>: Arena<T> {
         Ok(y)
     }
 
-    #[cfg(test)]
     fn inspect_mut<U>(
         &self,
         index: Index<T>,
