@@ -1,11 +1,9 @@
-use core::error::Error;
-
-use proptest::prelude::TestCaseError;
 use proptest::test_runner::TestRunner;
 
 use crate::arena::arena_impl::growable_arena::GrowableArena;
 use crate::arena::chain::Chain;
-use crate::arena::error::ArenaError;
+use crate::arena::equality::ArenaEq;
+use crate::arena::handler::ArenaHandler;
 use crate::arena::tuple::ArenaTuple;
 use crate::arena::tuple::DynArenasOf;
 use crate::ast::pattern::Pattern;
@@ -27,21 +25,68 @@ fn with_growable_arena_tuple<U>(
     f(dyn_arenas)
 }
 
-#[test]
-fn can_allocate_multiple_in_growable_arenas() -> Result<(), impl Error> {
+fn with_regenerated_arenas(f: impl Fn(DynArenasOf<'_, Pattern>, Pattern)) {
+    let mut test_runner = TestRunner::deterministic();
+    let strat = arb_pattern();
+    test_runner
+        .run(&strat, |pat| {
+            with_growable_arena_tuple(|arena_tuple| {
+                f(arena_tuple, (pat.0)(arena_tuple).unwrap());
+            });
+            Ok(())
+        })
+        .unwrap()
+}
+
+fn with_reused_arenas(f: impl Fn(DynArenasOf<'_, Pattern>, Pattern)) {
     let mut test_runner = TestRunner::deterministic();
     let strat = arb_pattern();
     with_growable_arena_tuple(|arena_tuple| {
-        test_runner.run(&strat, |pat| {
-            let generated_pattern = (pat.0)(arena_tuple);
-            let error_message = |e: ArenaError| {
-                format!(
-                    "Generating pattern with arena tuple failed and gave {e:?}"
-                )
-            };
-            generated_pattern
-                .map(|_| ())
-                .map_err(|e| TestCaseError::fail(error_message(e)))
-        })
+        test_runner
+            .run(&strat, |pat| {
+                f(arena_tuple, (pat.0)(arena_tuple).unwrap());
+                Ok(())
+            })
+            .unwrap()
     })
+}
+
+type TesterFn = fn(DynArenasOf<'_, Pattern>, Pattern);
+const DO_NOTHING: TesterFn = |_, _| ();
+const DROP_PATTERN: TesterFn =
+    |arena_tuple, pattern| pattern.drop_in(&arena_tuple);
+const CLONE_AND_CHECK_EQUAL: TesterFn = |arena_tuple, pattern| {
+    let cloned = pattern.clone_in(&arena_tuple);
+    let equals = ArenaEq::eq_in(&pattern, &cloned, &arena_tuple, &arena_tuple);
+    assert!(equals, "Pattern {pattern:?} and cloned {cloned:?} are distinct")
+};
+
+#[test]
+fn can_allocate_in_growable_arenas_once() {
+    with_regenerated_arenas(DO_NOTHING)
+}
+
+#[test]
+fn can_allocate_in_growable_arenas_multiple() {
+    with_reused_arenas(DO_NOTHING)
+}
+
+#[test]
+fn can_allocate_then_deallocate_once() {
+    with_regenerated_arenas(DROP_PATTERN)
+}
+
+#[test]
+fn can_allocate_then_deallocate_multiple() {
+    with_reused_arenas(DROP_PATTERN)
+}
+
+#[test]
+fn can_clone_and_result_is_equal_once() {
+    with_regenerated_arenas(CLONE_AND_CHECK_EQUAL)
+}
+
+#[test]
+fn can_clone_and_result_is_equal_multiple() {
+    with_reused_arenas(CLONE_AND_CHECK_EQUAL)
 }
