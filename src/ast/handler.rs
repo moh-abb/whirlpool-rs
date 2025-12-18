@@ -2,6 +2,7 @@ use super::pattern::Pattern;
 use super::pattern::TimedStep;
 use crate::arena::Arena;
 use crate::arena::chain::Chain;
+use crate::arena::chain::ChainOrIndex;
 use crate::arena::extension::Inspect;
 use crate::arena::handler::ArenaHandler;
 use crate::arena::tuple::ArenaHandlerTuple;
@@ -9,15 +10,31 @@ use crate::handle_dyn_arenas;
 use crate::handle_indices;
 
 /// Helper function to drop a [Chain].
-#[allow(unused)]
 fn chain_drop<'a, T: ArenaHandler>(
     chain: Chain<T>,
     main_arena: &dyn Arena<T>,
     chain_arena: &dyn Arena<Chain<T>>,
     item_arenas: &'a impl ArenaHandlerTuple<'a, T>,
 ) {
-    let mut acc = chain;
-    todo!()
+    let mut acc = ChainOrIndex::Chain(chain);
+    loop {
+        match acc {
+            ChainOrIndex::Chain(Chain::Nil) => break,
+            ChainOrIndex::Chain(Chain::Cons { head, tail }) => {
+                let head_value = main_arena
+                    .take(head)
+                    .expect("[chain_drop]: main arena should have had head");
+                head_value.drop_in(item_arenas);
+                acc = ChainOrIndex::Index(tail);
+            }
+            ChainOrIndex::Index(index) => {
+                let subchain = chain_arena
+                    .take(index)
+                    .expect("[chain_drop]: chain arena should have had index");
+                acc = ChainOrIndex::Chain(subchain);
+            }
+        }
+    }
 }
 
 /// Helper function to clone a [Chain].

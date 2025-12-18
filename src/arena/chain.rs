@@ -8,3 +8,9 @@ pub enum Chain<T> {
     Cons { head: Index<T>, tail: Index<Self> },
     Nil,
 }
+
+#[derive(Debug)]
+pub enum ChainOrIndex<T> {
+    Chain(Chain<T>),
+    Index(Index<Chain<T>>),
+}
