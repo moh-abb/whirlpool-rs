@@ -1,5 +1,5 @@
 use super::handler::ArenaHandler;
-use super::tuple::ArenaHandlerTuple;
+use super::tuple::DynArenasOf;
 
 /// A trait to define equality on arena-allocated types.
 #[allow(unused)]
@@ -16,7 +16,7 @@ pub trait ArenaEq: ArenaHandler {
     fn eq_in<'a>(
         this: &Self,
         other: &Self,
-        this_arenas: &'a impl ArenaHandlerTuple<'a, Self>,
-        other_arenas: &'a impl ArenaHandlerTuple<'a, Self>,
+        this_arenas: &DynArenasOf<'a, Self>,
+        other_arenas: &DynArenasOf<'a, Self>,
     ) -> bool;
 }

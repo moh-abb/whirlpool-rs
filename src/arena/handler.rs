@@ -1,6 +1,6 @@
 use super::ArenaItem;
-use super::tuple::ArenaHandlerTuple;
 use super::tuple::RightTuple;
+use crate::arena::tuple::DynArenasOf;
 
 /// A trait to specify how the given arena item should be dropped and cloned.
 /// We only implement cloning and dropping for an [ArenaItem]
@@ -29,12 +29,9 @@ pub trait ArenaHandler: ArenaItem {
 
     /// Drops this item from the given `arenas`, assuming that it was
     /// created in these `arenas`.
-    fn drop_in<'a>(self, arenas: &'a impl ArenaHandlerTuple<'a, Self>);
+    fn drop_in<'a>(self, arenas: &DynArenasOf<'a, Self>);
 
     /// Clones this item using space in the given `arenas`, assuming that it
     /// was created in these `arenas`.
-    fn clone_in<'a>(
-        &self,
-        arenas: &'a impl ArenaHandlerTuple<'a, Self>,
-    ) -> Self;
+    fn clone_in<'a>(&self, arenas: &DynArenasOf<'a, Self>) -> Self;
 }

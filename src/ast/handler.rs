@@ -6,7 +6,7 @@ use crate::arena::chain::ChainOrIndex;
 use crate::arena::error::ArenaResult;
 use crate::arena::extension::Inspect;
 use crate::arena::handler::ArenaHandler;
-use crate::arena::tuple::ArenaHandlerTuple;
+use crate::arena::tuple::DynArenasOf;
 use crate::handle_dyn_arenas;
 use crate::handle_indices;
 
@@ -15,7 +15,7 @@ fn chain_drop<'a, T: ArenaHandler>(
     chain: Chain<T>,
     main_arena: &dyn Arena<T>,
     chain_arena: &dyn Arena<Chain<T>>,
-    item_arenas: &'a impl ArenaHandlerTuple<'a, T>,
+    item_arenas: &DynArenasOf<'a, T>,
 ) {
     let mut acc = ChainOrIndex::Chain(chain);
     loop {
@@ -44,7 +44,7 @@ fn chain_clone<'a, T: ArenaHandler>(
     chain: &Chain<T>,
     main_arena: &dyn Arena<T>,
     chain_arena: &dyn Arena<Chain<T>>,
-    item_arenas: &'a impl ArenaHandlerTuple<'a, T>,
+    item_arenas: &DynArenasOf<'a, T>,
 ) -> Chain<T> {
     match chain {
         Chain::Nil => Chain::Nil,
@@ -71,11 +71,11 @@ impl ArenaHandler for TimedStep {
 
     type DynArenas<'a> = handle_dyn_arenas!('a, Pattern, Chain<Pattern>, TimedStep, Chain<TimedStep>);
 
-    fn drop_in<'a>(self, arenas: &'a impl ArenaHandlerTuple<'a, Self>) {
+    fn drop_in<'a>(self, arenas: &DynArenasOf<'a, Self>) {
         let (
             pattern_arena,
             (_chain_arena, (_timed_step_arena, (_timed_step_chain_arena, ()))),
-        ) = arenas.to_dyn_arenas();
+        ) = arenas;
         let Self(_time_unit, pattern_index) = self;
         pattern_arena
             .take(pattern_index.clone())
@@ -83,14 +83,11 @@ impl ArenaHandler for TimedStep {
             .drop_in(arenas);
     }
 
-    fn clone_in<'a>(
-        &self,
-        arenas: &'a impl ArenaHandlerTuple<'a, Self>,
-    ) -> Self {
+    fn clone_in<'a>(&self, arenas: &DynArenasOf<'a, Self>) -> Self {
         let (
             pattern_arena,
             (_chain_arena, (_timed_step_arena, (_timed_step_chain_arena, ()))),
-        ) = arenas.to_dyn_arenas();
+        ) = arenas;
         let Self(_time_unit, pattern_index) = self;
         let cloned_pattern = pattern_arena
             .inspect(pattern_index.clone(), |pattern| pattern.clone_in(arenas))
@@ -108,14 +105,11 @@ impl ArenaHandler for Pattern {
 
     type DynArenas<'a> = handle_dyn_arenas!('a, Pattern, Chain<Pattern>, TimedStep, Chain<TimedStep>);
 
-    fn clone_in<'a>(
-        &self,
-        arenas: &'a impl ArenaHandlerTuple<'a, Self>,
-    ) -> Self {
+    fn clone_in<'a>(&self, arenas: &DynArenasOf<'a, Self>) -> Self {
         let (
             pattern_arena,
             (chain_arena, (timed_step_arena, (timed_step_chain_arena, ()))),
-        ) = arenas.to_dyn_arenas();
+        ) = *arenas;
 
         match self {
             Self::Cat(chain) | Self::Seq(chain) | Self::Stack(chain) => {
@@ -143,11 +137,11 @@ impl ArenaHandler for Pattern {
         }
     }
 
-    fn drop_in<'a>(self, arenas: &'a impl ArenaHandlerTuple<'a, Self>) {
+    fn drop_in<'a>(self, arenas: &DynArenasOf<'a, Self>) {
         let (
             pattern_arena,
             (chain_arena, (timed_step_arena, (timed_step_chain_arena, ()))),
-        ) = arenas.to_dyn_arenas();
+        ) = *arenas;
 
         match self {
             Self::Cat(chain) | Self::Seq(chain) | Self::Stack(chain) => {

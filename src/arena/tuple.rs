@@ -70,21 +70,6 @@ where
     }
 }
 
-/// Shorthand for an [ArenaTuple] of a given [ArenaHandler] `H`, for which
-/// `H`'s indices are exactly equal to this item's.
-pub trait ArenaHandlerTuple<'a, H>
-where
-    H: ArenaHandler + ?Sized,
-    Self: ArenaTuple<H::Indices, DynArenaTuple = H::DynArenas<'a>>,
-{
-}
-impl<'a, H, AT> ArenaHandlerTuple<'a, H> for AT
-where
-    H: ArenaHandler + ?Sized,
-    AT: ArenaTuple<H::Indices, DynArenaTuple = H::DynArenas<'a>>,
-{
-}
-
 /// Shorthand for the associated type of an [ArenaHandler]'s [DynArenas].
 #[allow(unused)]
 pub type DynArenasOf<'a, T> = <T as ArenaHandler>::DynArenas<'a>;
