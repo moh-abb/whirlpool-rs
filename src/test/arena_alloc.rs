@@ -7,9 +7,9 @@ use crate::arena::arena_impl::growable_arena::GrowableArena;
 use crate::arena::chain::Chain;
 use crate::arena::error::ArenaError;
 use crate::arena::tuple::ArenaTuple;
+use crate::arena::tuple::DynArenasOf;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
-use crate::test::arbitrary::DynArenasOf;
 use crate::test::arbitrary::arb_pattern;
 
 fn with_growable_arena_tuple<U>(

@@ -10,6 +10,7 @@ use crate::alloc_types::Rc;
 use crate::arena::chain::Chain;
 use crate::arena::error::ArenaResult;
 use crate::arena::handler::ArenaHandler;
+use crate::arena::tuple::DynArenasOf;
 use crate::ast::note::NoteUnit;
 use crate::ast::pattern::Pattern;
 
@@ -50,8 +51,6 @@ impl<T: ArenaHandler> ArenasTo<T> {
         Self(Rc::new(f) as Rc<dyn ArenasToFn<T>>)
     }
 }
-
-type DynArenasOf<'a, T> = <T as ArenaHandler>::DynArenas<'a>;
 
 #[allow(unused)]
 pub fn arb_pattern() -> impl Strategy<Value = ArenasTo<Pattern>> {

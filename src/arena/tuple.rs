@@ -84,3 +84,7 @@ where
     AT: ArenaTuple<H::Indices, DynArenaTuple = H::DynArenas<'a>>,
 {
 }
+
+/// Shorthand for the associated type of an [ArenaHandler]'s [DynArenas].
+#[allow(unused)]
+pub type DynArenasOf<'a, T> = <T as ArenaHandler>::DynArenas<'a>;
