@@ -3,11 +3,11 @@ use core::num::NonZeroU8;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct Number(pub u16);
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct Note {
     pub note: Letter,
@@ -15,7 +15,7 @@ pub struct Note {
 }
 
 #[allow(unused)]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum Letter {
     A,
@@ -32,12 +32,12 @@ pub enum Letter {
     GSharp,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(Arbitrary))]
-pub struct Frequency(pub f32);
+pub struct Frequency(u32);
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum NoteUnit {
     Letter(Letter),
