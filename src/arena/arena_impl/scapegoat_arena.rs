@@ -20,6 +20,10 @@ struct SgInnerMap<T: ArenaItem, const N: usize>(
 );
 
 impl<T: ArenaItem, const N: usize> IndexableMap<T> for SgInnerMap<T, N> {
+    fn size(&self) -> usize {
+        self.0.len()
+    }
+
     fn get_slot(&mut self, index: Index<T>) -> Option<&mut Option<T>> {
         self.0.get_mut(&Some(index))
     }
@@ -47,6 +51,10 @@ impl<T: ArenaItem, const N: usize> ScapegoatArena<T, N> {
 }
 
 impl<T: ArenaItem, const N: usize> Arena<T> for ScapegoatArena<T, N> {
+    fn size(&self) -> usize {
+        self.0.size()
+    }
+
     fn alloc(&self, value: T) -> ArenaResult<Index<T>> {
         self.0.alloc(value)
     }

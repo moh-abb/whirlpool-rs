@@ -14,6 +14,13 @@ pub struct GrowableArena<T: ArenaItem>(IndexableMapArena<T, GAMap<T>>);
 struct GAMap<T>(Vec<Option<T>>);
 
 impl<T> IndexableMap<T> for GAMap<T> {
+    fn size(&self) -> usize {
+        self.0
+            .iter()
+            .filter_map(Option::as_ref)
+            .count()
+    }
+
     fn get_slot(&mut self, index: Index<T>) -> Option<&mut Option<T>> {
         self.0.get_mut(usize::from(index))
     }
@@ -41,6 +48,10 @@ impl<T: ArenaItem> GrowableArena<T> {
 }
 
 impl<T: ArenaItem> Arena<T> for GrowableArena<T> {
+    fn size(&self) -> usize {
+        self.0.size()
+    }
+
     fn alloc(&self, value: T) -> ArenaResult<Index<T>> {
         // We need to extend the inner `Vec` with one extra slot, provided we
         // have not already exceeded the limit.

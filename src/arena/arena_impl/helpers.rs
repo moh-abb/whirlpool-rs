@@ -9,6 +9,9 @@ use crate::arena::error::ArenaResult;
 use crate::arena::index::Index;
 
 pub trait IndexableMap<T> {
+    /// Returns the number of full slots in the current map.
+    fn size(&self) -> usize;
+
     /// Provides the entry of the map at the given index.
     ///
     /// Returns `None` if the index is out of bounds, otherwise returns
@@ -66,6 +69,10 @@ impl<T, M: IndexableMap<T>> IndexableMapArena<T, M> {
 }
 
 impl<T: ArenaItem, M: IndexableMap<T>> Arena<T> for IndexableMapArena<T, M> {
+    fn size(&self) -> usize {
+        self.with_inner(|_, map| map.size())
+    }
+
     fn alloc(&self, value: T) -> ArenaResult<Index<T>> {
         let inner_next_index = self.with_inner(|next_index, _| *next_index);
         let index = Index::new(inner_next_index);

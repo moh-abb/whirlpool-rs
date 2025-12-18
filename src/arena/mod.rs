@@ -20,6 +20,8 @@ impl<T> ArenaItem for T where T: Ord + 'static {}
 /// [Index].
 #[allow(dead_code)]
 pub trait Arena<T: ArenaItem> {
+    fn size(&self) -> usize;
+
     fn alloc(&self, value: T) -> ArenaResult<Index<T>>;
 
     fn take(&self, index: Index<T>) -> ArenaResult<T>;
