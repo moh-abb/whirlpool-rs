@@ -70,6 +70,46 @@ const CLONE_AND_DROP_AND_CHECK_EQUAL: TesterFn = |arena_tuple, pattern| {
         ArenaEq::eq_in(&cloned_3, &pattern, &arena_tuple, &arena_tuple);
     assert!(equals, "Pattern {pattern:?} and cloned {cloned_3:?} are distinct")
 };
+const CLONE_AND_DROP_AND_CHECK_SIZES_EQUAL: TesterFn =
+    |arena_tuple, pattern| {
+        let arena_sizes = || {
+            [
+                arena_tuple.0.size(),
+                arena_tuple.1.0.size(),
+                arena_tuple.1.1.0.size(),
+                arena_tuple.1.1.1.0.size(),
+            ]
+        };
+        let sizes = arena_sizes();
+        let pattern_2 = pattern.clone_in(&arena_tuple);
+        let sizes_2 = arena_sizes();
+        let size_diff_1 =
+            std::array::from_fn::<_, 4, _>(|i| sizes_2[i] - sizes[i]);
+        let pattern_3 = pattern.clone_in(&arena_tuple);
+        let sizes_3 = arena_sizes();
+        let size_diff_2 =
+            std::array::from_fn::<_, 4, _>(|i| sizes_3[i] - sizes_2[i]);
+        assert_eq!(
+            size_diff_1, size_diff_2,
+            "Cloning twice should increase the number of elements by \
+             the same amount"
+        );
+        pattern_3.drop_in(&arena_tuple);
+        let sizes_4 = arena_sizes();
+        assert_eq!(
+            sizes_4, sizes_2,
+            "Cloning then dropping should preserve the number of elements"
+        );
+        pattern_2.drop_in(&arena_tuple);
+        let sizes_5 = arena_sizes();
+        assert_eq!(
+            sizes_5, sizes,
+            "Cloning then dropping twice should preserve the number of elements"
+        );
+        // To check that the behaviour of the arena is preserved even while
+        // the arena is filled with elements, we do not drop the provided
+        // `pattern`.
+    };
 
 #[test]
 fn can_allocate_in_growable_arenas_once() {
@@ -109,4 +149,14 @@ fn can_clone_and_drop_many_times_and_result_stays_equal_once() {
 #[test]
 fn can_clone_and_drop_many_times_and_result_stays_equal_multiple() {
     with_reused_arenas(CLONE_AND_DROP_AND_CHECK_EQUAL);
+}
+
+#[test]
+fn can_clone_and_drop_and_arena_sizes_are_unchanged_once() {
+    with_regenerated_arenas(CLONE_AND_DROP_AND_CHECK_SIZES_EQUAL);
+}
+
+#[test]
+fn can_clone_and_drop_and_arena_sizes_are_unchanged_multiple() {
+    with_reused_arenas(CLONE_AND_DROP_AND_CHECK_SIZES_EQUAL);
 }
