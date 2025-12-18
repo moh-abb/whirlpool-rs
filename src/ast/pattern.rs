@@ -10,11 +10,11 @@ use crate::arena::index::Index;
 pub struct TimeUnit(pub u32);
 
 #[allow(dead_code)]
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TimedStep(pub TimeUnit, pub Index<Pattern>);
 
 #[allow(dead_code)]
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Pattern {
     Cat(Chain<Self>),
     Seq(Chain<Self>),

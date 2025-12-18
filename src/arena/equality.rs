@@ -14,8 +14,8 @@ pub trait ArenaEq: ArenaHandler {
     /// simply because `this` and `other` refer to an equal index, that this
     /// means the values at that index in their corresponding arenas are equal.
     fn eq_in<'a>(
-        this: &Self,
-        other: &Self,
+        this: &'a Self,
+        other: &'a Self,
         this_arenas: &DynArenasOf<'a, Self>,
         other_arenas: &DynArenasOf<'a, Self>,
     ) -> bool;
