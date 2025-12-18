@@ -3,6 +3,7 @@ use super::pattern::TimedStep;
 use crate::arena::Arena;
 use crate::arena::chain::Chain;
 use crate::arena::chain::ChainOrIndex;
+use crate::arena::error::ArenaResult;
 use crate::arena::extension::Inspect;
 use crate::arena::handler::ArenaHandler;
 use crate::arena::tuple::ArenaHandlerTuple;
@@ -43,9 +44,25 @@ fn chain_clone<'a, T: ArenaHandler>(
     chain: &Chain<T>,
     main_arena: &dyn Arena<T>,
     chain_arena: &dyn Arena<Chain<T>>,
-    item_dyn_arenas: &'a impl ArenaHandlerTuple<'a, T>,
+    item_arenas: &'a impl ArenaHandlerTuple<'a, T>,
 ) -> Chain<T> {
-    todo!()
+    match chain {
+        Chain::Nil => Chain::Nil,
+        Chain::Cons { head, tail } => {
+            let make_result = || {
+                let cloned_head = main_arena
+                    .inspect(head.clone(), |h| h.clone_in(item_arenas))?;
+                let cloned_tail = chain_arena.inspect(tail.clone(), |c| {
+                    chain_clone(c, main_arena, chain_arena, item_arenas)
+                })?;
+                ArenaResult::Ok(Chain::Cons {
+                    head: main_arena.alloc(cloned_head)?,
+                    tail: chain_arena.alloc(cloned_tail)?,
+                })
+            };
+            make_result().unwrap()
+        }
+    }
 }
 
 impl ArenaHandler for TimedStep {
