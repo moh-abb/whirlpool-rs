@@ -12,8 +12,7 @@ const EXPECTED_FREE_SLOT: &str =
 /// The message to use during an attempt to access a
 /// slot ([Option]) for which the given [super::Index] is too large for
 /// the [super::Arena].
-const INDEX_OUT_OF_BOUNDS: &str =
-    "[Arena]: Index out of bounds";
+const INDEX_OUT_OF_BOUNDS: &str = "[Arena]: Index out of bounds";
 /// The message to use during an attempt to access a
 /// value into a slot ([Option]) which is empty, i.e. [None].
 const EXPECTED_FULL_SLOT: &str =

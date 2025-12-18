@@ -34,11 +34,7 @@ impl<T, M: IndexableMap<T>> IndexableMapArena<T, M> {
     /// Creates an arena with the given [IndexableMap] backing field.
     #[allow(unused)]
     pub fn new(map: M) -> Self {
-        Self(RefCell::new(IMInner {
-            next_index: 0,
-            map,
-            phantom: PhantomData,
-        }))
+        Self(RefCell::new(IMInner { next_index: 0, map, phantom: PhantomData }))
     }
 
     /// Performs the given action using the arena's next index and map fields.
