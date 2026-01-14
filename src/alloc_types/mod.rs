@@ -4,7 +4,7 @@
 
 #[rustfmt::skip]
 #[cfg(not(feature = "std"))]
-pub use alloc::{boxed::Box, rc::Rc, vec::Vec};
+pub use alloc::{boxed::Box, rc::Rc, vec::Vec, string::String, format};
 #[rustfmt::skip]
 #[cfg(feature = "std")]
-pub use std::{boxed::Box, rc::Rc, vec::Vec};
+pub use std::{boxed::Box, rc::Rc, vec::Vec, string::String, format};
