@@ -1,13 +1,8 @@
 pub mod arena_impl;
 pub mod chain;
-pub mod chain_iter;
-pub mod equality;
 pub mod error;
 pub mod extension;
-pub mod handler;
 pub mod index;
-pub mod tuple;
-mod tuple_macros;
 
 use error::ArenaResult;
 use index::Index;

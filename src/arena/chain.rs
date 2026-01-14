@@ -5,8 +5,8 @@ use super::index::Index;
 /// A type used to create a singly-linked arena-allocated list of items of type
 /// `T`, where the `next` pointer is an [Index] to the same [Chain] type.
 pub enum Chain<T> {
-    Cons { head: Index<T>, tail: Index<Self> },
     Nil,
+    Cons { head: Index<T>, tail: Index<Self> },
 }
 
 impl<T> Clone for Chain<T> {
@@ -18,10 +18,4 @@ impl<T> Clone for Chain<T> {
             Self::Nil => Self::Nil,
         }
     }
-}
-
-#[derive(Debug)]
-pub enum ChainOrIndex<T> {
-    Chain(Chain<T>),
-    Index(Index<Chain<T>>),
 }
