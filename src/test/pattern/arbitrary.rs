@@ -10,17 +10,16 @@ use crate::alloc_types::Rc;
 use crate::arena::Arena;
 use crate::arena::chain::Chain;
 use crate::arena::error::ArenaResult;
-use crate::arena::extension::Inspect;
 use crate::arena::index::INVALID_INDEX_VALUE;
 use crate::arena::index::Index;
 use crate::ast::pattern::Pattern;
+use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::clone::make_chain_output_cons;
 use crate::ast::pattern::clone::make_chain_output_nil;
 use crate::ast::pattern::drop::DropAdapter;
 use crate::ast::pattern::drop::PatternChainDropAdapter;
 use crate::ast::pattern::drop::PatternDropAdapter;
 use crate::ast::pattern::note::NoteUnit;
-use crate::ast::pattern::arenas::PatternArenas;
 
 /// Traits representing functions with static lifetimes, that take a tuple of
 /// `dyn Arena<_>` and produce an [ArenaResult].

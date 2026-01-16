@@ -3,7 +3,6 @@ use core::fmt::Debug;
 use crate::arena::Arena;
 use crate::arena::ArenaItem;
 use crate::arena::chain::Chain;
-use crate::arena::extension::Inspect;
 use crate::arena::index::Index;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;

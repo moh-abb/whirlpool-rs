@@ -1,7 +1,6 @@
 pub mod arena_impl;
 pub mod chain;
 pub mod error;
-pub mod extension;
 pub mod index;
 
 use error::ArenaResult;
@@ -24,4 +23,16 @@ pub trait Arena<T: ArenaItem> {
     fn has_slot(&self, index: Index<T>) -> ArenaResult<bool>;
 
     fn insert(&self, index: Index<T>, value: T) -> ArenaResult<()>;
+
+    fn inspect<U>(
+        &self,
+        index: Index<T>,
+        func: impl FnOnce(&T) -> U,
+    ) -> ArenaResult<U>;
+
+    fn inspect_mut<U>(
+        &self,
+        index: Index<T>,
+        func: impl FnOnce(&mut T) -> U,
+    ) -> ArenaResult<U>;
 }

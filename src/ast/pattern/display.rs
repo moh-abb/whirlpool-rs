@@ -3,9 +3,9 @@ use core::marker::PhantomData;
 
 use crate::alloc_types::String;
 use crate::alloc_types::format;
+use crate::arena::Arena;
 use crate::arena::ArenaItem;
 use crate::arena::chain::Chain;
-use crate::arena::extension::Inspect;
 use crate::arena::index::Index;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::visitor::PatternVisitor;

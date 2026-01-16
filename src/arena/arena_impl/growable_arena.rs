@@ -21,7 +21,11 @@ impl<T> IndexableMap<T> for GAMap<T> {
             .count()
     }
 
-    fn get_slot(&mut self, index: Index<T>) -> Option<&mut Option<T>> {
+    fn get_slot(&self, index: Index<T>) -> Option<&Option<T>> {
+        self.0.get(usize::from(index))
+    }
+
+    fn get_mut_slot(&mut self, index: Index<T>) -> Option<&mut Option<T>> {
         self.0.get_mut(usize::from(index))
     }
 
@@ -40,10 +44,11 @@ impl<T: ArenaItem> GrowableArena<T> {
 
     #[allow(unused)]
     pub fn reset(&self) {
-        self.0.with_inner(|next_index, map| {
-            *next_index = 0;
-            map.clear();
-        })
+        self.0
+            .with_inner_mut(|next_index, map| {
+                *next_index = 0;
+                map.clear();
+            })
     }
 }
 
@@ -55,13 +60,14 @@ impl<T: ArenaItem> Arena<T> for GrowableArena<T> {
     fn alloc(&self, value: T) -> ArenaResult<Index<T>> {
         // We need to extend the inner `Vec` with one extra slot, provided we
         // have not already exceeded the limit.
-        self.0.with_inner(|next_index, map| {
-            if *next_index == u16::MAX {
-                return Err(ArenaError::LimitReached);
-            }
-            map.0.push(None);
-            Ok(())
-        })?;
+        self.0
+            .with_inner_mut(|next_index, map| {
+                if *next_index == u16::MAX {
+                    return Err(ArenaError::LimitReached);
+                }
+                map.0.push(None);
+                Ok(())
+            })?;
         self.0.alloc(value)
     }
 
@@ -75,5 +81,21 @@ impl<T: ArenaItem> Arena<T> for GrowableArena<T> {
 
     fn insert(&self, index: Index<T>, value: T) -> ArenaResult<()> {
         self.0.insert(index, value)
+    }
+
+    fn inspect<U>(
+        &self,
+        index: Index<T>,
+        func: impl FnOnce(&T) -> U,
+    ) -> ArenaResult<U> {
+        self.0.inspect(index, func)
+    }
+
+    fn inspect_mut<U>(
+        &self,
+        index: Index<T>,
+        func: impl FnOnce(&mut T) -> U,
+    ) -> ArenaResult<U> {
+        self.0.inspect_mut(index, func)
     }
 }

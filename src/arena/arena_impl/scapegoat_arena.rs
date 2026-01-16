@@ -24,7 +24,11 @@ impl<T: ArenaItem, const N: usize> IndexableMap<T> for SgInnerMap<T, N> {
         self.0.len()
     }
 
-    fn get_slot(&mut self, index: Index<T>) -> Option<&mut Option<T>> {
+    fn get_slot(&self, index: Index<T>) -> Option<&Option<T>> {
+        self.0.get(&Some(index))
+    }
+
+    fn get_mut_slot(&mut self, index: Index<T>) -> Option<&mut Option<T>> {
         self.0.get_mut(&Some(index))
     }
 
@@ -43,10 +47,11 @@ impl<T: ArenaItem, const N: usize> ScapegoatArena<T, N> {
 
     #[allow(unused)]
     pub fn reset(&self) {
-        self.0.with_inner(|next_index, map| {
-            *next_index = 0;
-            map.clear();
-        })
+        self.0
+            .with_inner_mut(|next_index, map| {
+                *next_index = 0;
+                map.clear();
+            })
     }
 }
 
@@ -69,5 +74,21 @@ impl<T: ArenaItem, const N: usize> Arena<T> for ScapegoatArena<T, N> {
 
     fn insert(&self, index: Index<T>, value: T) -> ArenaResult<()> {
         self.0.insert(index, value)
+    }
+
+    fn inspect<U>(
+        &self,
+        index: Index<T>,
+        func: impl FnOnce(&T) -> U,
+    ) -> ArenaResult<U> {
+        self.0.inspect(index, func)
+    }
+
+    fn inspect_mut<U>(
+        &self,
+        index: Index<T>,
+        func: impl FnOnce(&mut T) -> U,
+    ) -> ArenaResult<U> {
+        self.0.inspect_mut(index, func)
     }
 }
