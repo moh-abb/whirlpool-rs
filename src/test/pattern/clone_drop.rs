@@ -1,9 +1,9 @@
 use crate::arena::Arena;
 use crate::ast::pattern::clone::PatternCloneDropAdapter;
-use crate::ast::pattern::display::PatternDisplayVisitorR;
 use crate::ast::pattern::drop::DropAdapter;
 use crate::ast::pattern::drop::PatternDropAdapter;
 use crate::ast::pattern::equality::PatternOrdAdapter;
+use crate::ast::pattern::format_display::PatternDisplayAdapter;
 use crate::test::pattern::arena_alloc::TesterFn;
 use crate::test::pattern::arena_alloc::with_regenerated_arenas;
 use crate::test::pattern::arena_alloc::with_reused_arenas;
@@ -12,7 +12,6 @@ const DO_NOTHING: TesterFn = |_, _| ();
 const DROP_PATTERN: TesterFn =
     |arenas, pattern| core::mem::drop(PatternDropAdapter::new(pattern, arenas));
 const CLONE_AND_CHECK_EQUAL: TesterFn = |arenas, pattern| {
-    let display_visitor = PatternDisplayVisitorR::new(arenas);
     let mut adapter = PatternCloneDropAdapter::new(pattern.clone(), arenas);
     let cloned = adapter.clone().take_index();
     // To avoid dropping the pattern, take the adapter's index.
@@ -21,9 +20,9 @@ const CLONE_AND_CHECK_EQUAL: TesterFn = |arenas, pattern| {
         .cmp(&PatternOrdAdapter::new(cloned.clone(), arenas));
     assert!(
         comparison.is_eq(),
-        "Pattern {:?} and cloned {:?} are distinct",
-        display_visitor.display(pattern),
-        display_visitor.display(cloned),
+        "Pattern {} and cloned {} are distinct",
+        PatternDisplayAdapter::new(pattern, arenas),
+        PatternDisplayAdapter::new(cloned, arenas),
     )
 };
 const CLONE_AND_DROP_AND_CHECK_EQUAL: TesterFn = |arenas, pattern| {
@@ -43,9 +42,9 @@ const CLONE_AND_DROP_AND_CHECK_EQUAL: TesterFn = |arenas, pattern| {
         .cmp(&PatternOrdAdapter::new(pattern.clone(), arenas));
     assert!(
         comparison.is_eq(),
-        "Pattern {:?} and cloned {:?} are distinct",
-        PatternDisplayVisitorR::new(arenas).display(pattern),
-        PatternDisplayVisitorR::new(arenas).display(cloned_3),
+        "Pattern {} and cloned {} are distinct",
+        PatternDisplayAdapter::new(pattern, arenas),
+        PatternDisplayAdapter::new(cloned_3, arenas),
     )
 };
 const CLONE_AND_DROP_AND_CHECK_SIZES_EQUAL: TesterFn = |arenas, pattern| {
@@ -68,8 +67,8 @@ const CLONE_AND_DROP_AND_CHECK_SIZES_EQUAL: TesterFn = |arenas, pattern| {
     );
     let pattern_3_adapter = PatternDropAdapter::new(pattern_3.clone(), arenas);
     println!(
-        "Pattern 3 drop adapter: {:?}",
-        PatternDisplayVisitorR::new(arenas).display(pattern_3)
+        "Pattern 3 drop adapter: {}",
+        PatternDisplayAdapter::new(pattern_3, arenas),
     );
     core::mem::drop(pattern_3_adapter);
     let sizes_4 = arena_sizes();

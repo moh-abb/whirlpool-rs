@@ -8,10 +8,12 @@ use crate::arena::index::Index;
 
 pub mod arenas;
 pub mod clone;
-pub mod display;
 pub mod drop;
 pub mod equality;
+pub mod format_display;
 pub mod note;
+#[cfg(test)]
+pub mod string_display;
 mod visitor;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
