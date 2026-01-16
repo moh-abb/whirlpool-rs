@@ -4,8 +4,8 @@ use crate::arena::chain::Chain;
 use crate::arena::index::Index;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
-use crate::ast::pattern::note::NoteUnit;
 use crate::ast::pattern::arenas::PatternArenas;
+use crate::ast::pattern::note::NoteUnit;
 use crate::ast::pattern::visitor::PatternVisitor;
 use crate::ast::pattern::visitor::visit_pattern;
 
