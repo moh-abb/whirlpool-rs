@@ -13,8 +13,10 @@ use crate::ast::pattern::note::NoteUnit;
 pub trait PatternVisitor {
     type Output;
     type PatternOutput;
+    type PatternChainEntry;
     type PatternChainOutput;
     type TimedStepOutput;
+    type TimedStepChainEntry;
     type TimedStepChainOutput;
 
     const CHAINS_FOLD_RIGHT: bool;
@@ -26,26 +28,49 @@ pub trait PatternVisitor {
         pattern_index: Index<Pattern>,
         pattern_output: Self::PatternOutput,
     ) -> Self::Output;
-    fn map_cat(
+
+    fn enter_cat(
         &self,
         chain_index: Index<Chain<Pattern>>,
-        pattern_chain_output: Self::PatternChainOutput,
-    ) -> Self::PatternOutput;
-    fn map_seq(
+    ) -> Self::PatternChainEntry;
+    fn enter_seq(
         &self,
         chain_index: Index<Chain<Pattern>>,
-        pattern_chain_output: Self::PatternChainOutput,
-    ) -> Self::PatternOutput;
-    fn map_stack(
+    ) -> Self::PatternChainEntry;
+    fn enter_stack(
         &self,
         chain_index: Index<Chain<Pattern>>,
-        pattern_chain_output: Self::PatternChainOutput,
-    ) -> Self::PatternOutput;
-    fn map_time_cat(
+    ) -> Self::PatternChainEntry;
+    fn enter_time_cat(
         &self,
         chain_index: Index<Chain<TimedStep>>,
+    ) -> Self::TimedStepChainEntry;
+
+    fn exit_cat(
+        &self,
+        chain_index: Index<Chain<Pattern>>,
+        output_from_entry: Self::PatternChainEntry,
+        pattern_chain_output: Self::PatternChainOutput,
+    ) -> Self::PatternOutput;
+    fn exit_seq(
+        &self,
+        chain_index: Index<Chain<Pattern>>,
+        output_from_entry: Self::PatternChainEntry,
+        pattern_chain_output: Self::PatternChainOutput,
+    ) -> Self::PatternOutput;
+    fn exit_stack(
+        &self,
+        chain_index: Index<Chain<Pattern>>,
+        output_from_entry: Self::PatternChainEntry,
+        pattern_chain_output: Self::PatternChainOutput,
+    ) -> Self::PatternOutput;
+    fn exit_time_cat(
+        &self,
+        chain_index: Index<Chain<TimedStep>>,
+        output_from_entry: Self::TimedStepChainEntry,
         timed_step_chain_output: Self::TimedStepChainOutput,
     ) -> Self::PatternOutput;
+
     fn map_note_unit(&self, unit: NoteUnit) -> Self::PatternOutput;
     fn map_silence(&self) -> Self::PatternOutput;
 
@@ -86,6 +111,13 @@ pub fn visit_pattern<V: PatternVisitor>(
         .unwrap_or_else(panic_with_err);
     let result = match cloned_pattern.clone() {
         Pattern::Cat(index) | Pattern::Seq(index) | Pattern::Stack(index) => {
+            let enter_func = match &cloned_pattern {
+                Pattern::Cat(_) => V::enter_cat,
+                Pattern::Seq(_) => V::enter_seq,
+                Pattern::Stack(_) => V::enter_stack,
+                _ => unreachable!(),
+            };
+            let pattern_chain_entry = enter_func(visitor, index.clone());
             let chain_fold = if V::CHAINS_FOLD_RIGHT {
                 chain_fold_right
             } else {
@@ -101,21 +133,23 @@ pub fn visit_pattern<V: PatternVisitor>(
                 new_chain_output,
                 V::fold_pattern_chain_output,
             );
-            match &cloned_pattern {
-                Pattern::Cat(_) => visitor.map_cat(index, chain_output),
-                Pattern::Seq(_) => visitor.map_seq(index, chain_output),
-                Pattern::Stack(_) => visitor.map_stack(index, chain_output),
+            let exit_func = match &cloned_pattern {
+                Pattern::Cat(_) => V::exit_cat,
+                Pattern::Seq(_) => V::exit_seq,
+                Pattern::Stack(_) => V::exit_stack,
                 _ => unreachable!(),
-            }
+            };
+            exit_func(visitor, index, pattern_chain_entry, chain_output)
         }
         Pattern::TimeCat(index) => {
+            let timed_step_chain_entry = visitor.enter_time_cat(index.clone());
             let chain_fold = if V::CHAINS_FOLD_RIGHT {
                 chain_fold_right
             } else {
                 chain_fold_left
             };
             let new_chain_output = visitor.new_timed_step_chain_output();
-            let chain_output = chain_fold(
+            let timed_step_chain_output = chain_fold(
                 visitor,
                 index.clone(),
                 visitor
@@ -124,7 +158,11 @@ pub fn visit_pattern<V: PatternVisitor>(
                 new_chain_output,
                 V::fold_timed_step_chain_output,
             );
-            visitor.map_time_cat(index, chain_output)
+            visitor.exit_time_cat(
+                index,
+                timed_step_chain_entry,
+                timed_step_chain_output,
+            )
         }
         Pattern::Note(note_unit) => visitor.map_note_unit(note_unit),
         Pattern::Silence => visitor.map_silence(),

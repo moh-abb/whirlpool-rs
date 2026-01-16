@@ -126,8 +126,10 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
 {
     type Output = Ordering;
     type PatternOutput = Ordering;
+    type PatternChainEntry = ();
     type PatternChainOutput = ComparisonOutput<Pattern>;
     type TimedStepOutput = Ordering;
+    type TimedStepChainEntry = ();
     type TimedStepChainOutput = ComparisonOutput<TimedStep>;
 
     const CHAINS_FOLD_RIGHT: bool = false;
@@ -145,9 +147,10 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
         pattern_output
     }
 
-    fn map_cat(
+    fn exit_cat(
         &self,
         _chain_index: Index<Chain<Pattern>>,
+        _pattern_chain_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         let inner = self.inner.borrow();
@@ -169,9 +172,10 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
         )
     }
 
-    fn map_seq(
+    fn exit_seq(
         &self,
         _chain_index: Index<Chain<Pattern>>,
+        _pattern_chain_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         let inner = self.inner.borrow();
@@ -193,9 +197,10 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
         )
     }
 
-    fn map_stack(
+    fn exit_stack(
         &self,
         _chain_index: Index<Chain<Pattern>>,
+        _pattern_chain_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         let inner = self.inner.borrow();
@@ -217,9 +222,10 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
         )
     }
 
-    fn map_time_cat(
+    fn exit_time_cat(
         &self,
         _chain_index: Index<Chain<TimedStep>>,
+        _timed_step_chain_entry: Self::TimedStepChainEntry,
         timed_step_chain_output: Self::TimedStepChainOutput,
     ) -> Self::PatternOutput {
         let inner = self.inner.borrow();
@@ -378,6 +384,30 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
             compare_timed_steps,
             timed_step_index,
         )
+    }
+
+    fn enter_cat(
+        &self,
+        _index: Index<Chain<Pattern>>,
+    ) -> Self::PatternChainEntry {
+    }
+
+    fn enter_seq(
+        &self,
+        _index: Index<Chain<Pattern>>,
+    ) -> Self::PatternChainEntry {
+    }
+
+    fn enter_stack(
+        &self,
+        _index: Index<Chain<Pattern>>,
+    ) -> Self::PatternChainEntry {
+    }
+
+    fn enter_time_cat(
+        &self,
+        _index: Index<Chain<TimedStep>>,
+    ) -> Self::PatternChainEntry {
     }
 }
 
