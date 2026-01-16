@@ -56,23 +56,31 @@ impl<T, M: IndexableMap<T>> IndexableMapArena<T, M> {
         let IMInner { next_index, map, phantom: _ } = inner.deref_mut();
         f(next_index, map)
     }
-}
 
-fn slot_insert<T, U>(
-    map: &mut impl IndexableMap<T>,
-    index: Index<T>,
-    value: T,
-    result: U,
-) -> ArenaResult<U> {
-    let slot = map
-        .get_mut_slot(index.clone())
-        .ok_or(ArenaError::IndexOutOfBounds)?;
-    match slot {
-        Some(_) => Err(ArenaError::ExpectedFreeSlot),
-        None => {
-            let _ = slot.insert(value);
-            Ok(result)
-        }
+    fn with_mut_slot<U>(
+        &self,
+        index: Index<T>,
+        func: impl FnOnce(&mut Option<T>) -> U,
+    ) -> ArenaResult<U> {
+        let mut inner = self.0.borrow_mut();
+        inner
+            .map
+            .get_mut_slot(index)
+            .map(func)
+            .ok_or(ArenaError::IndexOutOfBounds)
+    }
+
+    fn with_slot<U>(
+        &self,
+        index: Index<T>,
+        func: impl FnOnce(&Option<T>) -> U,
+    ) -> ArenaResult<U> {
+        let inner = self.0.borrow();
+        inner
+            .map
+            .get_slot(index)
+            .map(func)
+            .ok_or(ArenaError::IndexOutOfBounds)
     }
 }
 
@@ -83,41 +91,43 @@ impl<T: ArenaItem, M: IndexableMap<T>> Arena<T> for IndexableMapArena<T, M> {
     }
 
     fn alloc(&self, value: T) -> ArenaResult<Index<T>> {
-        let mut inner = self.0.borrow_mut();
-        let inner_next_index = inner.next_index;
+        // Stage 1. Check for the arena limit being reached.
+        let inner_ref = self.0.borrow();
+        let inner_next_index = inner_ref.next_index;
         if inner_next_index == u16::MAX {
             // We can't progress to the next index
             return Err(ArenaError::LimitReached);
         }
         let index = Index::new(inner_next_index);
+        core::mem::drop(inner_ref);
+        // Stage 2. Obtain a slot at the given index and
         let alloc_entry =
-            slot_insert(&mut inner.map, index.clone(), value, index)?;
-        inner.next_index += 1;
-        Ok(alloc_entry)
+            self.with_mut_slot(index.clone(), |slot| match slot {
+                Some(_) => Err(ArenaError::ExpectedFreeSlot),
+                None => {
+                    let _ = slot.insert(value);
+                    Ok(index)
+                }
+            })?;
+        // Stage 3. Increment the next index.
+        let mut inner_mut = self.0.borrow_mut();
+        inner_mut.next_index += 1;
+        alloc_entry
     }
 
     fn take(&self, index: Index<T>) -> ArenaResult<T> {
-        let mut inner = self.0.borrow_mut();
-        inner
-            .map
-            .get_mut_slot(index)
-            .ok_or(ArenaError::IndexOutOfBounds)?
-            .take()
-            .map_or(Err(ArenaError::ExpectedFullSlot), Ok)
+        self.with_mut_slot(index, Option::take)?
+            .ok_or(ArenaError::ExpectedFullSlot)
     }
 
     fn has_slot(&self, index: Index<T>) -> ArenaResult<bool> {
-        let inner = self.0.borrow();
-        inner
-            .map
-            .get_slot(index)
-            .ok_or(ArenaError::IndexOutOfBounds)
-            .map(Option::is_some)
+        self.with_slot(index, Option::is_some)
     }
 
     fn insert(&self, index: Index<T>, value: T) -> ArenaResult<()> {
-        let mut inner = self.0.borrow_mut();
-        slot_insert(&mut inner.map, index, value, ())
+        self.with_mut_slot(index, |slot| {
+            let _ = slot.insert(value);
+        })
     }
 
     fn inspect<U>(
@@ -125,13 +135,8 @@ impl<T: ArenaItem, M: IndexableMap<T>> Arena<T> for IndexableMapArena<T, M> {
         index: Index<T>,
         func: impl FnOnce(&T) -> U,
     ) -> ArenaResult<U> {
-        let inner = self.0.borrow();
-        inner
-            .map
-            .get_slot(index)
-            .ok_or(ArenaError::IndexOutOfBounds)?
-            .as_ref()
-            .map_or(Err(ArenaError::ExpectedFullSlot), |x| Ok(func(x)))
+        self.with_slot(index, |slot| slot.as_ref().map(func))?
+            .ok_or(ArenaError::ExpectedFullSlot)
     }
 
     fn inspect_mut<U>(
@@ -139,12 +144,7 @@ impl<T: ArenaItem, M: IndexableMap<T>> Arena<T> for IndexableMapArena<T, M> {
         index: Index<T>,
         func: impl FnOnce(&mut T) -> U,
     ) -> ArenaResult<U> {
-        let mut inner = self.0.borrow_mut();
-        inner
-            .map
-            .get_mut_slot(index)
-            .ok_or(ArenaError::IndexOutOfBounds)?
-            .as_mut()
-            .map_or(Err(ArenaError::ExpectedFullSlot), |x| Ok(func(x)))
+        self.with_mut_slot(index, |slot| slot.as_mut().map(func))?
+            .ok_or(ArenaError::ExpectedFullSlot)
     }
 }
