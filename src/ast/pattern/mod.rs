@@ -3,8 +3,8 @@ use core::cmp::Ordering;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
-use crate::arena::chain::Chain;
 use crate::arena::index::Index;
+use crate::ast::multiple::Multiple;
 
 pub mod arenas;
 pub mod clone;
@@ -27,10 +27,10 @@ pub struct TimedStep(pub TimeUnit, pub Index<Pattern>);
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Pattern {
-    Cat(Index<Chain<Self>>),
-    Seq(Index<Chain<Self>>),
-    Stack(Index<Chain<Self>>),
-    TimeCat(Index<Chain<TimedStep>>),
+    Cat(Multiple<Self>),
+    Seq(Multiple<Self>),
+    Stack(Multiple<Self>),
+    TimeCat(Multiple<TimedStep>),
     Note(note::NoteUnit),
     Silence,
 }

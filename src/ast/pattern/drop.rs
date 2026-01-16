@@ -2,6 +2,7 @@ use crate::arena::Arena;
 use crate::arena::ArenaItem;
 use crate::arena::chain::Chain;
 use crate::arena::index::Index;
+use crate::ast::multiple::Multiple;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
@@ -194,49 +195,49 @@ impl<'a, Arenas: PatternArenas> PatternVisitor
 
     fn exit_cat(
         &self,
-        chain_index: Index<Chain<Pattern>>,
+        multiple: Multiple<Pattern>,
         _: Self::PatternChainEntry,
         _: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         self.arenas
             .get_pattern_chain_arena()
-            .take(chain_index)
+            .take(multiple.index)
             .unwrap();
     }
 
     fn exit_seq(
         &self,
-        chain_index: Index<Chain<Pattern>>,
+        multiple: Multiple<Pattern>,
         _: Self::PatternChainEntry,
         _: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         self.arenas
             .get_pattern_chain_arena()
-            .take(chain_index)
+            .take(multiple.index)
             .unwrap();
     }
 
     fn exit_stack(
         &self,
-        chain_index: Index<Chain<Pattern>>,
+        multiple: Multiple<Pattern>,
         _: Self::PatternChainEntry,
         _: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         self.arenas
             .get_pattern_chain_arena()
-            .take(chain_index)
+            .take(multiple.index)
             .unwrap();
     }
 
     fn exit_time_cat(
         &self,
-        chain_index: Index<Chain<TimedStep>>,
+        multiple: Multiple<TimedStep>,
         _: Self::TimedStepChainEntry,
         _: Self::TimedStepChainOutput,
     ) -> Self::PatternOutput {
         self.arenas
             .get_timed_step_chain_arena()
-            .take(chain_index)
+            .take(multiple.index)
             .unwrap();
     }
 
@@ -275,27 +276,15 @@ impl<'a, Arenas: PatternArenas> PatternVisitor
             .unwrap();
     }
 
-    fn enter_cat(
-        &self,
-        _index: Index<Chain<Pattern>>,
-    ) -> Self::PatternChainEntry {
-    }
+    fn enter_cat(&self, _: Multiple<Pattern>) -> Self::PatternChainEntry {}
 
-    fn enter_seq(
-        &self,
-        _index: Index<Chain<Pattern>>,
-    ) -> Self::PatternChainEntry {
-    }
+    fn enter_seq(&self, _: Multiple<Pattern>) -> Self::PatternChainEntry {}
 
-    fn enter_stack(
-        &self,
-        _index: Index<Chain<Pattern>>,
-    ) -> Self::PatternChainEntry {
-    }
+    fn enter_stack(&self, _: Multiple<Pattern>) -> Self::PatternChainEntry {}
 
     fn enter_time_cat(
         &self,
-        _index: Index<Chain<TimedStep>>,
+        _: Multiple<TimedStep>,
     ) -> Self::PatternChainEntry {
     }
 }

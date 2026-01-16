@@ -4,6 +4,7 @@ use crate::arena::chain::Chain;
 use crate::arena::error::ArenaResult;
 use crate::arena::index::INVALID_INDEX_VALUE;
 use crate::arena::index::Index;
+use crate::ast::multiple::Multiple;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
@@ -89,22 +90,25 @@ impl<'a, Arenas: PatternArenas> Clone for PatternCloneDropAdapter<'a, Arenas> {
     }
 }
 
-fn alloc_pattern<'a, ChainItem, Arenas: PatternArenas>(
+fn alloc_pattern<'a, ChainItem: ArenaItem, Arenas: PatternArenas>(
     arenas: &'a Arenas,
-    make_invalid: impl FnOnce(Index<Chain<ChainItem>>) -> Pattern,
-    invalid_to_chain_index: impl FnOnce(
-        &mut Pattern,
-    ) -> &mut Index<Chain<ChainItem>>,
+    length: u16,
+    make_invalid: impl FnOnce(Multiple<ChainItem>) -> Pattern,
+    pattern_to_multiple: impl FnOnce(&mut Pattern) -> &mut Multiple<ChainItem>,
     output: ArenaResult<impl DropAdapter<'a, Chain<ChainItem>, Arenas>>,
 ) -> ArenaResult<PatternDropAdapter<'a, Arenas>> {
     let pattern_arena = arenas.get_pattern_arena();
-    let cloned_pattern_index =
-        pattern_arena.alloc(make_invalid(Index::new(INVALID_INDEX_VALUE)))?;
+    let invalid_pattern = make_invalid(Multiple {
+        length,
+        index: Index::new(INVALID_INDEX_VALUE),
+    });
+    let cloned_pattern_index = pattern_arena.alloc(invalid_pattern)?;
     let mut cloned_chain_index = output?;
     let insert_chain_index = |pattern: &mut Pattern| {
-        let index = invalid_to_chain_index(pattern);
-        let cloned_chain_index = cloned_chain_index.take_index();
-        let _ = core::mem::replace(index, cloned_chain_index);
+        let multiple = pattern_to_multiple(pattern);
+        let new_multiple =
+            Multiple { length, index: cloned_chain_index.take_index() };
+        let _ = core::mem::replace(multiple, new_multiple);
     };
     pattern_arena
         .inspect_mut(cloned_pattern_index.clone(), insert_chain_index)
@@ -185,12 +189,13 @@ impl<'a, Arenas: PatternArenas> PatternVisitor for CloneVisitor<'a, Arenas> {
 
     fn exit_cat(
         &self,
-        _chain_index: Index<Chain<Pattern>>,
+        multiple: Multiple<Pattern>,
         _pattern_chain_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         alloc_pattern(
             self.arenas,
+            multiple.length,
             Pattern::Cat,
             |pattern| {
                 let Pattern::Cat(index) = pattern else { unreachable!() };
@@ -202,12 +207,13 @@ impl<'a, Arenas: PatternArenas> PatternVisitor for CloneVisitor<'a, Arenas> {
 
     fn exit_seq(
         &self,
-        _chain_index: Index<Chain<Pattern>>,
+        multiple: Multiple<Pattern>,
         _pattern_chain_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         alloc_pattern(
             self.arenas,
+            multiple.length,
             Pattern::Seq,
             |pattern| {
                 let Pattern::Seq(index) = pattern else { unreachable!() };
@@ -219,12 +225,13 @@ impl<'a, Arenas: PatternArenas> PatternVisitor for CloneVisitor<'a, Arenas> {
 
     fn exit_stack(
         &self,
-        _chain_index: Index<Chain<Pattern>>,
+        multiple: Multiple<Pattern>,
         _pattern_chain_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         alloc_pattern(
             self.arenas,
+            multiple.length,
             Pattern::Stack,
             |pattern| {
                 let Pattern::Stack(index) = pattern else { unreachable!() };
@@ -236,12 +243,13 @@ impl<'a, Arenas: PatternArenas> PatternVisitor for CloneVisitor<'a, Arenas> {
 
     fn exit_time_cat(
         &self,
-        _chain_index: Index<Chain<TimedStep>>,
+        multiple: Multiple<TimedStep>,
         _timed_step_chain_entry: Self::TimedStepChainEntry,
         timed_step_chain_output: Self::TimedStepChainOutput,
     ) -> Self::PatternOutput {
         alloc_pattern(
             self.arenas,
+            multiple.length,
             Pattern::TimeCat,
             |pattern| {
                 let Pattern::TimeCat(index) = pattern else { unreachable!() };
@@ -323,25 +331,25 @@ impl<'a, Arenas: PatternArenas> PatternVisitor for CloneVisitor<'a, Arenas> {
 
     fn enter_cat(
         &self,
-        _chain_index: Index<Chain<Pattern>>,
+        _multiple: Multiple<Pattern>,
     ) -> Self::PatternChainEntry {
     }
 
     fn enter_seq(
         &self,
-        _chain_index: Index<Chain<Pattern>>,
+        _multiple: Multiple<Pattern>,
     ) -> Self::PatternChainEntry {
     }
 
     fn enter_stack(
         &self,
-        _chain_index: Index<Chain<Pattern>>,
+        _multiple: Multiple<Pattern>,
     ) -> Self::PatternChainEntry {
     }
 
     fn enter_time_cat(
         &self,
-        _chain_index: Index<Chain<TimedStep>>,
+        _multiple: Multiple<TimedStep>,
     ) -> Self::PatternChainEntry {
     }
 }

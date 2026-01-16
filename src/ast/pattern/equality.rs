@@ -6,6 +6,7 @@ use crate::arena::Arena;
 use crate::arena::ArenaItem;
 use crate::arena::chain::Chain;
 use crate::arena::index::Index;
+use crate::ast::multiple::Multiple;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
@@ -149,7 +150,7 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
 
     fn exit_cat(
         &self,
-        _chain_index: Index<Chain<Pattern>>,
+        _multiple: Multiple<Pattern>,
         _pattern_chain_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
@@ -174,7 +175,7 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
 
     fn exit_seq(
         &self,
-        _chain_index: Index<Chain<Pattern>>,
+        _multiple: Multiple<Pattern>,
         _pattern_chain_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
@@ -199,7 +200,7 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
 
     fn exit_stack(
         &self,
-        _chain_index: Index<Chain<Pattern>>,
+        _multiple: Multiple<Pattern>,
         _pattern_chain_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
@@ -224,7 +225,7 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
 
     fn exit_time_cat(
         &self,
-        _chain_index: Index<Chain<TimedStep>>,
+        _multiple: Multiple<TimedStep>,
         _timed_step_chain_entry: Self::TimedStepChainEntry,
         timed_step_chain_output: Self::TimedStepChainOutput,
     ) -> Self::PatternOutput {
@@ -295,9 +296,9 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
             .target_arenas
             .get_pattern_arena()
             .inspect(inner.target.clone(), |pattern| match pattern {
-                Pattern::Cat(index)
-                | Pattern::Seq(index)
-                | Pattern::Stack(index) => Some(index.clone()),
+                Pattern::Cat(multiple)
+                | Pattern::Seq(multiple)
+                | Pattern::Stack(multiple) => Some(multiple.index.clone()),
                 Pattern::TimeCat(_) | Pattern::Note(_) | Pattern::Silence => {
                     None
                 }
@@ -339,7 +340,7 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
             .target_arenas
             .get_pattern_arena()
             .inspect(inner.target.clone(), |pattern| match pattern {
-                Pattern::TimeCat(index) => Some(index.clone()),
+                Pattern::TimeCat(multiple) => Some(multiple.index.clone()),
                 Pattern::Cat(_)
                 | Pattern::Seq(_)
                 | Pattern::Stack(_)
@@ -388,25 +389,25 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
 
     fn enter_cat(
         &self,
-        _index: Index<Chain<Pattern>>,
+        _multiple: Multiple<Pattern>,
     ) -> Self::PatternChainEntry {
     }
 
     fn enter_seq(
         &self,
-        _index: Index<Chain<Pattern>>,
+        _multiple: Multiple<Pattern>,
     ) -> Self::PatternChainEntry {
     }
 
     fn enter_stack(
         &self,
-        _index: Index<Chain<Pattern>>,
+        _multiple: Multiple<Pattern>,
     ) -> Self::PatternChainEntry {
     }
 
     fn enter_time_cat(
         &self,
-        _index: Index<Chain<TimedStep>>,
+        _multiple: Multiple<TimedStep>,
     ) -> Self::PatternChainEntry {
     }
 }

@@ -8,10 +8,10 @@ use proptest::prop_oneof;
 
 use crate::alloc_types::Rc;
 use crate::arena::Arena;
-use crate::arena::chain::Chain;
 use crate::arena::error::ArenaResult;
 use crate::arena::index::INVALID_INDEX_VALUE;
 use crate::arena::index::Index;
+use crate::ast::multiple::Multiple;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::clone::make_chain_output_cons;
@@ -59,47 +59,66 @@ impl<Arenas: PatternArenas, T> ArenasTo<Arenas, T> {
     }
 }
 
+type ResultWithLength<D> = (u16, ArenaResult<D>);
+
 fn pattern_chain_cons<'a, Arenas: PatternArenas>(
     arenas: &'a Arenas,
-    acc: ArenaResult<PatternChainDropAdapter<'a, Arenas>>,
+    acc: ResultWithLength<PatternChainDropAdapter<'a, Arenas>>,
     x: ArenaResult<PatternDropAdapter<'a, Arenas>>,
-) -> ArenaResult<PatternChainDropAdapter<'a, Arenas>> {
-    make_chain_output_cons(arenas, arenas.get_pattern_chain_arena(), acc, || x)
+) -> ResultWithLength<PatternChainDropAdapter<'a, Arenas>> {
+    let (length, chain_drop_adapter) = acc;
+    let cons_chain_drop_adapter = make_chain_output_cons(
+        arenas,
+        arenas.get_pattern_chain_arena(),
+        chain_drop_adapter,
+        || x,
+    );
+    (length + 1, cons_chain_drop_adapter)
 }
 
 fn build_from_chain<Arenas: PatternArenas + 'static>(
     xs: Vec<ArenasTo<Arenas, Index<Pattern>>>,
-    f: fn(Index<Chain<Pattern>>) -> Pattern,
+    f: fn(Multiple<Pattern>) -> Pattern,
 ) -> ArenasTo<Arenas, Index<Pattern>> {
     ArenasTo::new(move |arenas: &Arenas| {
         let to_drop_adapter = |x: ArenaResult<Index<Pattern>>| {
             Ok(PatternDropAdapter::new(x?, arenas))
         };
 
-        let pattern_chain_nil =
+        let pattern_output_nil =
             make_chain_output_nil(arenas, arenas.get_pattern_chain_arena());
+        let pattern_chain_initial = (0, pattern_output_nil);
 
-        let make_pattern = move |mut res: PatternChainDropAdapter<'_, _>| {
-            // Attempt to allocate a new `Pattern`.
-            let pattern_arena = arenas.get_pattern_arena();
-            let pattern_index =
-                pattern_arena.alloc(f(Index::new(INVALID_INDEX_VALUE)))?;
-            let alloc_chain_index = res.take_index();
-            pattern_arena.inspect_mut(pattern_index.clone(), |pattern| {
-                match pattern {
-                    Pattern::Cat(chain_index)
-                    | Pattern::Seq(chain_index)
-                    | Pattern::Stack(chain_index) => {
-                        let _ =
-                            core::mem::replace(chain_index, alloc_chain_index);
-                    }
-                    Pattern::TimeCat(_)
-                    | Pattern::Note(_)
-                    | Pattern::Silence => unreachable!(),
-                }
-            })?;
-            Ok(pattern_index)
-        };
+        let make_pattern =
+            move |length: u16, mut adapter: PatternChainDropAdapter<'_, _>| {
+                // Attempt to allocate a new `Pattern`.
+                let pattern_arena = arenas.get_pattern_arena();
+                let invalid_multiple = Multiple {
+                    length: INVALID_INDEX_VALUE,
+                    index: Index::new(INVALID_INDEX_VALUE),
+                };
+                let pattern_index = pattern_arena.alloc(f(invalid_multiple))?;
+                let alloc_chain_index = adapter.take_index();
+                let update_multiple = |multiple: &mut Multiple<_>| {
+                    let valid_multiple =
+                        Multiple { length, index: alloc_chain_index };
+                    valid_multiple
+                        .verify_length(arenas.get_pattern_chain_arena());
+                    let _ = core::mem::replace(multiple, valid_multiple);
+                };
+                pattern_arena.inspect_mut(
+                    pattern_index.clone(),
+                    |pattern| match pattern {
+                        Pattern::Cat(multiple)
+                        | Pattern::Seq(multiple)
+                        | Pattern::Stack(multiple) => update_multiple(multiple),
+                        Pattern::TimeCat(_)
+                        | Pattern::Note(_)
+                        | Pattern::Silence => unreachable!(),
+                    },
+                )?;
+                Ok(pattern_index)
+            };
 
         // Convert to drop adapters, so that all if allocation fails halfway
         // through and the `Vec` is dropped, then all the subpatterns are freed.
@@ -110,13 +129,14 @@ fn build_from_chain<Arenas: PatternArenas + 'static>(
             .map(to_drop_adapter)
             .collect::<Vec<ArenaResult<_>>>();
 
-        let fold_result: ArenaResult<PatternChainDropAdapter<'_, Arenas>> =
+        let fold_result: ResultWithLength<PatternChainDropAdapter<'_, Arenas>> =
             xs_drop_adapters
                 .into_iter()
-                .fold(pattern_chain_nil, |acc, x| {
+                .fold(pattern_chain_initial, |acc, x| {
                     pattern_chain_cons(arenas, acc, x)
                 });
-        make_pattern(fold_result?)
+        let (fold_length, drop_adapter_result) = fold_result;
+        make_pattern(fold_length, drop_adapter_result?)
     })
 }
 

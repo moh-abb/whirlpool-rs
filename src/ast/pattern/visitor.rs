@@ -4,6 +4,7 @@ use crate::arena::Arena;
 use crate::arena::ArenaItem;
 use crate::arena::chain::Chain;
 use crate::arena::index::Index;
+use crate::ast::multiple::Multiple;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
@@ -29,44 +30,40 @@ pub trait PatternVisitor {
         pattern_output: Self::PatternOutput,
     ) -> Self::Output;
 
-    fn enter_cat(
-        &self,
-        chain_index: Index<Chain<Pattern>>,
-    ) -> Self::PatternChainEntry;
-    fn enter_seq(
-        &self,
-        chain_index: Index<Chain<Pattern>>,
-    ) -> Self::PatternChainEntry;
+    fn enter_cat(&self, multiple: Multiple<Pattern>)
+    -> Self::PatternChainEntry;
+    fn enter_seq(&self, multiple: Multiple<Pattern>)
+    -> Self::PatternChainEntry;
     fn enter_stack(
         &self,
-        chain_index: Index<Chain<Pattern>>,
+        multiple: Multiple<Pattern>,
     ) -> Self::PatternChainEntry;
     fn enter_time_cat(
         &self,
-        chain_index: Index<Chain<TimedStep>>,
+        multiple: Multiple<TimedStep>,
     ) -> Self::TimedStepChainEntry;
 
     fn exit_cat(
         &self,
-        chain_index: Index<Chain<Pattern>>,
+        multiple: Multiple<Pattern>,
         output_from_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput;
     fn exit_seq(
         &self,
-        chain_index: Index<Chain<Pattern>>,
+        multiple: Multiple<Pattern>,
         output_from_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput;
     fn exit_stack(
         &self,
-        chain_index: Index<Chain<Pattern>>,
+        multiple: Multiple<Pattern>,
         output_from_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput;
     fn exit_time_cat(
         &self,
-        chain_index: Index<Chain<TimedStep>>,
+        multiple: Multiple<TimedStep>,
         output_from_entry: Self::TimedStepChainEntry,
         timed_step_chain_output: Self::TimedStepChainOutput,
     ) -> Self::PatternOutput;
@@ -110,23 +107,26 @@ pub fn visit_pattern<V: PatternVisitor>(
         .inspect(pattern_index.clone(), Clone::clone)
         .unwrap_or_else(panic_with_err);
     let result = match cloned_pattern.clone() {
-        Pattern::Cat(index) | Pattern::Seq(index) | Pattern::Stack(index) => {
+        Pattern::Cat(multiple)
+        | Pattern::Seq(multiple)
+        | Pattern::Stack(multiple) => {
             let enter_func = match &cloned_pattern {
                 Pattern::Cat(_) => V::enter_cat,
                 Pattern::Seq(_) => V::enter_seq,
                 Pattern::Stack(_) => V::enter_stack,
                 _ => unreachable!(),
             };
-            let pattern_chain_entry = enter_func(visitor, index.clone());
+            let pattern_chain_entry = enter_func(visitor, multiple.clone());
             let chain_fold = if V::CHAINS_FOLD_RIGHT {
                 chain_fold_right
             } else {
                 chain_fold_left
             };
             let new_chain_output = visitor.new_pattern_chain_output();
+            let index = multiple.index.clone();
             let chain_output = chain_fold(
                 visitor,
-                index.clone(),
+                index,
                 visitor
                     .get_arenas()
                     .get_pattern_chain_arena(),
@@ -139,10 +139,11 @@ pub fn visit_pattern<V: PatternVisitor>(
                 Pattern::Stack(_) => V::exit_stack,
                 _ => unreachable!(),
             };
-            exit_func(visitor, index, pattern_chain_entry, chain_output)
+            exit_func(visitor, multiple, pattern_chain_entry, chain_output)
         }
-        Pattern::TimeCat(index) => {
-            let timed_step_chain_entry = visitor.enter_time_cat(index.clone());
+        Pattern::TimeCat(multiple) => {
+            let timed_step_chain_entry =
+                visitor.enter_time_cat(multiple.clone());
             let chain_fold = if V::CHAINS_FOLD_RIGHT {
                 chain_fold_right
             } else {
@@ -151,7 +152,7 @@ pub fn visit_pattern<V: PatternVisitor>(
             let new_chain_output = visitor.new_timed_step_chain_output();
             let timed_step_chain_output = chain_fold(
                 visitor,
-                index.clone(),
+                multiple.index.clone(),
                 visitor
                     .get_arenas()
                     .get_timed_step_chain_arena(),
@@ -159,7 +160,7 @@ pub fn visit_pattern<V: PatternVisitor>(
                 V::fold_timed_step_chain_output,
             );
             visitor.exit_time_cat(
-                index,
+                multiple,
                 timed_step_chain_entry,
                 timed_step_chain_output,
             )
