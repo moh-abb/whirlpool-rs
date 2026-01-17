@@ -166,10 +166,8 @@ pub fn make_chain_output_cons<
 impl<'a, Arenas: PatternArenas> PatternVisitor for CloneVisitor<'a, Arenas> {
     type Output = ArenaResult<PatternDropAdapter<'a, Arenas>>;
     type PatternOutput = ArenaResult<PatternDropAdapter<'a, Arenas>>;
-    type PatternChainEntry = ();
     type PatternChainOutput = ArenaResult<PatternChainDropAdapter<'a, Arenas>>;
     type TimedStepOutput = ArenaResult<Index<TimedStep>>;
-    type TimedStepChainEntry = ();
     type TimedStepChainOutput =
         ArenaResult<TimedStepChainDropAdapter<'a, Arenas>>;
 
@@ -187,10 +185,9 @@ impl<'a, Arenas: PatternArenas> PatternVisitor for CloneVisitor<'a, Arenas> {
         pattern_output
     }
 
-    fn exit_cat(
+    fn map_cat(
         &self,
         multiple: Multiple<Pattern>,
-        _pattern_chain_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         alloc_pattern(
@@ -205,10 +202,9 @@ impl<'a, Arenas: PatternArenas> PatternVisitor for CloneVisitor<'a, Arenas> {
         )
     }
 
-    fn exit_seq(
+    fn map_seq(
         &self,
         multiple: Multiple<Pattern>,
-        _pattern_chain_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         alloc_pattern(
@@ -223,10 +219,9 @@ impl<'a, Arenas: PatternArenas> PatternVisitor for CloneVisitor<'a, Arenas> {
         )
     }
 
-    fn exit_stack(
+    fn map_stack(
         &self,
         multiple: Multiple<Pattern>,
-        _pattern_chain_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         alloc_pattern(
@@ -241,10 +236,9 @@ impl<'a, Arenas: PatternArenas> PatternVisitor for CloneVisitor<'a, Arenas> {
         )
     }
 
-    fn exit_time_cat(
+    fn map_time_cat(
         &self,
         multiple: Multiple<TimedStep>,
-        _timed_step_chain_entry: Self::TimedStepChainEntry,
         timed_step_chain_output: Self::TimedStepChainOutput,
     ) -> Self::PatternOutput {
         alloc_pattern(
@@ -327,29 +321,5 @@ impl<'a, Arenas: PatternArenas> PatternVisitor for CloneVisitor<'a, Arenas> {
             timed_step_chain_output,
             clone_timed_step,
         )
-    }
-
-    fn enter_cat(
-        &self,
-        _multiple: Multiple<Pattern>,
-    ) -> Self::PatternChainEntry {
-    }
-
-    fn enter_seq(
-        &self,
-        _multiple: Multiple<Pattern>,
-    ) -> Self::PatternChainEntry {
-    }
-
-    fn enter_stack(
-        &self,
-        _multiple: Multiple<Pattern>,
-    ) -> Self::PatternChainEntry {
-    }
-
-    fn enter_time_cat(
-        &self,
-        _multiple: Multiple<TimedStep>,
-    ) -> Self::PatternChainEntry {
     }
 }

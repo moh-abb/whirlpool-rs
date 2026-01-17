@@ -87,10 +87,8 @@ impl<'a, Arenas: PatternArenas, FoldStrategy: ChainFoldRightStrategy>
 {
     type Output = String;
     type PatternOutput = String;
-    type PatternChainEntry = ();
     type PatternChainOutput = String;
     type TimedStepOutput = String;
-    type TimedStepChainEntry = ();
     type TimedStepChainOutput = String;
 
     const CHAINS_FOLD_RIGHT: bool = FoldStrategy::CHAINS_FOLD_RIGHT;
@@ -107,37 +105,33 @@ impl<'a, Arenas: PatternArenas, FoldStrategy: ChainFoldRightStrategy>
         pattern_output
     }
 
-    fn exit_cat(
+    fn map_cat(
         &self,
         _multiple: Multiple<super::Pattern>,
-        _pattern_chain_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         format!("Cat({pattern_chain_output})")
     }
 
-    fn exit_seq(
+    fn map_seq(
         &self,
         _multiple: Multiple<super::Pattern>,
-        _pattern_chain_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         format!("Seq({pattern_chain_output})")
     }
 
-    fn exit_stack(
+    fn map_stack(
         &self,
         _multiple: Multiple<super::Pattern>,
-        _pattern_chain_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         format!("Stack({pattern_chain_output})")
     }
 
-    fn exit_time_cat(
+    fn map_time_cat(
         &self,
         _multiple: Multiple<super::TimedStep>,
-        _pattern_chain_entry: Self::PatternChainEntry,
         timed_step_chain_output: Self::TimedStepChainOutput,
     ) -> Self::PatternOutput {
         format!("TimeCat({timed_step_chain_output})")
@@ -189,29 +183,5 @@ impl<'a, Arenas: PatternArenas, FoldStrategy: ChainFoldRightStrategy>
             chain_output,
             displayed_timed_step,
         )
-    }
-
-    fn enter_cat(
-        &self,
-        _multiple: Multiple<super::Pattern>,
-    ) -> Self::PatternChainEntry {
-    }
-
-    fn enter_seq(
-        &self,
-        _multiple: Multiple<super::Pattern>,
-    ) -> Self::PatternChainEntry {
-    }
-
-    fn enter_stack(
-        &self,
-        _multiple: Multiple<super::Pattern>,
-    ) -> Self::PatternChainEntry {
-    }
-
-    fn enter_time_cat(
-        &self,
-        _multiple: Multiple<super::TimedStep>,
-    ) -> Self::PatternChainEntry {
     }
 }

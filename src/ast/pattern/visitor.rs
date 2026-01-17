@@ -14,10 +14,8 @@ use crate::ast::pattern::note::NoteUnit;
 pub trait PatternVisitor {
     type Output;
     type PatternOutput;
-    type PatternChainEntry;
     type PatternChainOutput;
     type TimedStepOutput;
-    type TimedStepChainEntry;
     type TimedStepChainOutput;
 
     const CHAINS_FOLD_RIGHT: bool;
@@ -29,45 +27,26 @@ pub trait PatternVisitor {
         pattern_index: Index<Pattern>,
         pattern_output: Self::PatternOutput,
     ) -> Self::Output;
-
-    fn enter_cat(&self, multiple: Multiple<Pattern>)
-    -> Self::PatternChainEntry;
-    fn enter_seq(&self, multiple: Multiple<Pattern>)
-    -> Self::PatternChainEntry;
-    fn enter_stack(
+    fn map_cat(
         &self,
         multiple: Multiple<Pattern>,
-    ) -> Self::PatternChainEntry;
-    fn enter_time_cat(
+        pattern_chain_output: Self::PatternChainOutput,
+    ) -> Self::PatternOutput;
+    fn map_seq(
+        &self,
+        multiple: Multiple<Pattern>,
+        pattern_chain_output: Self::PatternChainOutput,
+    ) -> Self::PatternOutput;
+    fn map_stack(
+        &self,
+        multiple: Multiple<Pattern>,
+        pattern_chain_output: Self::PatternChainOutput,
+    ) -> Self::PatternOutput;
+    fn map_time_cat(
         &self,
         multiple: Multiple<TimedStep>,
-    ) -> Self::TimedStepChainEntry;
-
-    fn exit_cat(
-        &self,
-        multiple: Multiple<Pattern>,
-        output_from_entry: Self::PatternChainEntry,
-        pattern_chain_output: Self::PatternChainOutput,
-    ) -> Self::PatternOutput;
-    fn exit_seq(
-        &self,
-        multiple: Multiple<Pattern>,
-        output_from_entry: Self::PatternChainEntry,
-        pattern_chain_output: Self::PatternChainOutput,
-    ) -> Self::PatternOutput;
-    fn exit_stack(
-        &self,
-        multiple: Multiple<Pattern>,
-        output_from_entry: Self::PatternChainEntry,
-        pattern_chain_output: Self::PatternChainOutput,
-    ) -> Self::PatternOutput;
-    fn exit_time_cat(
-        &self,
-        multiple: Multiple<TimedStep>,
-        output_from_entry: Self::TimedStepChainEntry,
         timed_step_chain_output: Self::TimedStepChainOutput,
     ) -> Self::PatternOutput;
-
     fn map_note_unit(&self, unit: NoteUnit) -> Self::PatternOutput;
     fn map_silence(&self) -> Self::PatternOutput;
 
@@ -88,87 +67,217 @@ pub trait PatternVisitor {
     ) -> Self::TimedStepChainOutput;
 }
 
+pub trait EnteringPatternVisitor: PatternVisitor {
+    type PatternChainEntry;
+    type TimedStepChainEntry;
+
+    fn enter_cat(&self, multiple: Multiple<Pattern>)
+    -> Self::PatternChainEntry;
+    fn enter_seq(&self, multiple: Multiple<Pattern>)
+    -> Self::PatternChainEntry;
+    fn enter_stack(
+        &self,
+        multiple: Multiple<Pattern>,
+    ) -> Self::PatternChainEntry;
+    fn enter_time_cat(
+        &self,
+        multiple: Multiple<TimedStep>,
+    ) -> Self::TimedStepChainEntry;
+
+    fn exit_cat(
+        &self,
+        multiple: Multiple<Pattern>,
+        output_from_entry: Self::PatternChainEntry,
+        pattern_chain_output: Self::PatternChainOutput,
+    ) -> Self::PatternChainOutput;
+    fn exit_seq(
+        &self,
+        multiple: Multiple<Pattern>,
+        output_from_entry: Self::PatternChainEntry,
+        pattern_chain_output: Self::PatternChainOutput,
+    ) -> Self::PatternChainOutput;
+    fn exit_stack(
+        &self,
+        multiple: Multiple<Pattern>,
+        output_from_entry: Self::PatternChainEntry,
+        pattern_chain_output: Self::PatternChainOutput,
+    ) -> Self::PatternChainOutput;
+    fn exit_time_cat(
+        &self,
+        multiple: Multiple<TimedStep>,
+        output_from_entry: Self::TimedStepChainEntry,
+        timed_step_chain_output: Self::TimedStepChainOutput,
+    ) -> Self::TimedStepChainOutput;
+}
+
 type FoldOutputFn<Item, ChainOutput, State> =
     fn(&State, ChainOutput, Index<Chain<Item>>, Index<Item>) -> ChainOutput;
 
-#[allow(unused)]
-pub fn visit_pattern<V: PatternVisitor>(
-    visitor: &V,
+fn get_cloned_pattern(
+    visitor: &impl PatternVisitor,
     pattern_index: Index<Pattern>,
-) -> V::Output {
+) -> Pattern {
     let panic_with_err = |err| {
         panic!(
             "[visit_pattern]: accessing pattern at {pattern_index:?} gave error {err:?}",
         )
     };
-    let cloned_pattern = visitor
+    visitor
         .get_arenas()
         .get_pattern_arena()
         .inspect(pattern_index.clone(), Clone::clone)
-        .unwrap_or_else(panic_with_err);
+        .unwrap_or_else(panic_with_err)
+}
+
+fn get_chain_output<
+    Item: ArenaItem + Clone + Debug,
+    V: PatternVisitor,
+    ChainOutput,
+>(
+    visitor: &V,
+    item_chain_arena: &impl Arena<Chain<Item>>,
+    multiple: Multiple<Item>,
+    new_chain_output: fn(&V) -> ChainOutput,
+    fold_output: FoldOutputFn<Item, ChainOutput, V>,
+) -> ChainOutput {
+    let chain_fold =
+        if V::CHAINS_FOLD_RIGHT { chain_fold_right } else { chain_fold_left };
+    let new_chain_output = new_chain_output(visitor);
+    let index = multiple.index.clone();
+    chain_fold(visitor, index, item_chain_arena, new_chain_output, fold_output)
+}
+
+type EnterMultipleFn<V, Item, Entry> = fn(&V, Multiple<Item>) -> Entry;
+type ExitMultipleFn<V, Item, Entry, Output> =
+    fn(&V, Multiple<Item>, Entry, Output) -> Output;
+type EnterAndExitFn<V, Item, Entry, Output> = Option<(
+    EnterMultipleFn<V, Item, Entry>,
+    ExitMultipleFn<V, Item, Entry, Output>,
+)>;
+
+fn visit_pattern_with_optional_entering<
+    V: PatternVisitor,
+    PatternEntry,
+    TimedStepEntry,
+>(
+    visitor: &V,
+    pattern_index: Index<Pattern>,
+    enter_and_exit_multiple_patterns: impl Fn(
+        &Pattern,
+    ) -> EnterAndExitFn<
+        V,
+        Pattern,
+        PatternEntry,
+        V::PatternChainOutput,
+    >,
+    enter_and_exit_multiple_timed_steps: EnterAndExitFn<
+        V,
+        TimedStep,
+        TimedStepEntry,
+        V::TimedStepChainOutput,
+    >,
+) -> V::Output {
+    let cloned_pattern = get_cloned_pattern(visitor, pattern_index.clone());
+    let pattern_chain_arena = visitor
+        .get_arenas()
+        .get_pattern_chain_arena();
+    let timed_step_chain_arena = visitor
+        .get_arenas()
+        .get_timed_step_chain_arena();
+    let get_multiple_pattern_output = |multiple: &Multiple<Pattern>| {
+        get_chain_output(
+            visitor,
+            pattern_chain_arena,
+            multiple.clone(),
+            V::new_pattern_chain_output,
+            V::fold_pattern_chain_output,
+        )
+    };
+    let get_multiple_timed_step_output = |multiple: &Multiple<TimedStep>| {
+        get_chain_output(
+            visitor,
+            timed_step_chain_arena,
+            multiple.clone(),
+            V::new_timed_step_chain_output,
+            V::fold_timed_step_chain_output,
+        )
+    };
     let result = match cloned_pattern.clone() {
         Pattern::Cat(multiple)
         | Pattern::Seq(multiple)
         | Pattern::Stack(multiple) => {
-            let enter_func = match &cloned_pattern {
-                Pattern::Cat(_) => V::enter_cat,
-                Pattern::Seq(_) => V::enter_seq,
-                Pattern::Stack(_) => V::enter_stack,
+            let output_with_entry_and_exit =
+                match enter_and_exit_multiple_patterns(&cloned_pattern) {
+                    None => get_multiple_pattern_output(&multiple),
+                    Some((enter_func, exit_func)) => {
+                        let entry = enter_func(visitor, multiple.clone());
+                        let output = get_multiple_pattern_output(&multiple);
+                        exit_func(visitor, multiple.clone(), entry, output)
+                    }
+                };
+            let map_func = match &cloned_pattern {
+                Pattern::Cat(_) => V::map_cat,
+                Pattern::Seq(_) => V::map_seq,
+                Pattern::Stack(_) => V::map_stack,
                 _ => unreachable!(),
             };
-            let pattern_chain_entry = enter_func(visitor, multiple.clone());
-            let chain_fold = if V::CHAINS_FOLD_RIGHT {
-                chain_fold_right
-            } else {
-                chain_fold_left
-            };
-            let new_chain_output = visitor.new_pattern_chain_output();
-            let index = multiple.index.clone();
-            let chain_output = chain_fold(
-                visitor,
-                index,
-                visitor
-                    .get_arenas()
-                    .get_pattern_chain_arena(),
-                new_chain_output,
-                V::fold_pattern_chain_output,
-            );
-            let exit_func = match &cloned_pattern {
-                Pattern::Cat(_) => V::exit_cat,
-                Pattern::Seq(_) => V::exit_seq,
-                Pattern::Stack(_) => V::exit_stack,
-                _ => unreachable!(),
-            };
-            exit_func(visitor, multiple, pattern_chain_entry, chain_output)
+            map_func(visitor, multiple, output_with_entry_and_exit)
         }
         Pattern::TimeCat(multiple) => {
-            let timed_step_chain_entry =
-                visitor.enter_time_cat(multiple.clone());
-            let chain_fold = if V::CHAINS_FOLD_RIGHT {
-                chain_fold_right
-            } else {
-                chain_fold_left
-            };
-            let new_chain_output = visitor.new_timed_step_chain_output();
-            let timed_step_chain_output = chain_fold(
-                visitor,
-                multiple.index.clone(),
-                visitor
-                    .get_arenas()
-                    .get_timed_step_chain_arena(),
-                new_chain_output,
-                V::fold_timed_step_chain_output,
-            );
-            visitor.exit_time_cat(
-                multiple,
-                timed_step_chain_entry,
-                timed_step_chain_output,
-            )
+            let output_with_entry_and_exit =
+                match enter_and_exit_multiple_timed_steps {
+                    None => get_multiple_timed_step_output(&multiple),
+                    Some((enter_func, exit_func)) => {
+                        let entry = enter_func(visitor, multiple.clone());
+                        let output = get_multiple_timed_step_output(&multiple);
+                        exit_func(visitor, multiple.clone(), entry, output)
+                    }
+                };
+            let map_func = V::map_time_cat;
+            map_func(visitor, multiple, output_with_entry_and_exit)
         }
         Pattern::Note(note_unit) => visitor.map_note_unit(note_unit),
         Pattern::Silence => visitor.map_silence(),
     };
     visitor.map_pattern(pattern_index, result)
+}
+
+#[inline]
+pub fn visit_pattern_with_entering<V: EnteringPatternVisitor>(
+    visitor: &V,
+    pattern_index: Index<Pattern>,
+) -> V::Output {
+    let enter_pattern = |pattern: &Pattern| match pattern {
+        Pattern::Cat(_) => V::enter_cat,
+        Pattern::Seq(_) => V::enter_seq,
+        Pattern::Stack(_) => V::enter_stack,
+        _ => unreachable!(),
+    };
+    let exit_pattern = |pattern: &Pattern| match pattern {
+        Pattern::Cat(_) => V::exit_cat,
+        Pattern::Seq(_) => V::exit_seq,
+        Pattern::Stack(_) => V::exit_stack,
+        _ => unreachable!(),
+    };
+    visit_pattern_with_optional_entering(
+        visitor,
+        pattern_index,
+        |pattern| Some((enter_pattern(pattern), exit_pattern(pattern))),
+        Some((V::enter_time_cat, V::exit_time_cat)),
+    )
+}
+
+#[inline]
+pub fn visit_pattern<V: PatternVisitor>(
+    visitor: &V,
+    pattern_index: Index<Pattern>,
+) -> V::Output {
+    visit_pattern_with_optional_entering(
+        visitor,
+        pattern_index,
+        |_: &Pattern| EnterAndExitFn::<V, _, (), V::PatternChainOutput>::None,
+        EnterAndExitFn::<V, _, (), V::TimedStepChainOutput>::None,
+    )
 }
 
 fn chain_fold_left<Item: ArenaItem + Debug + Clone, ChainOutput, State>(

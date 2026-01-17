@@ -171,10 +171,8 @@ impl<'a, Arenas: PatternArenas> PatternVisitor
 {
     type Output = ();
     type PatternOutput = ();
-    type PatternChainEntry = ();
     type PatternChainOutput = ();
     type TimedStepOutput = ();
-    type TimedStepChainEntry = ();
     type TimedStepChainOutput = ();
     const CHAINS_FOLD_RIGHT: bool = false;
 
@@ -193,10 +191,9 @@ impl<'a, Arenas: PatternArenas> PatternVisitor
             .unwrap();
     }
 
-    fn exit_cat(
+    fn map_cat(
         &self,
         multiple: Multiple<Pattern>,
-        _: Self::PatternChainEntry,
         _: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         self.arenas
@@ -205,10 +202,9 @@ impl<'a, Arenas: PatternArenas> PatternVisitor
             .unwrap();
     }
 
-    fn exit_seq(
+    fn map_seq(
         &self,
         multiple: Multiple<Pattern>,
-        _: Self::PatternChainEntry,
         _: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         self.arenas
@@ -217,10 +213,9 @@ impl<'a, Arenas: PatternArenas> PatternVisitor
             .unwrap();
     }
 
-    fn exit_stack(
+    fn map_stack(
         &self,
         multiple: Multiple<Pattern>,
-        _: Self::PatternChainEntry,
         _: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         self.arenas
@@ -229,10 +224,9 @@ impl<'a, Arenas: PatternArenas> PatternVisitor
             .unwrap();
     }
 
-    fn exit_time_cat(
+    fn map_time_cat(
         &self,
         multiple: Multiple<TimedStep>,
-        _: Self::TimedStepChainEntry,
         _: Self::TimedStepChainOutput,
     ) -> Self::PatternOutput {
         self.arenas
@@ -274,17 +268,5 @@ impl<'a, Arenas: PatternArenas> PatternVisitor
             .get_timed_step_chain_arena()
             .take(next_chain_index)
             .unwrap();
-    }
-
-    fn enter_cat(&self, _: Multiple<Pattern>) -> Self::PatternChainEntry {}
-
-    fn enter_seq(&self, _: Multiple<Pattern>) -> Self::PatternChainEntry {}
-
-    fn enter_stack(&self, _: Multiple<Pattern>) -> Self::PatternChainEntry {}
-
-    fn enter_time_cat(
-        &self,
-        _: Multiple<TimedStep>,
-    ) -> Self::PatternChainEntry {
     }
 }

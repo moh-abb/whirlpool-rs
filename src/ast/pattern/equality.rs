@@ -127,10 +127,8 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
 {
     type Output = Ordering;
     type PatternOutput = Ordering;
-    type PatternChainEntry = ();
     type PatternChainOutput = ComparisonOutput<Pattern>;
     type TimedStepOutput = Ordering;
-    type TimedStepChainEntry = ();
     type TimedStepChainOutput = ComparisonOutput<TimedStep>;
 
     const CHAINS_FOLD_RIGHT: bool = false;
@@ -148,10 +146,9 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
         pattern_output
     }
 
-    fn exit_cat(
+    fn map_cat(
         &self,
         _multiple: Multiple<Pattern>,
-        _pattern_chain_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         let inner = self.inner.borrow();
@@ -173,10 +170,9 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
         )
     }
 
-    fn exit_seq(
+    fn map_seq(
         &self,
         _multiple: Multiple<Pattern>,
-        _pattern_chain_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         let inner = self.inner.borrow();
@@ -198,10 +194,9 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
         )
     }
 
-    fn exit_stack(
+    fn map_stack(
         &self,
         _multiple: Multiple<Pattern>,
-        _pattern_chain_entry: Self::PatternChainEntry,
         pattern_chain_output: Self::PatternChainOutput,
     ) -> Self::PatternOutput {
         let inner = self.inner.borrow();
@@ -223,10 +218,9 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
         )
     }
 
-    fn exit_time_cat(
+    fn map_time_cat(
         &self,
         _multiple: Multiple<TimedStep>,
-        _timed_step_chain_entry: Self::TimedStepChainEntry,
         timed_step_chain_output: Self::TimedStepChainOutput,
     ) -> Self::PatternOutput {
         let inner = self.inner.borrow();
@@ -385,30 +379,6 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
             compare_timed_steps,
             timed_step_index,
         )
-    }
-
-    fn enter_cat(
-        &self,
-        _multiple: Multiple<Pattern>,
-    ) -> Self::PatternChainEntry {
-    }
-
-    fn enter_seq(
-        &self,
-        _multiple: Multiple<Pattern>,
-    ) -> Self::PatternChainEntry {
-    }
-
-    fn enter_stack(
-        &self,
-        _multiple: Multiple<Pattern>,
-    ) -> Self::PatternChainEntry {
-    }
-
-    fn enter_time_cat(
-        &self,
-        _multiple: Multiple<TimedStep>,
-    ) -> Self::PatternChainEntry {
     }
 }
 
