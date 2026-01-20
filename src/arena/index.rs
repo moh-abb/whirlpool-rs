@@ -24,35 +24,10 @@ impl<T> Clone for Index<T> {
     }
 }
 
-impl Index<()> {
-    #[inline(always)]
-    pub const fn transmute<T>(self) -> Index<T> {
-        let Self(inner, _) = self;
-        Index(inner, PhantomData)
-    }
-}
-
 impl<T> Index<T> {
     #[inline(always)]
     pub const fn new(index: IndexInner) -> Self {
         Self(index, PhantomData)
-    }
-
-    #[inline(always)]
-    pub const fn erase(self) -> Index<()> {
-        let Self(inner, _) = self;
-        Index(inner, PhantomData)
-    }
-
-    #[cfg(test)]
-    pub const fn increment_by(&mut self, inc: u16) {
-        self.0 += inc;
-    }
-}
-
-impl<T> From<Index<T>> for IndexInner {
-    fn from(value: Index<T>) -> Self {
-        value.0
     }
 }
 
