@@ -12,10 +12,10 @@ use crate::test::pattern::arbitrary::arb_pattern;
 
 #[derive(Debug)]
 pub struct GrowableArenas(
-    pub GrowableArena<Pattern>,
-    pub GrowableArena<Chain<Pattern>>,
-    pub GrowableArena<TimedStep>,
-    pub GrowableArena<Chain<TimedStep>>,
+    GrowableArena<Pattern>,
+    GrowableArena<Chain<Pattern>>,
+    GrowableArena<TimedStep>,
+    GrowableArena<Chain<TimedStep>>,
 );
 
 impl PatternArenas for GrowableArenas {
@@ -45,18 +45,16 @@ fn new_growable_arena_tuple() -> GrowableArenas {
     )
 }
 
-pub fn with_growable_arena_tuple<U>(f: impl FnOnce(&GrowableArenas) -> U) -> U {
+fn with_growable_arena_tuple<U>(f: impl FnOnce(&GrowableArenas) -> U) -> U {
     f(&new_growable_arena_tuple())
 }
 
-pub fn with_regenerated_arenas(
-    f: impl Fn(&GrowableArenas, Index<Pattern>) + Clone,
-) {
+pub fn with_regenerated_arenas<Test: ArenaTest>() {
     let mut test_runner = TestRunner::deterministic();
     let strat = arb_pattern();
     let run_with_growable_arena =
         |pat2: ArenasTo<_, _>, arenas: &GrowableArenas| {
-            (f.clone())(arenas, (pat2.clone().0)(arenas).unwrap())
+            Test::run(arenas, (pat2.clone().0)(arenas).unwrap())
         };
     test_runner
         .run(&strat, move |pat| {
@@ -69,12 +67,12 @@ pub fn with_regenerated_arenas(
         .unwrap()
 }
 
-pub fn with_reused_arenas(f: impl Fn(&GrowableArenas, Index<Pattern>)) {
+pub fn with_reused_arenas<Test: ArenaTest>() {
     let mut test_runner = TestRunner::deterministic();
     let strat = arb_pattern();
     with_growable_arena_tuple(|arenas| {
         let run_with_growable_arena = |pat: ArenasTo<_, _>| {
-            f(arenas, (pat.0)(arenas).unwrap());
+            Test::run(arenas, (pat.0)(arenas).unwrap());
             Ok(())
         };
         test_runner
@@ -83,4 +81,6 @@ pub fn with_reused_arenas(f: impl Fn(&GrowableArenas, Index<Pattern>)) {
     })
 }
 
-pub type TesterFn = fn(&GrowableArenas, Index<Pattern>);
+pub trait ArenaTest {
+    fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>);
+}
