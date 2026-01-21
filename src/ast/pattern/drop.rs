@@ -141,7 +141,7 @@ impl<'a, Arenas: PatternArenas> Drop for TimedStepChainDropAdapter<'a, Arenas> {
 }
 
 /// Helper function to drop a [Chain].
-pub fn chain_drop<Item: ArenaItem, Arenas: PatternArenas>(
+fn chain_drop<Item: ArenaItem, Arenas: PatternArenas>(
     chain_index: Index<Chain<Item>>,
     chain_arena: &impl Arena<Chain<Item>>,
     arenas: &Arenas,
