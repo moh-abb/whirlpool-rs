@@ -9,6 +9,12 @@ use crate::arena::index::Index;
 #[derive(Debug)]
 pub struct FixedArena<T: ArenaItem>(IndexableMapArena<T, BTreeMapAdapter<T>>);
 
+impl<T: ArenaItem> Default for FixedArena<T> {
+    fn default() -> Self {
+        Self::new([])
+    }
+}
+
 #[derive(Debug)]
 struct BTreeMapAdapter<T>(BTreeMap<Index<T>, Option<T>>);
 
