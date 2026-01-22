@@ -11,6 +11,7 @@ pub mod clone;
 pub mod drop;
 pub mod equality;
 pub mod format_display;
+pub mod interpreter;
 pub mod note;
 #[cfg(test)]
 pub mod string_display;
