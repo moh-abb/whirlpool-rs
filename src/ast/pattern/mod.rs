@@ -21,11 +21,9 @@ mod visitor;
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct TimeUnit(pub u32);
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TimedStep(pub TimeUnit, pub Index<Pattern>);
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Pattern {
     Cat(Multiple<Self>),
