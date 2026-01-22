@@ -43,7 +43,6 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
         let mut borrowed_player = self.player.borrow_mut();
         let visitor = InterpreterVisitor {
             arenas: self.arenas,
-            pattern: self.pattern.clone(),
             start: self.position,
             end: next_position,
             multiplier: 1,
@@ -56,17 +55,14 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
     }
 }
 
-#[allow(unused)]
 struct InterpreterVisitor<'a, Arenas, Player> {
     arenas: &'a Arenas,
-    pattern: Index<Pattern>,
     start: CycleTime,
     end: CycleTime,
     multiplier: u32,
     inner: RefCell<VisitorInner<'a, Player>>,
 }
 
-#[allow(unused)]
 struct VisitorInner<'a, Player> {
     player: &'a mut Player,
 }

@@ -108,7 +108,6 @@ impl<Arenas: PatternArenas> ItemAndChainAdapter<Pattern, Arenas>
         Arenas: 'a;
 }
 
-#[allow(unused)]
 struct TimedStepAndChainAdapter;
 impl<Arenas: PatternArenas> ItemAndChainAdapter<TimedStep, Arenas>
     for TimedStepAndChainAdapter
@@ -320,7 +319,6 @@ fn pattern_to_multiple_pattern<Arenas: PatternArenas + 'static>(
     )
 }
 
-#[allow(unused)]
 pub fn arb_pattern<Arenas: PatternArenas + 'static>()
 -> impl Strategy<Value = ArenasTo<Arenas, Index<Pattern>>> {
     let result = pattern_leaf().prop_recursive(

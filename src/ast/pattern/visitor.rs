@@ -10,7 +10,6 @@ use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::note::NoteUnit;
 
-#[allow(unused)]
 pub trait PatternVisitor {
     type Output;
     type PatternOutput;

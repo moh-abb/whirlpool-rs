@@ -41,7 +41,6 @@ struct IMInner<T, M> {
 
 impl<T, M: IndexableMap<T>> IndexableMapArena<T, M> {
     /// Creates an arena with the given [IndexableMap] backing field.
-    #[allow(unused)]
     pub fn new(map: M) -> Self {
         Self(RefCell::new(IMInner { next_index: 0, map, phantom: PhantomData }))
     }

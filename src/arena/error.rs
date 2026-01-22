@@ -19,7 +19,6 @@ const EXPECTED_FULL_SLOT: &str =
     "[Arena::take]: Arena slot should have been full at the given index";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(unused)]
 pub enum ArenaError {
     IndexOutOfBounds,
     LimitReached,
