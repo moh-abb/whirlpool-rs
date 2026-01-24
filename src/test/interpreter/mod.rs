@@ -55,8 +55,11 @@ fn can_play_unit_for_one_cycle() {
     };
     let mock_player = RefCell::new(MockPatternPlayer::new());
     let make_sound_unit = || SoundUnit::new(note_unit, CycleTime::ONE);
-    let mut interpreter =
-        Interpreter::new(pattern_index.clone(), &arenas, &mock_player);
+    let mut interpreter = Interpreter::new_with_refcell(
+        pattern_index.clone(),
+        &arenas,
+        &mock_player,
+    );
     // Test: Updating to one cycle will lead to exactly one invocation of
     // scheduling the note unit.
     mock_player

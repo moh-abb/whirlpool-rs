@@ -1,4 +1,5 @@
 use core::cell::RefCell;
+use core::marker::PhantomData;
 use core::ops::DerefMut;
 
 use fixed::FixedU32;
@@ -16,31 +17,81 @@ use crate::ast::time::CycleTime;
 use crate::player::pattern::PatternPlayer;
 use crate::player::pattern::SoundUnit;
 
+pub trait BorrowAdapter<T> {
+    fn borrow_mut(&mut self) -> impl DerefMut<Target = T>;
+}
+
+impl<T> BorrowAdapter<T> for &RefCell<T> {
+    fn borrow_mut(&mut self) -> impl DerefMut<Target = T> {
+        RefCell::borrow_mut(self)
+    }
+}
+
+impl<T> BorrowAdapter<T> for &mut T {
+    fn borrow_mut(&mut self) -> impl DerefMut<Target = T> {
+        self.deref_mut()
+    }
+}
+
 #[allow(unused)]
-pub struct Interpreter<'a, Arenas, Player> {
+pub struct Interpreter<'a, Arenas, Player, B: BorrowAdapter<Player>> {
     pattern: Index<Pattern>,
     arenas: &'a Arenas,
-    player: &'a RefCell<Player>,
+    borrow_adapter: B,
     position: CycleTime,
+    phantom: PhantomData<Player>,
 }
 
 impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
-    Interpreter<'a, Arenas, Player>
+    Interpreter<'a, Arenas, Player, &'a mut Player>
 {
     #[allow(unused)]
     pub fn new(
         pattern: Index<Pattern>,
         arenas: &'a Arenas,
+        player: &'a mut Player,
+    ) -> Self {
+        Self {
+            pattern,
+            arenas,
+            borrow_adapter: player,
+            position: CycleTime::ZERO,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
+    Interpreter<'a, Arenas, Player, &'a RefCell<Player>>
+{
+    #[allow(unused)]
+    pub fn new_with_refcell(
+        pattern: Index<Pattern>,
+        arenas: &'a Arenas,
         player: &'a RefCell<Player>,
     ) -> Self {
-        Self { pattern, arenas, player, position: CycleTime(Wrapping::ZERO) }
+        Self {
+            pattern,
+            arenas,
+            borrow_adapter: player,
+            position: CycleTime::ZERO,
+            phantom: PhantomData,
+        }
     }
+}
 
+impl<
+    'a,
+    Arenas: PatternArenas,
+    Player: PatternPlayer,
+    Borrow: BorrowAdapter<Player>,
+> Interpreter<'a, Arenas, Player, Borrow>
+{
     #[allow(unused)]
     pub fn update_time(&mut self, next_position: CycleTime) {
         // The time should be monotonically increasing.
         assert!(next_position >= self.position);
-        let mut borrowed_player = self.player.borrow_mut();
+        let mut borrowed_player = self.borrow_adapter.borrow_mut();
         let visitor = InterpreterVisitor {
             arenas: self.arenas,
             start: self.position,
