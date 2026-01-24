@@ -73,3 +73,52 @@ fn can_play_unit_for_one_cycle() {
     interpreter.update_time(CycleTime::ONE);
     mock_player.borrow_mut().checkpoint();
 }
+
+#[test]
+fn can_play_singleton_cat_for_one_cycle() {
+    // [ Cons ] → [ Nil ]
+    //    ↓
+    // [Unit(A)]
+    let note_unit = NoteUnit::Frequency(Frequency(440));
+    let pattern_index = Index::new(0);
+    let arenas = FixedArenas {
+        pattern_arena: FixedArena::new([(
+            pattern_index.clone(),
+            Pattern::Note(note_unit),
+        )]),
+        pattern_chain_arena: FixedArena::new([
+            (
+                Index::new(0xC0),
+                Chain::Cons {
+                    head: pattern_index.clone(),
+                    tail: Index::new(0xC1),
+                },
+            ),
+            (Index::new(0xC1), Chain::Nil),
+        ]),
+        ..Default::default()
+    };
+    let mock_player = RefCell::new(MockPatternPlayer::new());
+    let make_sound_unit = || SoundUnit::new(note_unit, CycleTime::ONE);
+    let mut interpreter = Interpreter::new_with_refcell(
+        pattern_index.clone(),
+        &arenas,
+        &mock_player,
+    );
+    // Test: Updating to one cycle will lead to exactly one invocation of
+    // scheduling the note unit.
+    let expect_note_unit = |start_time: CycleTime| {
+        mock_player
+            .borrow_mut()
+            .expect_schedule_note_unit()
+            .with(predicate::eq(make_sound_unit()), predicate::eq(start_time))
+            .return_const(());
+    };
+    expect_note_unit(CycleTime::ZERO);
+    interpreter.update_time(CycleTime::ONE);
+    mock_player.borrow_mut().checkpoint();
+    // Advancing by one cycle will give the same result.
+    expect_note_unit(CycleTime::ONE);
+    interpreter.update_time(CycleTime(CycleTime::ONE.0 + CycleTime::ONE.0));
+    mock_player.borrow_mut().checkpoint();
+}
