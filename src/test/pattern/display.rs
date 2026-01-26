@@ -5,6 +5,7 @@ use crate::ast::pattern::format_display::PatternDisplayAdapter;
 use crate::ast::pattern::string_display::PatternDisplayVisitorL;
 use crate::ast::pattern::string_display::PatternDisplayVisitorR;
 use crate::test::pattern::arena_alloc::ArenaTest;
+use crate::test::pattern::arena_alloc::GrowableArenas;
 use crate::test::pattern::arena_alloc::with_regenerated_arenas;
 use crate::test::pattern::arena_alloc::with_reused_arenas;
 
@@ -18,8 +19,8 @@ impl ArenaTest for LeftAndRightDisplaysEqual {
     }
 }
 
-struct LeftDisplayEqualToFormatDisplay;
-impl ArenaTest for LeftDisplayEqualToFormatDisplay {
+struct LeftDisplayEqualToFormatted;
+impl ArenaTest for LeftDisplayEqualToFormatted {
     fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>) {
         assert_eq!(
             format!("{}", PatternDisplayAdapter::new(pattern.clone(), arenas)),
@@ -28,8 +29,8 @@ impl ArenaTest for LeftDisplayEqualToFormatDisplay {
     }
 }
 
-struct RightDisplayEqualToFormatDisplay;
-impl ArenaTest for RightDisplayEqualToFormatDisplay {
+struct RightDisplayEqualToFormatted;
+impl ArenaTest for RightDisplayEqualToFormatted {
     fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>) {
         assert_eq!(
             format!("{}", PatternDisplayAdapter::new(pattern.clone(), arenas)),
@@ -40,30 +41,30 @@ impl ArenaTest for RightDisplayEqualToFormatDisplay {
 
 #[test]
 fn left_and_right_displays_are_equal_once() {
-    with_regenerated_arenas::<LeftAndRightDisplaysEqual>()
+    with_regenerated_arenas::<LeftAndRightDisplaysEqual, GrowableArenas>()
 }
 
 #[test]
 fn left_and_right_displays_are_equal_multiple() {
-    with_reused_arenas::<LeftAndRightDisplaysEqual>()
+    with_reused_arenas::<LeftAndRightDisplaysEqual, GrowableArenas>()
 }
 
 #[test]
 fn left_display_equal_to_format_display_once() {
-    with_regenerated_arenas::<LeftDisplayEqualToFormatDisplay>()
+    with_regenerated_arenas::<LeftDisplayEqualToFormatted, GrowableArenas>()
 }
 
 #[test]
 fn left_display_equal_to_format_display_multiple() {
-    with_reused_arenas::<LeftDisplayEqualToFormatDisplay>()
+    with_reused_arenas::<LeftDisplayEqualToFormatted, GrowableArenas>()
 }
 
 #[test]
 fn right_display_equal_to_format_display_once() {
-    with_regenerated_arenas::<RightDisplayEqualToFormatDisplay>()
+    with_regenerated_arenas::<RightDisplayEqualToFormatted, GrowableArenas>()
 }
 
 #[test]
 fn right_display_equal_to_format_display_multiple() {
-    with_reused_arenas::<RightDisplayEqualToFormatDisplay>()
+    with_reused_arenas::<RightDisplayEqualToFormatted, GrowableArenas>()
 }

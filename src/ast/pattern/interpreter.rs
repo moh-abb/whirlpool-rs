@@ -5,37 +5,40 @@ use core::ops::DerefMut;
 use fixed::FixedU32;
 use fixed::Wrapping;
 
-use crate::arena::chain::Chain;
 use crate::arena::index::Index;
 use crate::ast::multiple::Multiple;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::note::NoteUnit;
-use crate::ast::pattern::visitor::EnteringPatternVisitor;
 use crate::ast::pattern::visitor::PatternVisitor;
 use crate::ast::pattern::visitor::visit_pattern;
 use crate::ast::time::CycleTime;
 use crate::player::pattern::PatternPlayer;
 use crate::player::pattern::SoundUnit;
 
-pub trait BorrowAdapter<T> {
-    fn borrow_mut(&mut self) -> impl DerefMut<Target = T>;
-}
+mod private {
+    use core::cell::RefCell;
+    use core::ops::DerefMut;
 
-impl<T> BorrowAdapter<T> for &RefCell<T> {
-    fn borrow_mut(&mut self) -> impl DerefMut<Target = T> {
-        RefCell::borrow_mut(self)
+    pub trait BorrowAdapter<T> {
+        fn borrow_mut(&mut self) -> impl DerefMut<Target = T>;
     }
-}
 
-impl<T> BorrowAdapter<T> for &mut T {
-    fn borrow_mut(&mut self) -> impl DerefMut<Target = T> {
-        self.deref_mut()
+    impl<T> BorrowAdapter<T> for &RefCell<T> {
+        fn borrow_mut(&mut self) -> impl DerefMut<Target = T> {
+            RefCell::borrow_mut(self)
+        }
+    }
+
+    impl<T> BorrowAdapter<T> for &mut T {
+        fn borrow_mut(&mut self) -> impl DerefMut<Target = T> {
+            self.deref_mut()
+        }
     }
 }
 
 #[allow(unused)]
-pub struct Interpreter<'a, Arenas, Player, B: BorrowAdapter<Player>> {
+pub struct Interpreter<'a, Arenas, Player, B: private::BorrowAdapter<Player>> {
     pattern: Index<Pattern>,
     arenas: &'a Arenas,
     borrow_adapter: B,
@@ -85,7 +88,7 @@ impl<
     'a,
     Arenas: PatternArenas,
     Player: PatternPlayer,
-    Borrow: BorrowAdapter<Player>,
+    Borrow: private::BorrowAdapter<Player>,
 > Interpreter<'a, Arenas, Player, Borrow>
 {
     #[allow(unused)]
@@ -100,7 +103,7 @@ impl<
             multiplier: 1,
             inner: RefCell::new(VisitorInner {
                 player: borrowed_player.deref_mut(),
-                opt_multiple_type: None,
+                _opt_multiple_type: None,
             }),
         };
         visit_pattern(&visitor, self.pattern.clone());
@@ -116,9 +119,23 @@ struct InterpreterVisitor<'a, Arenas, Player> {
     inner: RefCell<VisitorInner<'a, Player>>,
 }
 
+impl<'a, Arenas, Player> InterpreterVisitor<'a, Arenas, Player> {
+    fn play_multiple(&self, mut play_elem: impl FnMut(CycleTime)) {
+        let multiplier = CycleTime(Wrapping::from_num(self.multiplier));
+        let recip_multiplier = multiplier.0.recip();
+        let scaled_start = CycleTime((self.start.0 * multiplier.0).ceil());
+        let scaled_end = CycleTime((self.end.0 * multiplier.0).ceil());
+        let mut cur = scaled_start;
+        while cur.0 < scaled_end.0 {
+            play_elem(CycleTime(cur.0 * recip_multiplier));
+            cur.0 += CycleTime::ONE.0;
+        }
+    }
+}
+
 struct VisitorInner<'a, Player> {
     player: &'a mut Player,
-    opt_multiple_type: Option<MultipleType>,
+    _opt_multiple_type: Option<MultipleType>,
 }
 
 #[allow(unused)]
@@ -134,11 +151,6 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
 {
     type Output = ();
     type PatternOutput = ();
-    type PatternChainOutput = u16;
-    type TimedStepOutput = ();
-    type TimedStepChainOutput = ();
-
-    const CHAINS_FOLD_RIGHT: bool = false;
 
     fn get_arenas(&self) -> &impl PatternArenas {
         self.arenas
@@ -152,34 +164,19 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
         pattern_output
     }
 
-    fn map_cat(
-        &self,
-        _multiple: Multiple<Pattern>,
-        _pattern_chain_output: Self::PatternChainOutput,
-    ) -> Self::PatternOutput {
+    fn map_cat(&self, _multiple: Multiple<Pattern>) -> Self::PatternOutput {}
+
+    fn map_seq(&self, _multiple: Multiple<Pattern>) -> Self::PatternOutput {
         todo!()
     }
 
-    fn map_seq(
-        &self,
-        _multiple: Multiple<Pattern>,
-        _pattern_chain_output: Self::PatternChainOutput,
-    ) -> Self::PatternOutput {
-        todo!()
-    }
-
-    fn map_stack(
-        &self,
-        _multiple: Multiple<Pattern>,
-        _pattern_chain_output: Self::PatternChainOutput,
-    ) -> Self::PatternOutput {
+    fn map_stack(&self, _multiple: Multiple<Pattern>) -> Self::PatternOutput {
         todo!()
     }
 
     fn map_time_cat(
         &self,
         _multiple: Multiple<super::TimedStep>,
-        _timed_step_chain_output: Self::TimedStepChainOutput,
     ) -> Self::PatternOutput {
         todo!()
     }
@@ -187,147 +184,16 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
     fn map_note_unit(&self, unit: NoteUnit) -> Self::PatternOutput {
         let mut inner = self.inner.borrow_mut();
         let multiplier = Wrapping(FixedU32::const_from_int(self.multiplier));
-        let _ = multiplier.frac();
-        let start = self.start.0;
-        let end = self.end.0;
-        let recip_multiplier = multiplier.recip();
-        let scaled_start = (start * multiplier).ceil();
-        let scaled_end = (end * multiplier).ceil();
-        let mut cur = scaled_start;
-        let sound_unit = SoundUnit::new(unit, CycleTime(recip_multiplier));
-        while cur < scaled_end {
-            let note_unit_start = cur * recip_multiplier;
-            inner.player.schedule_note_unit(
-                sound_unit.clone(),
-                CycleTime(note_unit_start),
-            );
-            cur += Wrapping::from_num(1);
-        }
+        let unit_duration = CycleTime(multiplier.recip());
+        let sound_unit = SoundUnit::new(unit, unit_duration);
+        self.play_multiple(|start| {
+            inner
+                .player
+                .schedule_note_unit(sound_unit.clone(), start);
+        });
     }
 
     fn map_silence(&self) -> Self::PatternOutput {
         todo!()
-    }
-
-    fn new_pattern_chain_output(&self) -> Self::PatternChainOutput {
-        0
-    }
-
-    fn fold_pattern_chain_output(
-        &self,
-        position: Self::PatternChainOutput,
-        _tail_index: Index<Chain<Pattern>>,
-        pattern_index: Index<Pattern>,
-    ) -> Self::PatternChainOutput {
-        let mut inner_mut = self.inner.borrow_mut();
-        let multiple_type = inner_mut
-            .opt_multiple_type
-            .as_ref()
-            .unwrap();
-        match multiple_type {
-            MultipleType::Cat { length: _ } => {
-                let position_as_time =
-                    CycleTime::ONE.0 * Wrapping::from_num(position);
-                let start = CycleTime(self.start.0 + position_as_time);
-                let end = CycleTime(start.0 + CycleTime::ONE.0);
-                // Clear the `multiple` type as it only applies to the current
-                // level's pattern.
-                let sub_inner = VisitorInner {
-                    player: inner_mut.player,
-                    opt_multiple_type: None,
-                };
-                let visitor = InterpreterVisitor {
-                    arenas: self.arenas,
-                    start,
-                    end,
-                    multiplier: self.multiplier,
-                    inner: RefCell::new(sub_inner),
-                };
-                visit_pattern(&visitor, pattern_index);
-                position + 1
-            }
-            MultipleType::Seq { length: _ } => todo!(),
-            MultipleType::Stack { length: _ } => todo!(),
-        }
-    }
-
-    fn new_timed_step_chain_output(&self) -> Self::TimedStepChainOutput {}
-
-    fn fold_timed_step_chain_output(
-        &self,
-        _timed_step_chain_output: Self::TimedStepChainOutput,
-        _tail_index: Index<Chain<super::TimedStep>>,
-        _timed_step_index: Index<super::TimedStep>,
-    ) -> Self::TimedStepChainOutput {
-    }
-}
-
-impl<'a, Arenas: PatternArenas, Player: PatternPlayer> EnteringPatternVisitor
-    for InterpreterVisitor<'a, Arenas, Player>
-{
-    type PatternChainEntry = MultipleType;
-    type TimedStepChainEntry = ();
-
-    fn enter_cat(
-        &self,
-        multiple: Multiple<Pattern>,
-    ) -> Self::PatternChainEntry {
-        MultipleType::Cat { length: multiple.length }
-    }
-
-    fn enter_seq(
-        &self,
-        multiple: Multiple<Pattern>,
-    ) -> Self::PatternChainEntry {
-        MultipleType::Seq { length: multiple.length }
-    }
-
-    fn enter_stack(
-        &self,
-        multiple: Multiple<Pattern>,
-    ) -> Self::PatternChainEntry {
-        MultipleType::Stack { length: multiple.length }
-    }
-
-    fn enter_time_cat(
-        &self,
-        _multiple: Multiple<super::TimedStep>,
-    ) -> Self::TimedStepChainEntry {
-    }
-
-    fn exit_cat(
-        &self,
-        _multiple: Multiple<Pattern>,
-        _output_from_entry: Self::PatternChainEntry,
-        pattern_chain_output: Self::PatternChainOutput,
-    ) -> Self::PatternChainOutput {
-        pattern_chain_output
-    }
-
-    fn exit_seq(
-        &self,
-        _multiple: Multiple<Pattern>,
-        _output_from_entry: Self::PatternChainEntry,
-        pattern_chain_output: Self::PatternChainOutput,
-    ) -> Self::PatternChainOutput {
-        pattern_chain_output
-    }
-
-    fn exit_stack(
-        &self,
-        _multiple: Multiple<Pattern>,
-        _output_from_entry: Self::PatternChainEntry,
-        pattern_chain_output: Self::PatternChainOutput,
-    ) -> Self::PatternChainOutput {
-        pattern_chain_output
-    }
-
-    fn exit_time_cat(
-        &self,
-        _multiple: Multiple<super::TimedStep>,
-        _output_from_entry: Self::TimedStepChainEntry,
-        timed_step_chain_output: Self::TimedStepChainOutput,
-    ) -> Self::TimedStepChainOutput {
-        timed_step_chain_output
     }
 }

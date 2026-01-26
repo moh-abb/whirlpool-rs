@@ -11,6 +11,7 @@ use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::interpreter::Interpreter;
 use crate::ast::pattern::note::Frequency;
+use crate::ast::pattern::note::Letter;
 use crate::ast::pattern::note::NoteUnit;
 use crate::ast::time::CycleTime;
 use crate::player::pattern::MockPatternPlayer;
@@ -76,26 +77,20 @@ fn can_play_unit_for_one_cycle() {
 
 #[test]
 fn can_play_singleton_cat_for_one_cycle() {
-    // [ Cons ] → [ Nil ]
-    //    ↓
+    // [ Cat ]
+    //  ↓ ↓
     // [Unit(A)]
-    let note_unit = NoteUnit::Frequency(Frequency(440));
+    let note_unit = NoteUnit::Letter(Letter::A);
     let pattern_index = Index::new(0);
     let arenas = FixedArenas {
         pattern_arena: FixedArena::new([(
             pattern_index.clone(),
             Pattern::Note(note_unit),
         )]),
-        pattern_chain_arena: FixedArena::new([
-            (
-                Index::new(0xC0),
-                Chain::Cons {
-                    head: pattern_index.clone(),
-                    tail: Index::new(0xC1),
-                },
-            ),
-            (Index::new(0xC1), Chain::Nil),
-        ]),
+        pattern_chain_arena: FixedArena::new([(
+            Index::new(0xC0),
+            Chain(pattern_index.clone(), None, None),
+        )]),
         ..Default::default()
     };
     let mock_player = RefCell::new(MockPatternPlayer::new());
