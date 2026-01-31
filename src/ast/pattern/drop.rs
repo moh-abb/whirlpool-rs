@@ -101,9 +101,9 @@ impl<'a, Arenas: PatternArenas> Drop
     for MultiplePatternDropAdapter<'a, Arenas>
 {
     fn drop(&mut self) {
-        if let Some(index) = self.0.take() {
+        if let Some(multiple) = self.0.take() {
             multiple_drop(
-                index,
+                multiple,
                 self.1.get_pattern_chain_arena(),
                 self.1,
                 drop_pattern,
@@ -184,6 +184,9 @@ fn multiple_drop<Item: ArenaItem, Arenas: PatternArenas>(
     arenas: &Arenas,
     drop_item: impl Fn(Index<Item>, &Arenas),
 ) {
+    if multiple.is_empty() {
+        return;
+    }
     while let Some(end_index) = multiple.pop_back(chain_arena) {
         let taken_end = chain_arena.take(end_index).unwrap();
         let Chain(index, _end_prev, _end_next) = taken_end;
