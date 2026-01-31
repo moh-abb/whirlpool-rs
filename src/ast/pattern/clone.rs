@@ -89,27 +89,24 @@ impl<'a, Arenas: PatternArenas> CloneVisitor<'a, Arenas> {
 
 #[derive(Debug)]
 pub struct PatternCloneDropAdapter<'a, Arenas: PatternArenas>(
-    ArenaResult<CloneAdapterInner<'a, Arenas>>,
+    ArenaResult<Option<Index<Pattern>>>,
+    &'a Arenas,
 );
 
 impl<'a, Arenas: PatternArenas> PatternCloneDropAdapter<'a, Arenas> {
-    fn try_take_index(&mut self) -> ArenaResult<Index<Pattern>> {
-        let inner = self.0.as_mut().map_err(|e| *e);
-        Ok(inner?.index.take().unwrap())
+    fn try_take_index(&mut self) -> Option<Index<Pattern>> {
+        self.0
+            .as_mut()
+            .ok()
+            .and_then(Option::take)
     }
-}
-
-#[derive(Debug)]
-struct CloneAdapterInner<'a, Arenas: PatternArenas> {
-    index: Option<Index<Pattern>>,
-    arenas: &'a Arenas,
 }
 
 impl<'a, Arenas: PatternArenas> DropAdapter<'a, Index<Pattern>, Arenas>
     for PatternCloneDropAdapter<'a, Arenas>
 {
     fn new(index: Index<Pattern>, arenas: &'a Arenas) -> Self {
-        Self(Ok(CloneAdapterInner { index: Some(index), arenas }))
+        Self(Ok(Some(index)), arenas)
     }
 
     fn take_item(&mut self) -> Index<Pattern> {
@@ -119,13 +116,8 @@ impl<'a, Arenas: PatternArenas> DropAdapter<'a, Index<Pattern>, Arenas>
 
 impl<'a, Arenas: PatternArenas> Drop for PatternCloneDropAdapter<'a, Arenas> {
     fn drop(&mut self) {
-        if let Ok(inner) = &mut self.0
-            && let Some(index) = &inner.index
-        {
-            core::mem::drop(PatternDropAdapter::new(
-                index.clone(),
-                inner.arenas,
-            ))
+        if let Some(index) = self.try_take_index() {
+            core::mem::drop(PatternDropAdapter::new(index.clone(), self.1))
         }
     }
 }
@@ -133,13 +125,14 @@ impl<'a, Arenas: PatternArenas> Drop for PatternCloneDropAdapter<'a, Arenas> {
 impl<'a, Arenas: PatternArenas> Clone for PatternCloneDropAdapter<'a, Arenas> {
     fn clone(&self) -> Self {
         let inner_res = self.0.as_ref().map_err(Clone::clone);
-        Self(inner_res.and_then(|inner| {
-            let clone_visitor = CloneVisitor::new(inner.arenas);
+        let cloned_index = inner_res.and_then(|inner| {
+            let clone_visitor = CloneVisitor::new(self.1);
             let mut cloned_pattern =
-                visit_pattern(&clone_visitor, inner.index.clone().unwrap())?;
+                visit_pattern(&clone_visitor, inner.clone().unwrap())?;
             let index = cloned_pattern.take_item();
-            Ok(CloneAdapterInner { index: Some(index), arenas: inner.arenas })
-        }))
+            Ok(Some(index))
+        });
+        Self(cloned_index, self.1)
     }
 }
 
