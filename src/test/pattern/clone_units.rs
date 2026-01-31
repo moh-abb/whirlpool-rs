@@ -60,8 +60,7 @@ fn test_clone_pattern_with_no_subpatterns(orig_pattern: Pattern) {
             assert!(slot.is_none());
             let _ = slot.insert(value);
             Ok(cloned_index())
-        })
-        .return_const(Ok(cloned_index()));
+        });
     pattern_mocker
         .expect_get_slot()
         .with(predicate::eq(cloned_index()))
