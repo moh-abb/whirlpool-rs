@@ -96,6 +96,34 @@ fn can_clone_silence() {
 }
 
 #[test]
+fn can_clone_empty_cat() {
+    test_clone_pattern_with_no_subpatterns(
+        Pattern::Cat(Multiple::new_empty()),
+    )
+}
+
+#[test]
+fn can_clone_empty_seq() {
+    test_clone_pattern_with_no_subpatterns(
+        Pattern::Seq(Multiple::new_empty()),
+    )
+}
+
+#[test]
+fn can_clone_empty_stack() {
+    test_clone_pattern_with_no_subpatterns(
+        Pattern::Stack(Multiple::new_empty()),
+    )
+}
+
+#[test]
+fn can_clone_empty_time_cat() {
+    test_clone_pattern_with_no_subpatterns(
+        Pattern::TimeCat(Multiple::new_empty()),
+    )
+}
+
+#[test]
 fn can_clone_letter_a() {
     let pattern = Pattern::Note(NoteUnit::Letter(Letter::A));
     test_clone_pattern_with_no_subpatterns(pattern)
