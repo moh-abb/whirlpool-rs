@@ -34,7 +34,7 @@ fn test_clone_pattern_with_no_subpatterns(orig_pattern: Pattern) {
     static PATTERN_SLOT: Slot<Pattern> = empty_slot();
     static CLONED_SLOT: Slot<Pattern> = empty_slot();
     // Acquire the mutex for unique access to the slots.
-    TEST_MUTEX.lock();
+    let _guard = TEST_MUTEX.lock();
 
     // Clear the slots.
     let _ = PATTERN_SLOT.write().take();
@@ -75,10 +75,19 @@ fn test_clone_pattern_with_no_subpatterns(orig_pattern: Pattern) {
         PatternCloneDropAdapter::new(pattern_index(), &mock_arenas);
     let _cloned_index = orig_adapter.clone().take_item();
 
-    mock_arenas.0.borrow_mut().checkpoint();
-
+    assert_eq!(_cloned_index, cloned_index());
+    assert_eq!(
+        PatternOrdAdapter::new(pattern_index(), &mock_arenas),
+        PatternOrdAdapter::new(cloned_index(), &mock_arenas)
+    );
     // Take the original adapter too, to avoid dropping it.
     let _pattern_index = orig_adapter.take_item();
+    assert_eq!(_pattern_index, pattern_index());
+
+    mock_arenas.0.borrow_mut().checkpoint();
+
+    // Explicitly drop the guard to allow other threads to run the test as well.
+    mem::drop(_guard);
 }
 
 #[test]
@@ -100,7 +109,7 @@ fn test_clone_pattern_with_three_subpatterns(
     static PATTERN_SLOTS: [Slot<Pattern>; 10] = empty_slot_array();
     static PATTERN_CHAIN_SLOTS: [Slot<Chain<Pattern>>; 10] = empty_slot_array();
     // Acquire the mutex for unique access to the slots.
-    TEST_MUTEX.lock();
+    let _guard = TEST_MUTEX.lock();
 
     // Clear the slots.
     PATTERN_SLOTS.iter().for_each(|slot| {
@@ -211,6 +220,9 @@ fn test_clone_pattern_with_three_subpatterns(
     let _pattern_index = orig_adapter.take_item();
 
     mock_arenas.0.borrow_mut().checkpoint();
+
+    // Explicitly drop the guard to allow other threads to run the test as well.
+    mem::drop(_guard);
 }
 
 #[test]
