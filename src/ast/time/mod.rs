@@ -11,7 +11,11 @@ pub struct CycleTime(pub Wrapping<FixedU32<U12>>);
 #[allow(unused)]
 impl CycleTime {
     pub const ZERO: Self = Self(Wrapping(FixedU32::ZERO));
-    pub const ONE: Self = Self(Wrapping(FixedU32::const_from_int(1)));
+    pub const ONE: Self = Self::from_int(1);
+
+    pub const fn from_int(time: u32) -> Self {
+        Self(Wrapping(FixedU32::const_from_int(time)))
+    }
 }
 
 #[allow(unused)]
