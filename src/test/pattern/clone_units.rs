@@ -29,7 +29,7 @@ fn fill_slot<T>(slot: &Slot<T>, value: T) {
     let _ = slot_inner.insert(value);
 }
 
-fn test_clone_pattern_with_no_subpatterns(orig_pattern: Pattern) {
+fn test_clone_with_no_subpatterns(orig_pattern: Pattern) {
     static TEST_MUTEX: Mutex<()> = Mutex::new(());
     static PATTERN_SLOT: Slot<Pattern> = empty_slot();
     static CLONED_SLOT: Slot<Pattern> = empty_slot();
@@ -92,44 +92,36 @@ fn test_clone_pattern_with_no_subpatterns(orig_pattern: Pattern) {
 
 #[test]
 fn can_clone_silence() {
-    test_clone_pattern_with_no_subpatterns(Pattern::Silence)
+    test_clone_with_no_subpatterns(Pattern::Silence)
 }
 
 #[test]
 fn can_clone_empty_cat() {
-    test_clone_pattern_with_no_subpatterns(
-        Pattern::Cat(Multiple::new_empty()),
-    )
+    test_clone_with_no_subpatterns(Pattern::Cat(Multiple::new_empty()))
 }
 
 #[test]
 fn can_clone_empty_seq() {
-    test_clone_pattern_with_no_subpatterns(
-        Pattern::Seq(Multiple::new_empty()),
-    )
+    test_clone_with_no_subpatterns(Pattern::Seq(Multiple::new_empty()))
 }
 
 #[test]
 fn can_clone_empty_stack() {
-    test_clone_pattern_with_no_subpatterns(
-        Pattern::Stack(Multiple::new_empty()),
-    )
+    test_clone_with_no_subpatterns(Pattern::Stack(Multiple::new_empty()))
 }
 
 #[test]
 fn can_clone_empty_time_cat() {
-    test_clone_pattern_with_no_subpatterns(
-        Pattern::TimeCat(Multiple::new_empty()),
-    )
+    test_clone_with_no_subpatterns(Pattern::TimeCat(Multiple::new_empty()))
 }
 
 #[test]
 fn can_clone_letter_a() {
     let pattern = Pattern::Note(NoteUnit::Letter(Letter::A));
-    test_clone_pattern_with_no_subpatterns(pattern)
+    test_clone_with_no_subpatterns(pattern)
 }
 
-fn test_clone_pattern_with_three_subpatterns(
+fn test_clone_with_three_subpatterns(
     multiple_to_pattern: impl FnOnce(Multiple<Pattern>) -> Pattern,
     is_expected_pattern: fn(&Pattern) -> bool,
 ) {
@@ -255,21 +247,21 @@ fn test_clone_pattern_with_three_subpatterns(
 
 #[test]
 fn can_clone_cat_with_length_three() {
-    test_clone_pattern_with_three_subpatterns(Pattern::Cat, |p| {
+    test_clone_with_three_subpatterns(Pattern::Cat, |p| {
         matches!(p, Pattern::Cat(_))
     })
 }
 
 #[test]
 fn can_clone_seq_with_length_three() {
-    test_clone_pattern_with_three_subpatterns(Pattern::Seq, |p| {
+    test_clone_with_three_subpatterns(Pattern::Seq, |p| {
         matches!(p, Pattern::Seq(_))
     })
 }
 
 #[test]
 fn can_clone_stack_with_length_three() {
-    test_clone_pattern_with_three_subpatterns(Pattern::Stack, |p| {
+    test_clone_with_three_subpatterns(Pattern::Stack, |p| {
         matches!(p, Pattern::Stack(_))
     })
 }
