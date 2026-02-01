@@ -8,7 +8,6 @@ use fixed::types::extra::U12;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CycleTime(pub Wrapping<FixedU32<U12>>);
 
-#[allow(unused)]
 impl CycleTime {
     pub const ZERO: Self = Self(Wrapping(FixedU32::ZERO));
     pub const ONE: Self = Self::from_int(1);
@@ -18,14 +17,12 @@ impl CycleTime {
     }
 }
 
-#[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CycleTimeInterval {
     start: CycleTime,
     end: CycleTime,
 }
 
-#[allow(unused)]
 impl CycleTimeInterval {
     pub fn new(start: CycleTime, end: CycleTime) -> Self {
         debug_assert!(start <= end);

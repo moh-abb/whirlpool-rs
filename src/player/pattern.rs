@@ -8,7 +8,6 @@ pub struct SoundUnit {
 }
 
 impl SoundUnit {
-    #[allow(unused)]
     pub fn new(unit: NoteUnit, duration: CycleTime) -> Self {
         Self { unit, duration }
     }
