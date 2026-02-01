@@ -45,7 +45,7 @@ impl CycleTimeInterval {
         // end of one is before the start of another.
         let start = self.start.max(other.start);
         let end = self.end.min(other.end);
-        if start > end {
+        if start >= end {
             return None;
         }
         Some(Self { start, end })
