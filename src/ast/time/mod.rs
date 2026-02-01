@@ -13,3 +13,37 @@ impl CycleTime {
     pub const ZERO: Self = Self(Wrapping(FixedU32::ZERO));
     pub const ONE: Self = Self(Wrapping(FixedU32::const_from_int(1)));
 }
+
+#[allow(unused)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct CycleTimeInterval {
+    start: CycleTime,
+    end: CycleTime,
+}
+
+#[allow(unused)]
+impl CycleTimeInterval {
+    pub fn new(start: CycleTime, end: CycleTime) -> Self {
+        debug_assert!(start <= end);
+        Self { start, end }
+    }
+
+    pub const fn start(&self) -> CycleTime {
+        self.start
+    }
+
+    pub const fn end(&self) -> CycleTime {
+        self.end
+    }
+
+    pub fn intersection(self, other: Self) -> Option<Self> {
+        // There is no intersection between the two intervals if the
+        // end of one is before the start of another.
+        let start = self.start.max(other.start);
+        let end = self.end.min(other.end);
+        if start > end {
+            return None;
+        }
+        Some(Self { start, end })
+    }
+}
