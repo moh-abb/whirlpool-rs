@@ -37,6 +37,12 @@ impl<T: ArenaItem, const N: usize> IndexableMap<T> for SgInnerMap<T, N> {
     }
 }
 
+impl<T: ArenaItem, const N: usize> Default for ScapegoatArena<T, N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: ArenaItem, const N: usize> ScapegoatArena<T, N> {
     #[allow(unused)]
     pub fn new() -> Self {

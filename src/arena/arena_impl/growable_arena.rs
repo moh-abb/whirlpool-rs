@@ -34,6 +34,12 @@ impl<T> IndexableMap<T> for GAMap<T> {
     }
 }
 
+impl<T: ArenaItem> Default for GrowableArena<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: ArenaItem> GrowableArena<T> {
     #[allow(unused)]
     pub fn new() -> Self {
