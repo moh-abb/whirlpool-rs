@@ -5,8 +5,8 @@ use core::ops::DerefMut;
 
 use fixed::Wrapping;
 
-use crate::arena::index::Index;
-use crate::ast::multiple::Multiple;
+use crate::structures::index::Index;
+use crate::structures::multiple::Multiple;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::note::NoteUnit;

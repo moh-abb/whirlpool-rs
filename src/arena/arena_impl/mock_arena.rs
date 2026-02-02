@@ -9,7 +9,7 @@ use spin::RwLockWriteGuard;
 use crate::arena::Arena;
 use crate::arena::ArenaItem;
 use crate::arena::error::ArenaResult;
-use crate::arena::index::Index;
+use crate::structures::index::Index;
 
 #[mockall::automock(
     type Ref<'a> = RwLockReadGuard<'a,  Option<T>>;

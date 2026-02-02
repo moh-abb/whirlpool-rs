@@ -6,7 +6,7 @@ use crate::arena::Arena;
 use crate::arena::ArenaItem;
 use crate::arena::error::ArenaError;
 use crate::arena::error::ArenaResult;
-use crate::arena::index::Index;
+use crate::structures::index::Index;
 
 pub trait IndexableMap<T> {
     /// Returns the number of full slots in the current map.

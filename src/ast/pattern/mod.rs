@@ -3,8 +3,8 @@ use core::cmp::Ordering;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
-use crate::arena::index::Index;
-use crate::ast::multiple::Multiple;
+use crate::structures::index::Index;
+use crate::structures::multiple::Multiple;
 
 pub mod arenas;
 pub mod clone;

@@ -1,7 +1,7 @@
 use crate::arena::Arena;
 use crate::arena::ArenaItem;
-use crate::arena::chain::Chain;
-use crate::arena::index::Index;
+use crate::structures::chain::Chain;
+use crate::structures::index::Index;
 
 type StartEnd<Item> = Option<(Index<Chain<Item>>, Index<Chain<Item>>)>;
 

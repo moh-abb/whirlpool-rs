@@ -5,9 +5,9 @@ use spin::Lazy;
 use spin::Mutex;
 use spin::rwlock::RwLock;
 
-use crate::arena::chain::Chain;
-use crate::arena::index::Index;
-use crate::ast::multiple::Multiple;
+use crate::structures::chain::Chain;
+use crate::structures::index::Index;
+use crate::structures::multiple::Multiple;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::clone::PatternCloneDropAdapter;
 use crate::ast::pattern::drop::DropAdapter;

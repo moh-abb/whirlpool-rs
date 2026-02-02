@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 
 use crate::arena::Arena;
-use crate::arena::chain::Chain;
+use crate::structures::chain::Chain;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 

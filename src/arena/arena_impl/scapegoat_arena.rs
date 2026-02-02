@@ -5,7 +5,7 @@ use crate::arena::ArenaItem;
 use crate::arena::arena_impl::helpers::IndexableMap;
 use crate::arena::arena_impl::helpers::IndexableMapArena;
 use crate::arena::error::ArenaResult;
-use crate::arena::index::Index;
+use crate::structures::index::Index;
 
 /// An [Arena] that uses [scapegoat]'s backing structures for allocating
 /// structures without dynamic allocation.

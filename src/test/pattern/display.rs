@@ -1,4 +1,4 @@
-use crate::arena::index::Index;
+use crate::structures::index::Index;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::format_display::PatternDisplayAdapter;

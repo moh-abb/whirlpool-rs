@@ -2,11 +2,11 @@ use core::mem;
 
 use crate::arena::Arena;
 use crate::arena::ArenaItem;
-use crate::arena::chain::Chain;
+use crate::structures::chain::Chain;
 use crate::arena::error::ArenaResult;
-use crate::arena::index::INVALID_INDEX_VALUE;
-use crate::arena::index::Index;
-use crate::ast::multiple::Multiple;
+use crate::structures::index::INVALID_INDEX_VALUE;
+use crate::structures::index::Index;
+use crate::structures::multiple::Multiple;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
