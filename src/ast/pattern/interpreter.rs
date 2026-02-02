@@ -300,8 +300,17 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
         todo!()
     }
 
-    fn map_stack(&self, _multiple: Multiple<Pattern>) -> Self::PatternOutput {
-        todo!()
+    fn map_stack(&self, multiple: Multiple<Pattern>) -> Self::PatternOutput {
+        // Plays each of the patterns in parallel.
+
+        if multiple.is_empty() {
+            panic!("Cannot play empty multiple patterns");
+        }
+
+        let chain_arena = self.arenas.get_pattern_chain_arena();
+        multiple.fold_left(chain_arena, (), |(), pattern_index| {
+            visit_pattern(self, pattern_index)
+        })
     }
 
     fn map_time_cat(

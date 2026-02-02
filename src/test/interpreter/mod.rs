@@ -13,6 +13,7 @@ use crate::player::pattern::SoundUnit;
 
 mod cat;
 mod examples;
+mod stack;
 
 /// A triple of an expected scheduled start time, duration, and note unit.
 type ScheduledExpectation = (CycleTime, CycleTime, NoteUnit);
