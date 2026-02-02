@@ -8,8 +8,8 @@ use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::interpreter::Interpreter;
 use crate::ast::pattern::note::NoteUnit;
 use crate::ast::time::CycleTime;
-use crate::player::pattern::MockPatternPlayer;
-use crate::player::pattern::SoundUnit;
+use crate::player::MockPatternPlayer;
+use crate::player::unit::SoundUnit;
 
 mod cat;
 mod examples;

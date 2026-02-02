@@ -12,8 +12,3 @@ impl SoundUnit {
         Self { unit, duration }
     }
 }
-
-#[cfg_attr(test, mockall::automock)]
-pub trait PatternPlayer {
-    fn schedule_note_unit(&mut self, sound: SoundUnit, start: CycleTime);
-}

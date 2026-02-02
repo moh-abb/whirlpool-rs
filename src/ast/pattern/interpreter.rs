@@ -14,8 +14,8 @@ use crate::ast::pattern::visitor::PatternVisitor;
 use crate::ast::pattern::visitor::visit_pattern;
 use crate::ast::time::CycleTime;
 use crate::ast::time::CycleTimeInterval;
-use crate::player::pattern::PatternPlayer;
-use crate::player::pattern::SoundUnit;
+use crate::player::PatternPlayer;
+use crate::player::unit::SoundUnit;
 
 mod private {
     use core::cell::RefCell;
