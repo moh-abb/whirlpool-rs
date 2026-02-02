@@ -50,7 +50,7 @@ fn can_play_double_stack_with_unit() {
         (CycleTime::from_int(4), &make_scheduled_actions(3)[..]),
     ];
     let (arenas, head_index) =
-        half_binary_tree_depth_two(Pattern::Cat, Pattern::Cat);
+        half_binary_tree_depth_two(Pattern::Stack, Pattern::Stack);
     test_fixed_arenas(arenas, head_index, &expected_schedule_actions);
 }
 
@@ -75,7 +75,7 @@ fn can_play_stack_of_three_units() {
         (CycleTime::from_int(5), &make_scheduled_actions(4)[..]),
         (CycleTime::from_int(6), &make_scheduled_actions(5)[..]),
     ];
-    let (arenas, head_index) = multiple_of_three_units(Pattern::Cat);
+    let (arenas, head_index) = multiple_of_three_units(Pattern::Stack);
     test_fixed_arenas(arenas, head_index, &expected_schedule_actions);
 }
 

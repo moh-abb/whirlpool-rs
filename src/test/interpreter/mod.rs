@@ -11,7 +11,7 @@ use crate::ast::time::CycleTime;
 use crate::player::MockPatternPlayer;
 use crate::player::unit::SoundUnit;
 
-mod cat;
+mod cat_silence;
 mod examples;
 mod stack;
 
@@ -32,21 +32,27 @@ fn test_fixed_arenas(
     let mut interpreter =
         Interpreter::new_with_refcell(head_index, &arenas, &mock_player);
 
-    let expect_note_unit = |expectation: ScheduledExpectation| {
-        let (start_time, duration, note_unit) = expectation;
-        let sound_unit = SoundUnit::new(note_unit, duration);
-        mock_player
-            .borrow_mut()
-            .expect_schedule_note_unit()
-            .with(predicate::eq(sound_unit), predicate::eq(start_time))
-            .return_const(());
-    };
+    let expect_note_unit =
+        |expectation: ScheduledExpectation, all: &[ScheduledExpectation]| {
+            let (start_time, duration, note_unit) = expectation;
+            let sound_unit = SoundUnit::new(note_unit, duration);
+            let count = all
+                .iter()
+                .filter(|&&e| e == expectation)
+                .count();
+            mock_player
+                .borrow_mut()
+                .expect_schedule_note_unit()
+                .times(count)
+                .with(predicate::eq(sound_unit), predicate::eq(start_time))
+                .return_const(());
+        };
 
     for &(next_cycle_time, expectations) in expected_schedule_actions {
         expectations
             .iter()
             .cloned()
-            .for_each(expect_note_unit);
+            .for_each(|e| expect_note_unit(e, expectations));
         interpreter.update_time(next_cycle_time);
         mock_player.borrow_mut().checkpoint();
     }
