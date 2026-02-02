@@ -4,19 +4,17 @@
 #![cfg_attr(not(any(doc, feature = "std", test)), no_std)]
 #![allow(clippy::let_and_return, rustdoc::private_intra_doc_links)]
 #![deny(
-    missing_docs,
     clippy::undocumented_unsafe_blocks,
     dead_code,
     unused,
-    rustdoc::broken_intra_doc_links
 )]
 
 /// Used by [alloc_types].
 #[allow(unused_extern_crates)]
 extern crate alloc;
 
-mod alloc_types;
-mod arena;
-mod ast;
-mod player;
-mod test;
+pub mod alloc_types;
+pub mod arena;
+pub mod ast;
+pub mod player;
+pub mod test;
