@@ -6,6 +6,8 @@ use crate::ast::time::CycleTime;
 use crate::test::interpreter::examples::binary_tree_depth_two;
 use crate::test::interpreter::examples::half_binary_tree_depth_two;
 use crate::test::interpreter::examples::multiple_of_three_units;
+use crate::test::interpreter::examples::multiple_of_unit_then_silence_then_unit;
+use crate::test::interpreter::examples::one_cycle_silence;
 use crate::test::interpreter::examples::one_cycle_unit;
 use crate::test::interpreter::test_fixed_arenas;
 
@@ -21,6 +23,14 @@ fn can_play_unit_for_one_cycle() {
         (CycleTime::ONE, &[][..]),
     ];
     let (arenas, head_index) = one_cycle_unit(note_unit);
+    test_fixed_arenas(arenas, head_index, &expected_schedule_actions);
+}
+
+#[test]
+fn can_play_silence_for_one_cycle() {
+    let expected_schedule_actions =
+        [(CycleTime::from_int(1), &[][..]), (CycleTime::from_int(2), &[][..])];
+    let (arenas, head_index) = one_cycle_silence();
     test_fixed_arenas(arenas, head_index, &expected_schedule_actions);
 }
 
@@ -91,5 +101,28 @@ fn can_play_cat_of_three_units() {
         (CycleTime::from_int(6), &make_scheduled_action(5, Letter::C)[..]),
     ];
     let (arenas, head_index) = multiple_of_three_units(Pattern::Cat);
+    test_fixed_arenas(arenas, head_index, &expected_schedule_actions);
+}
+
+#[test]
+fn can_play_cat_of_unit_then_silence_then_unit() {
+    // [  Cat  ]
+    // ↓ ↓ ↓
+    // A  ~  C
+    let note_unit = |letter: Letter| NoteUnit::Letter(letter);
+
+    let make_scheduled_action = |start_time: u32, letter: Letter| {
+        [(CycleTime::from_int(start_time), CycleTime::ONE, note_unit(letter))]
+    };
+    let expected_schedule_actions = [
+        (CycleTime::from_int(1), &make_scheduled_action(0, Letter::A)[..]),
+        (CycleTime::from_int(2), &[][..]),
+        (CycleTime::from_int(3), &make_scheduled_action(2, Letter::C)[..]),
+        (CycleTime::from_int(4), &make_scheduled_action(3, Letter::A)[..]),
+        (CycleTime::from_int(5), &[][..]),
+        (CycleTime::from_int(6), &make_scheduled_action(5, Letter::C)[..]),
+    ];
+    let (arenas, head_index) =
+        multiple_of_unit_then_silence_then_unit(Pattern::Cat);
     test_fixed_arenas(arenas, head_index, &expected_schedule_actions);
 }

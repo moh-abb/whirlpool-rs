@@ -35,16 +35,21 @@ impl PatternArenas for FixedArenas {
     }
 }
 
-pub fn one_cycle_unit(unit: NoteUnit) -> (impl PatternArenas, Index<Pattern>) {
+fn one_cycle_with(pattern: Pattern) -> (impl PatternArenas, Index<Pattern>) {
     let head_index = Index::new(0);
     let arenas = FixedArenas {
-        pattern_arena: FixedArena::new([(
-            head_index.clone(),
-            Pattern::Note(unit),
-        )]),
+        pattern_arena: FixedArena::new([(head_index.clone(), pattern)]),
         ..Default::default()
     };
     (arenas, head_index)
+}
+
+pub fn one_cycle_unit(unit: NoteUnit) -> (impl PatternArenas, Index<Pattern>) {
+    one_cycle_with(Pattern::Note(unit))
+}
+
+pub fn one_cycle_silence() -> (impl PatternArenas, Index<Pattern>) {
+    one_cycle_with(Pattern::Silence)
 }
 
 pub fn binary_tree_depth_two(
@@ -166,6 +171,46 @@ pub fn multiple_of_three_units(
         pattern_arena: FixedArena::new([
             (Index::new(0), Pattern::Note(note_unit(Letter::A))),
             (Index::new(1), Pattern::Note(note_unit(Letter::B))),
+            (Index::new(2), Pattern::Note(note_unit(Letter::C))),
+            (head_index.clone(), overall_pattern),
+        ]),
+        pattern_chain_arena: FixedArena::new([
+            (
+                Index::new(0xC0),
+                Chain(Index::new(0), None, Some(Index::new(0xC1))),
+            ),
+            (
+                Index::new(0xC1),
+                Chain(
+                    Index::new(1),
+                    Some(Index::new(0xC0)),
+                    Some(Index::new(0xC2)),
+                ),
+            ),
+            (
+                Index::new(0xC2),
+                Chain(Index::new(2), Some(Index::new(0xC1)), None),
+            ),
+        ]),
+        ..Default::default()
+    };
+    (arenas, head_index)
+}
+
+pub fn multiple_of_unit_then_silence_then_unit(
+    root: fn(Multiple<Pattern>) -> Pattern,
+) -> (impl PatternArenas, Index<Pattern>) {
+    // [ root ]
+    // ↓ ↓ ↓
+    // A  ~  C
+    let note_unit = |letter: Letter| NoteUnit::Letter(letter);
+    let overall_pattern =
+        root(Multiple::new_nonempty(3, Index::new(0xC0), Index::new(0xC2)));
+    let head_index = Index::new(3);
+    let arenas = FixedArenas {
+        pattern_arena: FixedArena::new([
+            (Index::new(0), Pattern::Note(note_unit(Letter::A))),
+            (Index::new(1), Pattern::Silence),
             (Index::new(2), Pattern::Note(note_unit(Letter::C))),
             (head_index.clone(), overall_pattern),
         ]),

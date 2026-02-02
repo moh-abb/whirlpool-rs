@@ -351,7 +351,5 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
         play_consumer(NoteConsumer(unit), self.interval, 1, play_subpattern);
     }
 
-    fn map_silence(&self) -> Self::PatternOutput {
-        todo!()
-    }
+    fn map_silence(&self) -> Self::PatternOutput {}
 }
