@@ -67,10 +67,7 @@ impl<'a, Arenas: PatternArenas> PatternDisplayVisitorL<'a, Arenas> {
     }
 }
 
-fn fold_display_output<
-    Item: ArenaItem + Debug,
-    FoldStrategy: ChainFoldRightStrategy,
->(
+fn fold_display_output<FoldStrategy: ChainFoldRightStrategy>(
     chain_output: String,
     displayed_item: String,
 ) -> String {
@@ -98,7 +95,7 @@ fn print_multiple<
         Multiple::fold_left
     };
     chain_fold(&multiple, chain_arena, String::new(), |acc, x| {
-        fold_display_output::<Item, FoldStrategy>(acc, print_item(x))
+        fold_display_output::<FoldStrategy>(acc, print_item(x))
     })
 }
 
