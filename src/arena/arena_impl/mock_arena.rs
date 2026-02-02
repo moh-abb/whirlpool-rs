@@ -38,6 +38,12 @@ pub trait ArenaAdapter<T: ArenaItem>: Debug {
 #[derive(Debug)]
 pub struct ArenaMocker<T: ArenaItem>(RefCell<MockArenaAdapter<T>>);
 
+impl<T: ArenaItem> Default for ArenaMocker<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: ArenaItem> ArenaMocker<T> {
     pub fn new() -> Self {
         Self(RefCell::new(MockArenaAdapter::new()))

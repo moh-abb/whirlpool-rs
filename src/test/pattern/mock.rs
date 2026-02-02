@@ -1,9 +1,9 @@
 use crate::arena::Arena;
+use crate::arena::arena_impl::mock_arena::ArenaMocker;
 use crate::arena::chain::Chain;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::test::mock_arena::ArenaMocker;
 
 #[derive(Debug)]
 pub struct PatternArenaMockers(
