@@ -10,10 +10,10 @@ use crate::test::interpreter::test_fixed_arenas;
 #[test]
 fn can_play_four_stacks() {
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
-    let single_action = |start_time: u32, letter: Letter| {
+    let single_action = |start_time, letter: Letter| {
         (CycleTime::from_int(start_time), CycleTime::ONE, note_unit(letter))
     };
-    let make_scheduled_actions = |start_time: u32| {
+    let make_scheduled_actions = |start_time| {
         [Letter::A, Letter::B, Letter::C, Letter::D]
             .map(|l| single_action(start_time, l))
     };
@@ -37,10 +37,10 @@ fn can_play_double_stack_with_unit() {
     // A    B
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
 
-    let single_action = |start_time: u32, letter: Letter| {
+    let single_action = |start_time, letter: Letter| {
         (CycleTime::from_int(start_time), CycleTime::ONE, note_unit(letter))
     };
-    let make_scheduled_actions = |start_time: u32| {
+    let make_scheduled_actions = |start_time| {
         [Letter::A, Letter::B, Letter::C].map(|l| single_action(start_time, l))
     };
     let expected_schedule_actions = [
@@ -61,10 +61,10 @@ fn can_play_stack_of_three_units() {
     // A  B  C
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
 
-    let single_action = |start_time: u32, letter: Letter| {
+    let single_action = |start_time, letter: Letter| {
         (CycleTime::from_int(start_time), CycleTime::ONE, note_unit(letter))
     };
-    let make_scheduled_actions = |start_time: u32| {
+    let make_scheduled_actions = |start_time| {
         [Letter::A, Letter::B, Letter::C].map(|l| single_action(start_time, l))
     };
     let expected_schedule_actions = [
@@ -88,13 +88,13 @@ fn can_play_stack_of_cats() {
     // A   B     C   D
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
 
-    let single_action = |start_time: u32, letter: Letter| {
+    let single_action = |start_time, letter: Letter| {
         (CycleTime::from_int(start_time), CycleTime::ONE, note_unit(letter))
     };
-    let even_cycle_actions = |start_time: u32| {
+    let even_cycle_actions = |start_time| {
         [Letter::A, Letter::C].map(|l| single_action(start_time, l))
     };
-    let odd_cycle_actions = |start_time: u32| {
+    let odd_cycle_actions = |start_time| {
         [Letter::B, Letter::D].map(|l| single_action(start_time, l))
     };
     let expected_schedule_actions = [

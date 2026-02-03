@@ -1,4 +1,4 @@
-use fixed::FixedU32;
+use fixed::FixedI32;
 use fixed::Wrapping;
 use fixed::types::extra::U12;
 
@@ -6,14 +6,22 @@ use fixed::types::extra::U12;
 /// [crate::ast::pattern::Pattern]) that are not dependent on the number of
 /// beats per minute.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct CycleTime(pub Wrapping<FixedU32<U12>>);
+pub struct CycleTime(pub Wrapping<FixedI32<U12>>);
 
 impl CycleTime {
-    pub const ZERO: Self = Self(Wrapping(FixedU32::ZERO));
+    pub const ZERO: Self = Self(Wrapping(FixedI32::ZERO));
     pub const ONE: Self = Self::from_int(1);
 
-    pub const fn from_int(time: u32) -> Self {
-        Self(Wrapping(FixedU32::const_from_int(time)))
+    pub const fn from_int(time: i32) -> Self {
+        Self(Wrapping(FixedI32::const_from_int(time)))
+    }
+
+    pub const fn from_int_recip(time: i32) -> Self {
+        Self(Wrapping(Self::from_int(time).0.0.recip()))
+    }
+
+    pub const fn const_add(self, other: Self) -> Self {
+        Self(Wrapping(self.0.0.wrapping_add(other.0.0)))
     }
 }
 

@@ -153,7 +153,7 @@ impl PatternConsumer<NoteUnit> for NoteConsumer {
 fn play_consumer<T, F: FnMut(T, CycleTimeInterval, CycleTime)>(
     consumer: impl PatternConsumer<T>,
     interval: CycleTimeInterval,
-    cycle_length: u32,
+    cycle_length: i32,
     mut play_subpattern: F,
 ) {
     // We assume the repetition occurs at multiples of CycleTime(cycle_length).
@@ -273,7 +273,7 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
             panic!("Cannot play empty multiple patterns");
         }
 
-        let cycle_length = u32::from(multiple.length());
+        let cycle_length = i32::from(multiple.length());
         let play_subpattern =
             |subpattern, visiting_interval, subpattern_offset: CycleTime| {
                 let mut inner_mut = self.inner.borrow_mut();

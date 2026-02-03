@@ -1,8 +1,11 @@
 use crate::ast::pattern::Pattern;
+use crate::ast::pattern::interpreter::Interpreter;
 use crate::ast::pattern::note::Frequency;
 use crate::ast::pattern::note::Letter;
 use crate::ast::pattern::note::NoteUnit;
 use crate::ast::time::CycleTime;
+use crate::player::PatternPlayer;
+use crate::player::unit::SoundUnit;
 use crate::test::interpreter::examples::binary_tree_depth_two;
 use crate::test::interpreter::examples::half_binary_tree_depth_two;
 use crate::test::interpreter::examples::multiple_of_three_units;
@@ -37,7 +40,7 @@ fn can_play_silence_for_one_cycle() {
 #[test]
 fn can_play_double_alternating_cats() {
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
-    let make_scheduled_action = |start_time: u32, letter: Letter| {
+    let make_scheduled_action = |start_time, letter: Letter| {
         [(CycleTime::from_int(start_time), CycleTime::ONE, note_unit(letter))]
     };
     let expected_schedule_actions = [
@@ -64,7 +67,7 @@ fn can_play_double_cat_then_unit() {
     // A   B
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
 
-    let make_scheduled_action = |start_time: u32, letter: Letter| {
+    let make_scheduled_action = |start_time, letter: Letter| {
         [(CycleTime::from_int(start_time), CycleTime::ONE, note_unit(letter))]
     };
     let expected_schedule_actions = [
@@ -89,7 +92,7 @@ fn can_play_cat_of_three_units() {
     // A  B  C
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
 
-    let make_scheduled_action = |start_time: u32, letter: Letter| {
+    let make_scheduled_action = |start_time, letter: Letter| {
         [(CycleTime::from_int(start_time), CycleTime::ONE, note_unit(letter))]
     };
     let expected_schedule_actions = [
@@ -111,7 +114,7 @@ fn can_play_cat_of_unit_then_silence_then_unit() {
     // A  ~  C
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
 
-    let make_scheduled_action = |start_time: u32, letter: Letter| {
+    let make_scheduled_action = |start_time, letter: Letter| {
         [(CycleTime::from_int(start_time), CycleTime::ONE, note_unit(letter))]
     };
     let expected_schedule_actions = [

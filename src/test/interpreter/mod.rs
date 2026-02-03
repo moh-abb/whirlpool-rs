@@ -2,7 +2,6 @@ use core::cell::RefCell;
 
 use mockall::predicate;
 
-use crate::structures::index::Index;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::interpreter::Interpreter;
@@ -10,6 +9,7 @@ use crate::ast::pattern::note::NoteUnit;
 use crate::ast::time::CycleTime;
 use crate::player::MockPatternPlayer;
 use crate::player::unit::SoundUnit;
+use crate::structures::index::Index;
 
 mod cat_silence;
 mod examples;
