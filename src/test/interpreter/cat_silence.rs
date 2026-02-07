@@ -1,11 +1,8 @@
 use crate::ast::pattern::Pattern;
-use crate::ast::pattern::interpreter::Interpreter;
 use crate::ast::pattern::note::Frequency;
 use crate::ast::pattern::note::Letter;
 use crate::ast::pattern::note::NoteUnit;
 use crate::ast::time::CycleTime;
-use crate::player::PatternPlayer;
-use crate::player::unit::SoundUnit;
 use crate::test::interpreter::examples::binary_tree_depth_two;
 use crate::test::interpreter::examples::half_binary_tree_depth_two;
 use crate::test::interpreter::examples::multiple_of_three_units;
