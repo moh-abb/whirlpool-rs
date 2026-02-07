@@ -1,3 +1,5 @@
+use core::marker::PhantomData;
+
 use crate::arena::Arena;
 use crate::arena::ArenaItem;
 use crate::structures::chain::Chain;
@@ -119,36 +121,12 @@ impl<Item: ArenaItem> Multiple<Item> {
         Some(end)
     }
 
-    fn fold<Acc>(
-        &self,
-        arena: &impl Arena<Chain<Item>>,
-        init: Acc,
-        mut fold: impl FnMut(Acc, Index<Item>) -> Acc,
-        start_index: impl FnOnce(
-            Index<Chain<Item>>,
-            Index<Chain<Item>>,
-        ) -> Index<Chain<Item>>,
-        mut next_index: impl FnMut(
-            Option<Index<Chain<Item>>>,
-            Option<Index<Chain<Item>>>,
-        ) -> Option<Index<Chain<Item>>>,
-    ) -> Acc {
-        let mut result = init;
-        let Some((start, end)) = self.start_end.clone() else {
-            return result;
-        };
-        let mut cur_pos = start_index(start, end);
-        loop {
-            let chain = arena
-                .inspect(cur_pos, Clone::clone)
-                .unwrap();
-            let Chain(index, prev, next) = chain;
-            result = fold(result, index);
-            let Some(next_pos) = next_index(prev, next) else {
-                break result;
-            };
-            cur_pos = next_pos;
-        }
+    #[allow(unused)]
+    pub fn iter<'a, CA: Arena<Chain<Item>>>(
+        &'a self,
+        arena: &'a CA,
+    ) -> Iter<'a, Item, CA> {
+        Iter { start_end: self.start_end(), arena, phantom: PhantomData }
     }
 
     #[allow(unused)]
@@ -158,7 +136,7 @@ impl<Item: ArenaItem> Multiple<Item> {
         init: Acc,
         fold: impl FnMut(Acc, Index<Item>) -> Acc,
     ) -> Acc {
-        self.fold(arena, init, fold, |_, end| end, |prev, _| prev)
+        self.iter(arena).rfold(init, fold)
     }
 
     #[allow(unused)]
@@ -168,7 +146,7 @@ impl<Item: ArenaItem> Multiple<Item> {
         init: Acc,
         fold: impl FnMut(Acc, Index<Item>) -> Acc,
     ) -> Acc {
-        self.fold(arena, init, fold, |start, _| start, |_, next| next)
+        self.iter(arena).fold(init, fold)
     }
 
     #[allow(unused)]
@@ -206,5 +184,51 @@ impl<Item: ArenaItem> Multiple<Item> {
                 );
             }
         }
+    }
+}
+
+#[allow(unused)]
+#[derive(Debug, Clone)]
+pub struct Iter<'a, Item: ArenaItem, ChainArena: Arena<Chain<Item>>> {
+    start_end: StartEnd<Item>,
+    arena: &'a ChainArena,
+    phantom: PhantomData<Item>,
+}
+
+impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> Iterator
+    for Iter<'a, T, ChainArena>
+{
+    type Item = Index<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (start, end) = self.start_end.clone()?;
+        let cloned_start = self
+            .arena
+            .inspect(start.clone(), Clone::clone)
+            .unwrap();
+        let Chain(index, _prev, next) = cloned_start;
+        let new_start_end = next
+            .zip(Some(end.clone()))
+            .filter(|_| start != end);
+        self.start_end = new_start_end;
+        Some(index)
+    }
+}
+
+impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> DoubleEndedIterator
+    for Iter<'a, T, ChainArena>
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let (start, end) = self.start_end.clone()?;
+        let cloned_end = self
+            .arena
+            .inspect(end.clone(), Clone::clone)
+            .unwrap();
+        let Chain(index, prev, _next) = cloned_end;
+        let new_start_end = Some(start.clone())
+            .zip(prev)
+            .filter(|_| start != end);
+        self.start_end = new_start_end;
+        Some(index)
     }
 }
