@@ -3,15 +3,15 @@ use core::cmp::Ordering;
 
 use crate::arena::Arena;
 use crate::arena::ArenaItem;
-use crate::structures::chain::Chain;
-use crate::structures::index::Index;
-use crate::structures::multiple::Multiple;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::pattern_discriminant;
 use crate::ast::pattern::visitor::PatternVisitor;
 use crate::ast::pattern::visitor::visit_pattern;
+use crate::structures::chain::Chain;
+use crate::structures::index::Index;
+use crate::structures::multiple::Multiple;
 
 pub struct OrdVisitor<'a, Arenas1, Arenas2> {
     source_arenas: &'a Arenas1,

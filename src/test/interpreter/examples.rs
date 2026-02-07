@@ -1,13 +1,13 @@
 use crate::arena::Arena;
 use crate::arena::arena_impl::fixed_arena::FixedArena;
-use crate::structures::chain::Chain;
-use crate::structures::index::Index;
-use crate::structures::multiple::Multiple;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::note::Letter;
 use crate::ast::pattern::note::NoteUnit;
+use crate::structures::chain::Chain;
+use crate::structures::index::Index;
+use crate::structures::multiple::Multiple;
 
 #[derive(Debug, Default)]
 struct FixedArenas {

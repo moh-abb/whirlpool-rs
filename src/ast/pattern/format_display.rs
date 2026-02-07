@@ -6,14 +6,14 @@ use core::ops::DerefMut;
 
 use crate::arena::Arena;
 use crate::arena::ArenaItem;
-use crate::structures::chain::Chain;
-use crate::structures::index::Index;
-use crate::structures::multiple::Multiple;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::visitor::PatternVisitor;
 use crate::ast::pattern::visitor::visit_pattern;
+use crate::structures::chain::Chain;
+use crate::structures::index::Index;
+use crate::structures::multiple::Multiple;
 
 pub struct PatternDisplayAdapter<'a, Arenas> {
     index: Index<Pattern>,

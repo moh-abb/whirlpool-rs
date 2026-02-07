@@ -5,15 +5,15 @@ use spin::Lazy;
 use spin::Mutex;
 use spin::rwlock::RwLock;
 
-use crate::structures::chain::Chain;
-use crate::structures::index::Index;
-use crate::structures::multiple::Multiple;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::clone::PatternCloneDropAdapter;
 use crate::ast::pattern::drop::DropAdapter;
 use crate::ast::pattern::equality::PatternOrdAdapter;
 use crate::ast::pattern::note::Letter;
 use crate::ast::pattern::note::NoteUnit;
+use crate::structures::chain::Chain;
+use crate::structures::index::Index;
+use crate::structures::multiple::Multiple;
 use crate::test::pattern::mock::PatternArenaMockers;
 
 type Slot<T> = Lazy<RwLock<Option<T>>>;

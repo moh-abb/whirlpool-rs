@@ -1,10 +1,10 @@
 use crate::arena::Arena;
-use crate::structures::index::Index;
-use crate::structures::multiple::Multiple;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::note::NoteUnit;
+use crate::structures::index::Index;
+use crate::structures::multiple::Multiple;
 
 pub trait PatternVisitor {
     type Output;

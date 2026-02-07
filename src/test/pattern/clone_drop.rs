@@ -1,6 +1,5 @@
 use core::mem;
 
-use crate::structures::index::Index;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::clone::PatternCloneDropAdapter;
@@ -8,6 +7,7 @@ use crate::ast::pattern::drop::DropAdapter;
 use crate::ast::pattern::drop::PatternDropAdapter;
 use crate::ast::pattern::equality::PatternOrdAdapter;
 use crate::ast::pattern::format_display::PatternDisplayAdapter;
+use crate::structures::index::Index;
 use crate::test::pattern::arena_alloc::ArenaTest;
 use crate::test::pattern::arena_alloc::GrowableArenas;
 use crate::test::pattern::arena_alloc::get_arena_sizes;

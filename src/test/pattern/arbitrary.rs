@@ -9,9 +9,6 @@ use proptest::prop_oneof;
 use crate::alloc_types::Rc;
 use crate::arena::Arena;
 use crate::arena::error::ArenaResult;
-use crate::structures::index::INVALID_INDEX_VALUE;
-use crate::structures::index::Index;
-use crate::structures::multiple::Multiple;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimeUnit;
 use crate::ast::pattern::TimedStep;
@@ -24,6 +21,9 @@ use crate::ast::pattern::drop::PatternDropAdapter;
 use crate::ast::pattern::drop::TimedStepDropAdapter;
 use crate::ast::pattern::drop::multiple_cons;
 use crate::ast::pattern::note::NoteUnit;
+use crate::structures::index::INVALID_INDEX_VALUE;
+use crate::structures::index::Index;
+use crate::structures::multiple::Multiple;
 
 /// Traits representing functions with static lifetimes, that take a tuple of
 /// `dyn Arena<_>` and produce an [ArenaResult].

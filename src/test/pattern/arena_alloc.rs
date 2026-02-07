@@ -3,11 +3,11 @@ use proptest::test_runner::TestRunner;
 
 use crate::arena::Arena;
 use crate::arena::arena_impl::growable_arena::GrowableArena;
-use crate::structures::chain::Chain;
-use crate::structures::index::Index;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
+use crate::structures::chain::Chain;
+use crate::structures::index::Index;
 use crate::test::pattern::arbitrary::ArenasTo;
 use crate::test::pattern::arbitrary::arb_pattern;
 

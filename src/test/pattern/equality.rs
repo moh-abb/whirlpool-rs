@@ -1,10 +1,10 @@
 use std::cmp::Ordering;
 
-use crate::structures::index::Index;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::equality::PatternOrdAdapter;
 use crate::ast::pattern::format_display::PatternDisplayAdapter;
+use crate::structures::index::Index;
 use crate::test::pattern::arena_alloc::ArenaTest;
 use crate::test::pattern::arena_alloc::ArenaTest2;
 use crate::test::pattern::arena_alloc::GrowableArenas;

@@ -1,9 +1,9 @@
-use crate::structures::index::Index;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::format_display::PatternDisplayAdapter;
 use crate::ast::pattern::string_display::PatternDisplayVisitorL;
 use crate::ast::pattern::string_display::PatternDisplayVisitorR;
+use crate::structures::index::Index;
 use crate::test::pattern::arena_alloc::ArenaTest;
 use crate::test::pattern::arena_alloc::GrowableArenas;
 use crate::test::pattern::arena_alloc::with_regenerated_arenas;
