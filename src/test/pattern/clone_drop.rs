@@ -8,6 +8,7 @@ use crate::ast::pattern::drop::PatternDropAdapter;
 use crate::ast::pattern::equality::PatternOrdAdapter;
 use crate::ast::pattern::format_display::PatternDisplayAdapter;
 use crate::structures::index::Index;
+use crate::test::pattern::arena_alloc::AnyPatternStrategy;
 use crate::test::pattern::arena_alloc::ArenaTest;
 use crate::test::pattern::arena_alloc::GrowableArenas;
 use crate::test::pattern::arena_alloc::get_arena_sizes;
@@ -15,19 +16,19 @@ use crate::test::pattern::arena_alloc::with_regenerated_arenas;
 use crate::test::pattern::arena_alloc::with_reused_arenas;
 
 struct DoNothing;
-impl ArenaTest for DoNothing {
+impl ArenaTest<Index<Pattern>> for DoNothing {
     fn run(_: &impl PatternArenas, _: Index<Pattern>) {}
 }
 
 struct DropPattern;
-impl ArenaTest for DropPattern {
+impl ArenaTest<Index<Pattern>> for DropPattern {
     fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>) {
         mem::drop(PatternDropAdapter::new(pattern, arenas))
     }
 }
 
 struct CloneAndCheckEqual;
-impl ArenaTest for CloneAndCheckEqual {
+impl ArenaTest<Index<Pattern>> for CloneAndCheckEqual {
     fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>) {
         let mut adapter = PatternCloneDropAdapter::new(pattern.clone(), arenas);
         let cloned = adapter.clone().take_item();
@@ -45,7 +46,7 @@ impl ArenaTest for CloneAndCheckEqual {
 }
 
 struct CloneAndDropAndCheckEqual;
-impl ArenaTest for CloneAndDropAndCheckEqual {
+impl ArenaTest<Index<Pattern>> for CloneAndDropAndCheckEqual {
     fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>) {
         let mut pattern_adapter =
             PatternCloneDropAdapter::new(pattern.clone(), arenas);
@@ -71,7 +72,7 @@ impl ArenaTest for CloneAndDropAndCheckEqual {
 }
 
 struct CloneAndDropAndCheckSizesEqual;
-impl ArenaTest for CloneAndDropAndCheckSizesEqual {
+impl ArenaTest<Index<Pattern>> for CloneAndDropAndCheckSizesEqual {
     fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>) {
         let arena_sizes = get_arena_sizes(arenas);
         let sizes = arena_sizes();
@@ -119,50 +120,82 @@ impl ArenaTest for CloneAndDropAndCheckSizesEqual {
 
 #[test]
 fn can_allocate_in_growable_arenas_once() {
-    with_regenerated_arenas::<DoNothing, GrowableArenas>()
+    with_regenerated_arenas::<_, DoNothing, GrowableArenas, AnyPatternStrategy>(
+    )
 }
 
 #[test]
 fn can_allocate_in_growable_arenas_multiple() {
-    with_reused_arenas::<DoNothing, GrowableArenas>()
+    with_reused_arenas::<_, DoNothing, GrowableArenas, AnyPatternStrategy>()
 }
 
 #[test]
 fn can_allocate_then_deallocate_once() {
-    with_regenerated_arenas::<DropPattern, GrowableArenas>()
+    with_regenerated_arenas::<_, DropPattern, GrowableArenas, AnyPatternStrategy>(
+    )
 }
 
 #[test]
 fn can_allocate_then_deallocate_multiple() {
-    with_reused_arenas::<DropPattern, GrowableArenas>()
+    with_reused_arenas::<_, DropPattern, GrowableArenas, AnyPatternStrategy>()
 }
 
 #[test]
 fn can_clone_and_result_is_equal_once() {
-    with_regenerated_arenas::<CloneAndCheckEqual, GrowableArenas>()
+    with_regenerated_arenas::<
+        _,
+        CloneAndCheckEqual,
+        GrowableArenas,
+        AnyPatternStrategy,
+    >()
 }
 
 #[test]
 fn can_clone_and_result_is_equal_multiple() {
-    with_reused_arenas::<CloneAndCheckEqual, GrowableArenas>()
+    with_reused_arenas::<
+        _,
+        CloneAndCheckEqual,
+        GrowableArenas,
+        AnyPatternStrategy,
+    >()
 }
 
 #[test]
 fn can_clone_and_drop_many_times_and_result_stays_equal_once() {
-    with_regenerated_arenas::<CloneAndDropAndCheckEqual, GrowableArenas>()
+    with_regenerated_arenas::<
+        _,
+        CloneAndDropAndCheckEqual,
+        GrowableArenas,
+        AnyPatternStrategy,
+    >()
 }
 
 #[test]
 fn can_clone_and_drop_many_times_and_result_stays_equal_multiple() {
-    with_reused_arenas::<CloneAndDropAndCheckEqual, GrowableArenas>()
+    with_reused_arenas::<
+        _,
+        CloneAndDropAndCheckEqual,
+        GrowableArenas,
+        AnyPatternStrategy,
+    >()
 }
 
 #[test]
 fn can_clone_and_drop_and_arena_sizes_are_unchanged_once() {
-    with_regenerated_arenas::<CloneAndDropAndCheckSizesEqual, GrowableArenas>()
+    with_regenerated_arenas::<
+        _,
+        CloneAndDropAndCheckSizesEqual,
+        GrowableArenas,
+        AnyPatternStrategy,
+    >()
 }
 
 #[test]
 fn can_clone_and_drop_and_arena_sizes_are_unchanged_multiple() {
-    with_reused_arenas::<CloneAndDropAndCheckSizesEqual, GrowableArenas>()
+    with_reused_arenas::<
+        _,
+        CloneAndDropAndCheckSizesEqual,
+        GrowableArenas,
+        AnyPatternStrategy,
+    >()
 }

@@ -5,6 +5,7 @@ use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::equality::PatternOrdAdapter;
 use crate::ast::pattern::format_display::PatternDisplayAdapter;
 use crate::structures::index::Index;
+use crate::test::pattern::arena_alloc::AnyPatternStrategy;
 use crate::test::pattern::arena_alloc::ArenaTest;
 use crate::test::pattern::arena_alloc::ArenaTest2;
 use crate::test::pattern::arena_alloc::GrowableArenas;
@@ -14,7 +15,7 @@ use crate::test::pattern::arena_alloc::with_reused_arenas;
 use crate::test::pattern::arena_alloc::with_reused_arenas_double;
 
 struct EqualToItself;
-impl ArenaTest for EqualToItself {
+impl ArenaTest<Index<Pattern>> for EqualToItself {
     fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>) {
         let lhs_adapter = PatternOrdAdapter::new(pattern.clone(), arenas);
         let rhs_adapter = PatternOrdAdapter::new(pattern, arenas);
@@ -23,7 +24,7 @@ impl ArenaTest for EqualToItself {
 }
 
 struct PatternEqualIffReprEqual;
-impl ArenaTest2 for PatternEqualIffReprEqual {
+impl ArenaTest2<Index<Pattern>> for PatternEqualIffReprEqual {
     fn run(
         arenas: &impl PatternArenas,
         pattern1: Index<Pattern>,
@@ -43,20 +44,35 @@ impl ArenaTest2 for PatternEqualIffReprEqual {
 
 #[test]
 fn pattern_is_equal_to_itself_once() {
-    with_regenerated_arenas::<EqualToItself, GrowableArenas>()
+    with_regenerated_arenas::<
+        _,
+        EqualToItself,
+        GrowableArenas,
+        AnyPatternStrategy,
+    >()
 }
 
 #[test]
 fn pattern_is_equal_to_itself_multiple() {
-    with_reused_arenas::<EqualToItself, GrowableArenas>()
+    with_reused_arenas::<_, EqualToItself, GrowableArenas, AnyPatternStrategy>()
 }
 
 #[test]
 fn two_patterns_equal_if_and_only_if_display_equal_once() {
-    with_regenerated_arenas_double::<PatternEqualIffReprEqual, GrowableArenas>()
+    with_regenerated_arenas_double::<
+        _,
+        PatternEqualIffReprEqual,
+        GrowableArenas,
+        AnyPatternStrategy,
+    >()
 }
 
 #[test]
 fn two_patterns_equal_if_and_only_if_display_equal_multiple() {
-    with_reused_arenas_double::<PatternEqualIffReprEqual, GrowableArenas>()
+    with_reused_arenas_double::<
+        _,
+        PatternEqualIffReprEqual,
+        GrowableArenas,
+        AnyPatternStrategy,
+    >()
 }
