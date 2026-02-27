@@ -16,7 +16,12 @@ mod examples;
 mod stack;
 
 /// A triple of an expected scheduled start time, duration, and note unit.
-type ScheduledExpectation = (CycleTime, CycleTime, NoteUnit);
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+pub struct ScheduledExpectation {
+    pub start_time: CycleTime,
+    pub duration: CycleTime,
+    pub note_unit: NoteUnit,
+}
 
 /// Performs a simulation on a pattern stored in `arenas` with given head index
 /// `head_index`. For each element in `expected_actions`, the first denotes
@@ -34,11 +39,12 @@ fn test_fixed_arenas(
 
     let expect_note_unit =
         |expectation: ScheduledExpectation, all: &[ScheduledExpectation]| {
-            let (start_time, duration, note_unit) = expectation;
+            let ScheduledExpectation { start_time, duration, note_unit } =
+                expectation;
             let sound_unit = SoundUnit::new(note_unit, duration);
             let count = all
                 .iter()
-                .filter(|&&e| e == expectation)
+                .filter(|&e| e == &expectation)
                 .count();
             mock_player
                 .borrow_mut()

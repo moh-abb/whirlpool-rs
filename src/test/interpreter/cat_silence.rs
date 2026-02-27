@@ -3,6 +3,7 @@ use crate::ast::pattern::note::Frequency;
 use crate::ast::pattern::note::Letter;
 use crate::ast::pattern::note::NoteUnit;
 use crate::ast::time::CycleTime;
+use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::examples::binary_tree_depth_two;
 use crate::test::interpreter::examples::half_binary_tree_depth_two;
 use crate::test::interpreter::examples::multiple_of_three_units;
@@ -18,10 +19,13 @@ fn can_play_unit_for_one_cycle() {
     // - Updating to one cycle will lead to exactly one invocation of
     // scheduling the note unit.
     // - Updating the cycle to the same time does nothing.
-    let expected_schedule_actions = [
-        (CycleTime::ONE, &[(CycleTime::ZERO, CycleTime::ONE, note_unit)][..]),
-        (CycleTime::ONE, &[][..]),
-    ];
+    let expectation = ScheduledExpectation {
+        start_time: CycleTime::ZERO,
+        duration: CycleTime::ONE,
+        note_unit,
+    };
+    let expected_schedule_actions =
+        [(CycleTime::ONE, &[expectation][..]), (CycleTime::ONE, &[][..])];
     let (arenas, head_index) = one_cycle_unit(note_unit);
     test_fixed_arenas(arenas, head_index, &expected_schedule_actions);
 }
@@ -38,7 +42,11 @@ fn can_play_silence_for_one_cycle() {
 fn can_play_double_alternating_cats() {
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
     let make_scheduled_action = |start_time, letter: Letter| {
-        [(CycleTime::from_int(start_time), CycleTime::ONE, note_unit(letter))]
+        [ScheduledExpectation {
+            start_time: CycleTime::from_int(start_time),
+            duration: CycleTime::ONE,
+            note_unit: note_unit(letter),
+        }]
     };
     let expected_schedule_actions = [
         (CycleTime::from_int(1), &make_scheduled_action(0, Letter::A)[..]),
@@ -65,7 +73,11 @@ fn can_play_double_cat_then_unit() {
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
 
     let make_scheduled_action = |start_time, letter: Letter| {
-        [(CycleTime::from_int(start_time), CycleTime::ONE, note_unit(letter))]
+        [ScheduledExpectation {
+            start_time: CycleTime::from_int(start_time),
+            duration: CycleTime::ONE,
+            note_unit: note_unit(letter),
+        }]
     };
     let expected_schedule_actions = [
         (CycleTime::from_int(1), &make_scheduled_action(0, Letter::A)[..]),
@@ -90,7 +102,11 @@ fn can_play_cat_of_three_units() {
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
 
     let make_scheduled_action = |start_time, letter: Letter| {
-        [(CycleTime::from_int(start_time), CycleTime::ONE, note_unit(letter))]
+        [ScheduledExpectation {
+            start_time: CycleTime::from_int(start_time),
+            duration: CycleTime::ONE,
+            note_unit: note_unit(letter),
+        }]
     };
     let expected_schedule_actions = [
         (CycleTime::from_int(1), &make_scheduled_action(0, Letter::A)[..]),
@@ -112,7 +128,11 @@ fn can_play_cat_of_unit_then_silence_then_unit() {
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
 
     let make_scheduled_action = |start_time, letter: Letter| {
-        [(CycleTime::from_int(start_time), CycleTime::ONE, note_unit(letter))]
+        [ScheduledExpectation {
+            start_time: CycleTime::from_int(start_time),
+            duration: CycleTime::ONE,
+            note_unit: note_unit(letter),
+        }]
     };
     let expected_schedule_actions = [
         (CycleTime::from_int(1), &make_scheduled_action(0, Letter::A)[..]),

@@ -2,6 +2,7 @@ use crate::ast::pattern::Pattern;
 use crate::ast::pattern::note::Letter;
 use crate::ast::pattern::note::NoteUnit;
 use crate::ast::time::CycleTime;
+use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::examples::binary_tree_depth_two;
 use crate::test::interpreter::examples::half_binary_tree_depth_two;
 use crate::test::interpreter::examples::multiple_of_three_units;
@@ -10,8 +11,10 @@ use crate::test::interpreter::test_fixed_arenas;
 #[test]
 fn can_play_four_stacks() {
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
-    let single_action = |start_time, letter: Letter| {
-        (CycleTime::from_int(start_time), CycleTime::ONE, note_unit(letter))
+    let single_action = |start_time, letter: Letter| ScheduledExpectation {
+        start_time: CycleTime::from_int(start_time),
+        duration: CycleTime::ONE,
+        note_unit: note_unit(letter),
     };
     let make_scheduled_actions = |start_time| {
         [Letter::A, Letter::B, Letter::C, Letter::D]
@@ -37,8 +40,10 @@ fn can_play_double_stack_with_unit() {
     // A    B
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
 
-    let single_action = |start_time, letter: Letter| {
-        (CycleTime::from_int(start_time), CycleTime::ONE, note_unit(letter))
+    let single_action = |start_time, letter: Letter| ScheduledExpectation {
+        start_time: CycleTime::from_int(start_time),
+        duration: CycleTime::ONE,
+        note_unit: note_unit(letter),
     };
     let make_scheduled_actions = |start_time| {
         [Letter::A, Letter::B, Letter::C].map(|l| single_action(start_time, l))
@@ -61,8 +66,10 @@ fn can_play_stack_of_three_units() {
     // A  B  C
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
 
-    let single_action = |start_time, letter: Letter| {
-        (CycleTime::from_int(start_time), CycleTime::ONE, note_unit(letter))
+    let single_action = |start_time, letter: Letter| ScheduledExpectation {
+        start_time: CycleTime::from_int(start_time),
+        duration: CycleTime::ONE,
+        note_unit: note_unit(letter),
     };
     let make_scheduled_actions = |start_time| {
         [Letter::A, Letter::B, Letter::C].map(|l| single_action(start_time, l))
@@ -88,8 +95,10 @@ fn can_play_stack_of_cats() {
     // A   B     C   D
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
 
-    let single_action = |start_time, letter: Letter| {
-        (CycleTime::from_int(start_time), CycleTime::ONE, note_unit(letter))
+    let single_action = |start_time, letter: Letter| ScheduledExpectation {
+        start_time: CycleTime::from_int(start_time),
+        duration: CycleTime::ONE,
+        note_unit: note_unit(letter),
     };
     let even_cycle_actions = |start_time| {
         [Letter::A, Letter::C].map(|l| single_action(start_time, l))
