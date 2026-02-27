@@ -6,7 +6,7 @@ use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::examples::binary_tree_depth_two;
 use crate::test::interpreter::examples::half_binary_tree_depth_two;
 use crate::test::interpreter::examples::multiple_of_three_units;
-use crate::test::interpreter::test_fixed_arenas;
+use crate::test::interpreter::test_expectations;
 
 #[test]
 fn can_play_four_stacks() {
@@ -28,7 +28,7 @@ fn can_play_four_stacks() {
     ];
     let (arenas, head_index) =
         binary_tree_depth_two(Pattern::Stack, Pattern::Stack, Pattern::Stack);
-    test_fixed_arenas(arenas, head_index, &expected_schedule_actions);
+    test_expectations(&arenas, head_index, &expected_schedule_actions);
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn can_play_double_stack_with_unit() {
     ];
     let (arenas, head_index) =
         half_binary_tree_depth_two(Pattern::Stack, Pattern::Stack);
-    test_fixed_arenas(arenas, head_index, &expected_schedule_actions);
+    test_expectations(&arenas, head_index, &expected_schedule_actions);
 }
 
 #[test]
@@ -83,7 +83,7 @@ fn can_play_stack_of_three_units() {
         (CycleTime::from_int(6), &make_scheduled_actions(5)[..]),
     ];
     let (arenas, head_index) = multiple_of_three_units(Pattern::Stack);
-    test_fixed_arenas(arenas, head_index, &expected_schedule_actions);
+    test_expectations(&arenas, head_index, &expected_schedule_actions);
 }
 
 #[test]
@@ -116,5 +116,5 @@ fn can_play_stack_of_cats() {
     ];
     let (arenas, head_index) =
         binary_tree_depth_two(Pattern::Stack, Pattern::Cat, Pattern::Cat);
-    test_fixed_arenas(arenas, head_index, &expected_schedule_actions);
+    test_expectations(&arenas, head_index, &expected_schedule_actions);
 }

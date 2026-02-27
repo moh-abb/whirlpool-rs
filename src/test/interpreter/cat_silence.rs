@@ -10,7 +10,7 @@ use crate::test::interpreter::examples::multiple_of_three_units;
 use crate::test::interpreter::examples::multiple_of_unit_then_silence_then_unit;
 use crate::test::interpreter::examples::one_cycle_silence;
 use crate::test::interpreter::examples::one_cycle_unit;
-use crate::test::interpreter::test_fixed_arenas;
+use crate::test::interpreter::test_expectations;
 
 #[test]
 fn can_play_unit_for_one_cycle() {
@@ -27,7 +27,7 @@ fn can_play_unit_for_one_cycle() {
     let expected_schedule_actions =
         [(CycleTime::ONE, &[expectation][..]), (CycleTime::ONE, &[][..])];
     let (arenas, head_index) = one_cycle_unit(note_unit);
-    test_fixed_arenas(arenas, head_index, &expected_schedule_actions);
+    test_expectations(&arenas, head_index, &expected_schedule_actions);
 }
 
 #[test]
@@ -35,7 +35,7 @@ fn can_play_silence_for_one_cycle() {
     let expected_schedule_actions =
         [(CycleTime::from_int(1), &[][..]), (CycleTime::from_int(2), &[][..])];
     let (arenas, head_index) = one_cycle_silence();
-    test_fixed_arenas(arenas, head_index, &expected_schedule_actions);
+    test_expectations(&arenas, head_index, &expected_schedule_actions);
 }
 
 #[test]
@@ -60,7 +60,7 @@ fn can_play_double_alternating_cats() {
     ];
     let (arenas, head_index) =
         binary_tree_depth_two(Pattern::Cat, Pattern::Cat, Pattern::Cat);
-    test_fixed_arenas(arenas, head_index, &expected_schedule_actions);
+    test_expectations(&arenas, head_index, &expected_schedule_actions);
 }
 
 #[test]
@@ -91,7 +91,7 @@ fn can_play_double_cat_then_unit() {
     ];
     let (arenas, head_index) =
         half_binary_tree_depth_two(Pattern::Cat, Pattern::Cat);
-    test_fixed_arenas(arenas, head_index, &expected_schedule_actions);
+    test_expectations(&arenas, head_index, &expected_schedule_actions);
 }
 
 #[test]
@@ -117,7 +117,7 @@ fn can_play_cat_of_three_units() {
         (CycleTime::from_int(6), &make_scheduled_action(5, Letter::C)[..]),
     ];
     let (arenas, head_index) = multiple_of_three_units(Pattern::Cat);
-    test_fixed_arenas(arenas, head_index, &expected_schedule_actions);
+    test_expectations(&arenas, head_index, &expected_schedule_actions);
 }
 
 #[test]
@@ -144,5 +144,5 @@ fn can_play_cat_of_unit_then_silence_then_unit() {
     ];
     let (arenas, head_index) =
         multiple_of_unit_then_silence_then_unit(Pattern::Cat);
-    test_fixed_arenas(arenas, head_index, &expected_schedule_actions);
+    test_expectations(&arenas, head_index, &expected_schedule_actions);
 }
