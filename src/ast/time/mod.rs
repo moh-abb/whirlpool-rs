@@ -19,13 +19,28 @@ impl CycleTime {
     }
 
     #[inline]
+    pub const fn checked_from_int(time: i32) -> Option<Self> {
+        const MAX_POS_TIME: i32 = (1_i32 << (Inner::INT_NBITS - 1)) - 1;
+        const MAX_NEG_TIME: i32 = - MAX_POS_TIME - 1;
+        if time > MAX_POS_TIME || time < MAX_NEG_TIME {
+            return None;
+        }
+        Some(Self::from_int(time))
+    }
+
+    #[inline]
     pub const fn to_int(self) -> i32 {
         self.0.int().to_bits() >> Inner::FRAC_NBITS
     }
 
     #[inline]
     pub const fn from_int_recip(time: i32) -> Self {
-        Self::from_int(time).recip()
+        // We assume that if `Self::checked_from_int`, returns None, then `time`
+        // is too large (positively or negatively), and so the result is zero.
+        match Self::checked_from_int(time) {
+            Some(cycle_time) => cycle_time.recip(),
+            None => CycleTime::ZERO,
+        }
     }
 
     #[inline]
