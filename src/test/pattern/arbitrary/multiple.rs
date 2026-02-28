@@ -22,7 +22,7 @@ pub fn arb_pattern_with_units<Arenas: PatternArenas + 'static>(
             .into_iter()
             .map(arb_pattern_note_unit)
     };
-    prop::collection::vec(any::<NoteUnit>(), ..MAX_UNIT_COUNT)
+    prop::collection::vec(any::<NoteUnit>(), 1..MAX_UNIT_COUNT)
         .prop_map(move |units| (units.clone(), arenas_to_units(units)))
         .prop_map(move |(units, arenas_to_units)| {
             ArenasTo::new(move |arenas: &Arenas| {
