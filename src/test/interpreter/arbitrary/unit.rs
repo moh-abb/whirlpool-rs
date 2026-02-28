@@ -160,6 +160,41 @@ impl StrategyWithArena<NoteSequence> for UnitSequenceStrategy {
     }
 }
 
+const MAX_CHUNK_COUNT: NonZeroU16 = NonZeroU16::new(5000).unwrap();
+
+fn arb_chunk_count() -> impl Strategy<Value = NonZeroU16> {
+    any::<NonZeroU16>().prop_filter(
+        Reason::from("Chunk count should be less than {MAX_CHUNK_COUNT}"),
+        |chunk_count| chunk_count <= &MAX_CHUNK_COUNT,
+    )
+}
+
+struct ChunkedUnitSequenceStrategy;
+impl StrategyWithArena<NoteSequence> for ChunkedUnitSequenceStrategy {
+    fn item_strategy<Arenas: PatternArenas + 'static>()
+    -> impl Strategy<Value = ArenasTo<Arenas, NoteSequence>> {
+        (arb_chunk_count(), unit_sequence_strategy_args()).prop_map(
+            |(chunk_count, (note_unit, end_time, offset, multiplier))| {
+                ArenasTo::new(move |arenas: &Arenas| {
+                    let alloc_unit = |pattern: Pattern| {
+                        arenas
+                            .get_pattern_arena()
+                            .alloc(pattern)
+                    };
+                    chunked_unit_sequence(
+                        alloc_unit,
+                        note_unit,
+                        chunk_count,
+                        end_time,
+                        offset,
+                        multiplier,
+                    )
+                })
+            },
+        )
+    }
+}
+
 /// Returns an arbitrary note unit, end time, offset and multiplier.
 fn unit_sequence_strategy_args()
 -> impl Strategy<Value = (NoteUnit, CycleTime, CycleTime, CycleTime)> {
@@ -189,8 +224,8 @@ impl TestSetupStrategy for UnitSequenceTestSetup {
     }
 }
 
-struct PlayCompleteTimeInterval;
-impl ArenaTest<NoteSequence> for PlayCompleteTimeInterval {
+struct PlayNoteSequence;
+impl ArenaTest<NoteSequence> for PlayNoteSequence {
     fn run(arenas: &impl PatternArenas, sequence: NoteSequence) {
         test_expectations_with_interpreter_setup(
             arenas,
@@ -205,11 +240,21 @@ impl ArenaTest<NoteSequence> for PlayCompleteTimeInterval {
 }
 
 #[test]
-fn can_play_complete_time_interval_once() {
+fn can_play_complete_time_interval() {
     with_regenerated_arenas::<
         _,
-        PlayCompleteTimeInterval,
+        PlayNoteSequence,
         GrowableArenas,
         UnitSequenceStrategy,
+    >()
+}
+
+#[test]
+fn can_play_chunked_time_interval() {
+    with_regenerated_arenas::<
+        _,
+        PlayNoteSequence,
+        GrowableArenas,
+        ChunkedUnitSequenceStrategy,
     >()
 }
