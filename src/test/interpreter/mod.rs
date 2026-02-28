@@ -13,6 +13,7 @@ use crate::structures::index::Index;
 
 mod cat_silence;
 mod examples;
+mod sequence;
 mod stack;
 
 /// A triple of an expected scheduled start time, duration, and note unit.
