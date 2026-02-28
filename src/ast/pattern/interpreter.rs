@@ -46,6 +46,8 @@ pub struct Interpreter<'a, Arenas, Player, B> {
     arenas: &'a Arenas,
     borrow_adapter: B,
     position: CycleTime,
+    base_multiplier: CycleTime,
+    base_offset: CycleTime,
     phantom: PhantomData<Player>,
 }
 
@@ -63,6 +65,8 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
             arenas,
             borrow_adapter: player,
             position: CycleTime::ZERO,
+            base_multiplier: CycleTime::ONE,
+            base_offset: CycleTime::ZERO,
             phantom: PhantomData,
         }
     }
@@ -82,8 +86,24 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
             arenas,
             borrow_adapter: player,
             position: CycleTime::ZERO,
+            base_multiplier: CycleTime::ONE,
+            base_offset: CycleTime::ZERO,
             phantom: PhantomData,
         }
+    }
+}
+
+impl<'a, Arenas, Player, Borrow> Interpreter<'a, Arenas, Player, Borrow> {
+    #[cfg(test)]
+    #[allow(unused)]
+    pub fn set_multiplier(&mut self, multiplier: CycleTime) {
+        self.base_multiplier = multiplier;
+    }
+
+    #[cfg(test)]
+    #[allow(unused)]
+    pub fn set_offset(&mut self, offset: CycleTime) {
+        self.base_offset = offset;
     }
 }
 
@@ -103,8 +123,8 @@ impl<
             arenas: self.arenas,
             start: self.position,
             duration: next_position.sub(self.position),
-            offset: CycleTime::ZERO,
-            multiplier: CycleTime::ONE,
+            offset: self.base_offset,
+            multiplier: self.base_multiplier,
             inner: RefCell::new(VisitorInner {
                 player: borrowed_player.deref_mut(),
             }),
