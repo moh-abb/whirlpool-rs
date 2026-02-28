@@ -45,6 +45,12 @@ impl CycleTime {
 
     #[inline]
     #[must_use]
+    pub const fn neg(self) -> Self {
+        Self(self.0.saturating_neg())
+    }
+
+    #[inline]
+    #[must_use]
     pub const fn add(self, other: Self) -> Self {
         Self(self.0.saturating_add(other.0))
     }
