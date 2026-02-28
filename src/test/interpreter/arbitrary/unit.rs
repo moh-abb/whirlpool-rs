@@ -19,7 +19,7 @@ use crate::test::interpreter::arbitrary::time::arb_cycle_time;
 use crate::test::interpreter::arbitrary::time::arb_positive_cycle_time;
 use crate::test::interpreter::sequence::NoteSequence;
 use crate::test::interpreter::test_expectations_with_interpreter_setup;
-use crate::test::pattern::arbitrary::ArenasTo;
+use crate::test::pattern::arbitrary::arenas_to::ArenasTo;
 use crate::test::pattern::arena_alloc::ArenaTest;
 use crate::test::pattern::arena_alloc::GrowableArenas;
 use crate::test::pattern::arena_alloc::StrategyWithArena;

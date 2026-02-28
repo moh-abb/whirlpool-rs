@@ -8,8 +8,8 @@ use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::structures::chain::Chain;
 use crate::structures::index::Index;
-use crate::test::pattern::arbitrary::ArenasTo;
-use crate::test::pattern::arbitrary::arb_pattern;
+use crate::test::pattern::arbitrary::arenas_to::ArenasTo;
+use crate::test::pattern::arbitrary::pattern::arb_pattern;
 
 #[derive(Debug)]
 pub struct GrowableArenas(
@@ -61,7 +61,7 @@ pub fn with_regenerated_arenas<
     let mut test_runner = TestRunner::deterministic();
     let strat = ItemStrategy::item_strategy();
     let run_with_arena = |pat2: ArenasTo<_, _>, arenas: &Arenas| {
-        Test::run(arenas, (pat2.clone().0)(arenas).unwrap())
+        Test::run(arenas, pat2.call(arenas).unwrap())
     };
     test_runner
         .run(&strat, move |pat| {
@@ -83,7 +83,7 @@ pub fn with_reused_arenas<
     let strat = ItemStrategy::item_strategy();
     let arenas = Arenas::default();
     let run_with_arena = |pat: ArenasTo<_, _>| {
-        Test::run(&arenas, (pat.0)(&arenas).unwrap());
+        Test::run(&arenas, pat.call(&arenas).unwrap());
         Ok(())
     };
     test_runner
@@ -100,13 +100,13 @@ pub fn with_regenerated_arenas_double<
     let mut test_runner = TestRunner::deterministic();
     let strat = (ItemStrategy::item_strategy(), ItemStrategy::item_strategy())
         .prop_map(|(x, y)| {
-            ArenasTo::new(move |arenas| Ok(((x.0)(arenas)?, (y.0)(arenas)?)))
+            ArenasTo::new(move |arenas| Ok((x.call(arenas)?, y.call(arenas)?)))
         });
     test_runner
         .run(&strat, move |pat| {
             let pat = pat.clone();
             let arenas = Arenas::default();
-            let (x, y) = (pat.clone().0)(&arenas).unwrap();
+            let (x, y) = pat.call(&arenas).unwrap();
             Test::run(&arenas, x, y);
             Ok(())
         })
@@ -122,11 +122,11 @@ pub fn with_reused_arenas_double<
     let mut test_runner = TestRunner::deterministic();
     let strat = (ItemStrategy::item_strategy(), ItemStrategy::item_strategy())
         .prop_map(|(x, y)| {
-            ArenasTo::new(move |arenas| Ok(((x.0)(arenas)?, (y.0)(arenas)?)))
+            ArenasTo::new(move |arenas| Ok((x.call(arenas)?, y.call(arenas)?)))
         });
     let arenas = Arenas::default();
     let run_with_arena = |pat: ArenasTo<_, _>| {
-        let (x, y) = (pat.0)(&arenas).unwrap();
+        let (x, y) = pat.call(&arenas).unwrap();
         Test::run(&arenas, x, y);
         Ok(())
     };

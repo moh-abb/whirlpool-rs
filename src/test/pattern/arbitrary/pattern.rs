@@ -1,14 +1,10 @@
-use core::fmt::Debug;
-
 use proptest::prelude::Just;
 use proptest::prelude::Strategy;
 use proptest::prelude::any;
 use proptest::prelude::prop;
 use proptest::prop_oneof;
 
-use crate::alloc_types::Rc;
 use crate::arena::Arena;
-use crate::arena::error::ArenaResult;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimeUnit;
 use crate::ast::pattern::TimedStep;
@@ -24,44 +20,7 @@ use crate::ast::pattern::note::NoteUnit;
 use crate::structures::index::INVALID_INDEX_VALUE;
 use crate::structures::index::Index;
 use crate::structures::multiple::Multiple;
-
-/// Traits representing functions with static lifetimes, that take a tuple of
-/// `dyn Arena<_>` and produce an [ArenaResult].
-/// This can be thought of as an impure generator function which can modify the
-/// arena.
-pub trait ArenasToFn<Arenas, T>
-where
-    Self: Fn(&Arenas) -> ArenaResult<T>,
-    Arenas: PatternArenas,
-{
-}
-impl<Arenas, T, F> ArenasToFn<Arenas, T> for F
-where
-    Self: Fn(&Arenas) -> ArenaResult<T>,
-    Arenas: PatternArenas,
-{
-}
-
-/// A helper struct to avoid rewriting casting to [ArenasToFn].
-pub struct ArenasTo<Arenas, T>(pub Rc<dyn ArenasToFn<Arenas, T>>);
-
-impl<Arenas, T> Debug for ArenasTo<Arenas, T> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "ArenasTo")
-    }
-}
-
-impl<Arenas, T> Clone for ArenasTo<Arenas, T> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-
-impl<Arenas: PatternArenas, T> ArenasTo<Arenas, T> {
-    pub fn new(f: impl ArenasToFn<Arenas, T> + 'static) -> Self {
-        Self(Rc::new(f) as Rc<dyn ArenasToFn<Arenas, T>>)
-    }
-}
+use crate::test::pattern::arbitrary::arenas_to::ArenasTo;
 
 fn silence_leaf<Arenas: PatternArenas>() -> ArenasTo<Arenas, Index<Pattern>> {
     ArenasTo::new(|arenas: &Arenas| {
@@ -95,7 +54,7 @@ fn pattern_to_timed_step<Arenas: PatternArenas + 'static>(
 ) -> ArenasTo<Arenas, Index<TimedStep>> {
     ArenasTo::new(move |arenas: &Arenas| {
         let timed_step_arena = arenas.get_timed_step_arena();
-        let alloc_pattern = (x.0)(arenas)?;
+        let alloc_pattern = x.call(arenas)?;
         let mut pattern_drop_adapter =
             PatternDropAdapter::new(alloc_pattern, arenas);
         // Allocation starts here.
@@ -130,7 +89,7 @@ fn pattern_to_time_cat<Arenas: PatternArenas + 'static>(
                     arenas,
                 ),
                 |multiple_adapter, x| {
-                    let pattern_index = (x.0)(arenas)?;
+                    let pattern_index = x.call(arenas)?;
                     let item_adapter =
                         TimedStepDropAdapter::new(pattern_index, arenas);
                     multiple_cons(
@@ -163,7 +122,7 @@ fn pattern_to_multiple_pattern<Arenas: PatternArenas + 'static>(
         let multiple_adapter = xs.iter().cloned().try_fold(
             MultiplePatternDropAdapter::new(Multiple::new_empty(), arenas),
             |multiple_adapter, x| {
-                let pattern_index = (x.0)(arenas)?;
+                let pattern_index = x.call(arenas)?;
                 let item_adapter =
                     PatternDropAdapter::new(pattern_index, arenas);
                 multiple_cons(
