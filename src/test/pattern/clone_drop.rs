@@ -87,28 +87,21 @@ impl ArenaTest<Index<Pattern>> for CloneAndDropAndCheckSizesEqual {
         let size_diff_2 =
             core::array::from_fn::<_, 4, _>(|i| sizes_3[i] - sizes_2[i]);
         assert_eq!(
-            dbg!(size_diff_1),
-            dbg!(size_diff_2),
+            size_diff_1, size_diff_2,
             "Cloning twice should increase the number of elements by the same amount"
         );
         let pattern_3_adapter =
             PatternDropAdapter::new(pattern_3.clone(), arenas);
-        println!(
-            "Pattern 3 drop adapter: {}",
-            PatternDisplayAdapter::new(pattern_3, arenas),
-        );
         mem::drop(pattern_3_adapter);
         let sizes_4 = arena_sizes();
         assert_eq!(
-            dbg!(sizes_4),
-            dbg!(sizes_2),
+            sizes_4, sizes_2,
             "Cloning then dropping should preserve the number of elements"
         );
         mem::drop(PatternDropAdapter::new(pattern_2, arenas));
         let sizes_5 = arena_sizes();
         assert_eq!(
-            dbg!(sizes_5),
-            dbg!(sizes),
+            sizes_5, sizes,
             "Cloning then dropping twice should preserve the number of elements"
         );
         // To check that the behaviour of the arena is preserved even while
