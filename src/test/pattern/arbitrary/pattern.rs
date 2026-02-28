@@ -16,37 +16,11 @@ use crate::ast::pattern::drop::MultipleTimedStepDropAdapter;
 use crate::ast::pattern::drop::PatternDropAdapter;
 use crate::ast::pattern::drop::TimedStepDropAdapter;
 use crate::ast::pattern::drop::multiple_cons;
-use crate::ast::pattern::note::NoteUnit;
 use crate::structures::index::INVALID_INDEX_VALUE;
 use crate::structures::index::Index;
 use crate::structures::multiple::Multiple;
 use crate::test::pattern::arbitrary::arenas_to::ArenasTo;
-
-fn silence_leaf<Arenas: PatternArenas>() -> ArenasTo<Arenas, Index<Pattern>> {
-    ArenasTo::new(|arenas: &Arenas| {
-        arenas
-            .get_pattern_arena()
-            .alloc(Pattern::Silence)
-    })
-}
-
-fn note_unit_leaf<Arenas: PatternArenas>(
-    unit: NoteUnit,
-) -> ArenasTo<Arenas, Index<Pattern>> {
-    ArenasTo::new(move |arenas: &Arenas| {
-        arenas
-            .get_pattern_arena()
-            .alloc(Pattern::Note(unit))
-    })
-}
-
-fn pattern_leaf<Arenas: PatternArenas + 'static>()
--> impl Strategy<Value = ArenasTo<Arenas, Index<Pattern>>> {
-    prop_oneof![
-        Just(silence_leaf()),
-        any::<NoteUnit>().prop_map(note_unit_leaf)
-    ]
-}
+use crate::test::pattern::arbitrary::silence::arb_pattern_leaf;
 
 fn pattern_to_timed_step<Arenas: PatternArenas + 'static>(
     x: ArenasTo<Arenas, Index<Pattern>>,
@@ -150,7 +124,7 @@ fn pattern_to_multiple_pattern<Arenas: PatternArenas + 'static>(
 
 pub fn arb_pattern<Arenas: PatternArenas + 'static>()
 -> impl Strategy<Value = ArenasTo<Arenas, Index<Pattern>>> {
-    let result = pattern_leaf().prop_recursive(
+    let result = arb_pattern_leaf().prop_recursive(
         8,   // levels deep
         256, // maximum number of nodes
         10,  // up to 10 items per collection
