@@ -2,6 +2,7 @@ use proptest::prelude::Strategy;
 use proptest::prelude::any;
 use proptest::test_runner::Reason;
 
+use crate::alloc_types::Vec;
 use crate::arena::Arena;
 use crate::arena::error::ArenaResult;
 use crate::ast::pattern::Pattern;
@@ -24,18 +25,20 @@ use crate::test::pattern::arena_alloc::with_regenerated_arenas;
 
 const MAX_END_TIME: CycleTime = CycleTime::from_int(2048);
 
-pub fn unit_sequence(
-    alloc_unit: impl FnOnce(Pattern) -> ArenaResult<Index<Pattern>>,
+pub fn unit_sequence_with_start(
+    head: Index<Pattern>,
     note_unit: NoteUnit,
+    start_time: CycleTime,
     end_time: CycleTime,
     offset: CycleTime,
     multiplier: CycleTime,
-) -> ArenaResult<NoteSequence> {
-    let mut expected = Vec::<ScheduledExpectation>::new();
+) -> NoteSequence {
+    let mut scheduled_expectations = Vec::<ScheduledExpectation>::new();
+    let aligned_start_time = start_time.round_up_to_nearest(CycleTime::ONE);
     let aligned_end_time = end_time.round_up_to_nearest(CycleTime::ONE);
     let unit_duration = multiplier.recip();
 
-    let mut current = CycleTime::ZERO;
+    let mut current = aligned_start_time;
     while current < aligned_end_time {
         let expectation = ScheduledExpectation {
             start_time: current.mul(unit_duration).add(offset),
@@ -43,47 +46,69 @@ pub fn unit_sequence(
             note_unit,
         };
 
-        expected.push(expectation);
+        scheduled_expectations.push(expectation);
         current = current.add(CycleTime::ONE);
     }
 
-    let head = alloc_unit(Pattern::Note(note_unit))?;
-    Ok(NoteSequence {
+    NoteSequence {
         head,
         offset,
         multiplier,
+        expected: vec![(end_time, scheduled_expectations.clone())],
+    }
+}
+
+pub fn unit_sequence(
+    alloc_unit: impl FnOnce(Pattern) -> ArenaResult<Index<Pattern>>,
+    note_unit: NoteUnit,
+    end_time: CycleTime,
+    offset: CycleTime,
+    multiplier: CycleTime,
+) -> ArenaResult<NoteSequence> {
+    Ok(unit_sequence_with_start(
+        alloc_unit(Pattern::Note(note_unit))?,
+        note_unit,
+        CycleTime::ZERO,
         end_time,
-        expected: expected.clone(),
-    })
+        offset,
+        multiplier,
+    ))
 }
 
 struct UnitSequenceStrategy;
 impl StrategyWithArena<NoteSequence> for UnitSequenceStrategy {
     fn item_strategy<Arenas: PatternArenas + 'static>()
     -> impl Strategy<Value = ArenasTo<Arenas, NoteSequence>> {
-        let arb_end_time = arb_positive_cycle_time().prop_filter(
-            Reason::from("End time should be at most {MAX_END_TIME:?}"),
-            |time| time <= &MAX_END_TIME,
-        );
-        let arbitrary_args = (
-            any::<NoteUnit>(),
-            arb_end_time,
-            arb_cycle_time(),
-            arb_positive_cycle_time(),
-        );
-        arbitrary_args.prop_map(|(note_unit, end_time, offset, multiplier)| {
-            ArenasTo::new(move |arenas: &Arenas| {
-                let alloc_unit = |pattern: Pattern| {
-                    arenas
-                        .get_pattern_arena()
-                        .alloc(pattern)
-                };
-                unit_sequence(
-                    alloc_unit, note_unit, end_time, offset, multiplier,
-                )
-            })
-        })
+        unit_sequence_strategy_args().prop_map(
+            |(note_unit, end_time, offset, multiplier)| {
+                ArenasTo::new(move |arenas: &Arenas| {
+                    let alloc_unit = |pattern: Pattern| {
+                        arenas
+                            .get_pattern_arena()
+                            .alloc(pattern)
+                    };
+                    unit_sequence(
+                        alloc_unit, note_unit, end_time, offset, multiplier,
+                    )
+                })
+            },
+        )
     }
+}
+
+/// Returns an arbitrary note unit, end time, offset and multiplier.
+fn unit_sequence_strategy_args()
+-> impl Strategy<Value = (NoteUnit, CycleTime, CycleTime, CycleTime)> {
+    let arb_end_time = arb_positive_cycle_time().prop_filter(
+        Reason::from("End time should be at most {MAX_END_TIME:?}"),
+        |time| time <= &MAX_END_TIME,
+    );
+    (
+        any::<NoteUnit>(),
+        arb_end_time,
+        arb_cycle_time(),
+        arb_positive_cycle_time(),
+    )
 }
 
 struct UnitSequenceTestSetup {
@@ -103,12 +128,10 @@ impl TestSetupStrategy for UnitSequenceTestSetup {
 struct PlayCompleteTimeInterval;
 impl ArenaTest<NoteSequence> for PlayCompleteTimeInterval {
     fn run(arenas: &impl PatternArenas, sequence: NoteSequence) {
-        let complete_interval_expectations =
-            [(sequence.end_time, sequence.expected.as_slice())];
         test_expectations_with_interpreter_setup(
             arenas,
             sequence.head,
-            &complete_interval_expectations,
+            &sequence.expected,
             UnitSequenceTestSetup {
                 offset: sequence.offset,
                 multiplier: sequence.multiplier,

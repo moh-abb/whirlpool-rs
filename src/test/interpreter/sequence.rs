@@ -10,6 +10,5 @@ pub struct NoteSequence {
     pub head: Index<Pattern>,
     pub offset: CycleTime,
     pub multiplier: CycleTime,
-    pub end_time: CycleTime,
-    pub expected: Vec<ScheduledExpectation>,
+    pub expected: Vec<(CycleTime, Vec<ScheduledExpectation>)>,
 }
