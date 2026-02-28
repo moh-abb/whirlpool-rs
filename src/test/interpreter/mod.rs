@@ -1,3 +1,4 @@
+use core::borrow::Borrow;
 use core::cell::RefCell;
 
 use mockall::predicate;
@@ -32,8 +33,9 @@ pub struct ScheduledExpectation {
 /// added and checked sequentially for each pair in `expected_actions`.
 fn test_expectations<
     'a,
-    ExpectationsAtTime: IntoIterator<Item = &'a ScheduledExpectation> + Clone + 'a,
-    Expectations: IntoIterator<Item = &'a (CycleTime, ExpectationsAtTime)> + Clone,
+    'b,
+    ExpectationsAtTime: IntoIterator<Item = impl Borrow<ScheduledExpectation>> + Clone + 'a + 'b,
+    Expectations: IntoIterator<Item = &'b (CycleTime, ExpectationsAtTime)> + Clone,
 >(
     arenas: &'a impl PatternArenas,
     head_index: Index<Pattern>,
@@ -65,11 +67,10 @@ impl TestSetupStrategy for EmptyInterpreterSetup {
 }
 
 fn test_expectations_with_interpreter_setup<
-    'a,
-    ExpectationsAtTime: IntoIterator<Item = &'a ScheduledExpectation> + Clone + 'a,
-    Expectations: IntoIterator<Item = &'a (CycleTime, ExpectationsAtTime)> + Clone,
+    ExpectationsAtTime: IntoIterator<Item = impl Borrow<ScheduledExpectation>> + Clone,
+    Expectations: IntoIterator<Item = impl Borrow<(CycleTime, ExpectationsAtTime)>> + Clone,
 >(
-    arenas: &'a impl PatternArenas,
+    arenas: &impl PatternArenas,
     head_index: Index<Pattern>,
     expected_schedule_actions: Expectations,
     test_setup: impl TestSetupStrategy,
@@ -87,7 +88,7 @@ fn test_expectations_with_interpreter_setup<
             let count = all
                 .clone()
                 .into_iter()
-                .filter(|&e| e == &expectation)
+                .filter(|e| e.borrow() == &expectation)
                 .count();
             mock_player
                 .borrow_mut()
@@ -97,12 +98,12 @@ fn test_expectations_with_interpreter_setup<
                 .return_const(());
         };
 
-    for (next_cycle_time, expectations) in expected_schedule_actions {
+    for borrow_scheduled_actions in expected_schedule_actions {
+        let (next_cycle_time, expectations) = borrow_scheduled_actions.borrow();
         expectations
             .clone()
             .into_iter()
-            .cloned()
-            .for_each(|e| expect_note_unit(e, expectations));
+            .for_each(|e| expect_note_unit(e.borrow().clone(), expectations));
         interpreter.update_time(*next_cycle_time);
         mock_player.borrow_mut().checkpoint();
     }
