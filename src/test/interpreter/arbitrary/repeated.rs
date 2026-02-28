@@ -1,5 +1,9 @@
 use core::num::NonZeroU16;
 
+use proptest::prelude::Strategy;
+use proptest::prelude::any;
+use proptest::test_runner::Reason;
+
 use crate::alloc_types::Vec;
 use crate::arena::error::ArenaResult;
 use crate::ast::pattern::Pattern;
@@ -7,6 +11,8 @@ use crate::ast::pattern::note::NoteUnit;
 use crate::ast::time::CycleTime;
 use crate::structures::index::Index;
 use crate::test::interpreter::ScheduledExpectation;
+use crate::test::interpreter::arbitrary::time::arb_cycle_time;
+use crate::test::interpreter::arbitrary::time::arb_positive_cycle_time;
 use crate::test::interpreter::sequence::NoteSequence;
 
 fn repeated_unit_with_start(
@@ -116,5 +122,26 @@ pub fn repeated_unit(
         end_time,
         offset,
         multiplier,
+    )
+}
+
+const MAX_END_TIME: CycleTime = CycleTime::from_int(2048);
+
+/// Returns an arbitrary end time, offset and multiplier.
+pub fn arb_end_offset_and_multiplier()
+-> impl Strategy<Value = (CycleTime, CycleTime, CycleTime)> {
+    let arb_end_time = arb_positive_cycle_time().prop_filter(
+        Reason::from("End time should be at most {MAX_END_TIME:?}"),
+        |time| time <= &MAX_END_TIME,
+    );
+    (arb_end_time, arb_cycle_time(), arb_positive_cycle_time())
+}
+
+const MAX_CHUNK_COUNT: NonZeroU16 = NonZeroU16::new(5000).unwrap();
+
+pub fn arb_chunk_count() -> impl Strategy<Value = NonZeroU16> {
+    any::<NonZeroU16>().prop_filter(
+        Reason::from("Chunk count should be less than {MAX_CHUNK_COUNT}"),
+        |chunk_count| chunk_count <= &MAX_CHUNK_COUNT,
     )
 }
