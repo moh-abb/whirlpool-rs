@@ -1,0 +1,120 @@
+use core::num::NonZeroU16;
+
+use crate::alloc_types::Vec;
+use crate::arena::error::ArenaResult;
+use crate::ast::pattern::Pattern;
+use crate::ast::pattern::note::NoteUnit;
+use crate::ast::time::CycleTime;
+use crate::structures::index::Index;
+use crate::test::interpreter::ScheduledExpectation;
+use crate::test::interpreter::sequence::NoteSequence;
+
+fn repeated_unit_with_start(
+    head: Index<Pattern>,
+    get_unit: &impl Fn(CycleTime) -> NoteUnit,
+    start_time: CycleTime,
+    end_time: CycleTime,
+    offset: CycleTime,
+    multiplier: CycleTime,
+) -> NoteSequence {
+    let mut scheduled_expectations = Vec::<ScheduledExpectation>::new();
+    let aligned_start_time = start_time.round_up_to_nearest(CycleTime::ONE);
+    let aligned_end_time = end_time.round_up_to_nearest(CycleTime::ONE);
+    let unit_duration = multiplier.recip();
+
+    let mut current = aligned_start_time;
+    while current < aligned_end_time {
+        let expectation = ScheduledExpectation {
+            start_time: current.mul(unit_duration).add(offset),
+            duration: unit_duration,
+            note_unit: get_unit(current),
+        };
+
+        scheduled_expectations.push(expectation);
+        current = current.add(CycleTime::ONE);
+    }
+
+    NoteSequence {
+        head,
+        offset,
+        multiplier,
+        expected: vec![(end_time, scheduled_expectations.clone())],
+    }
+}
+
+pub fn chunked_repeated_unit(
+    head: Index<Pattern>,
+    get_unit: impl Fn(CycleTime) -> NoteUnit,
+    chunk_count: NonZeroU16,
+    end_time: CycleTime,
+    offset: CycleTime,
+    multiplier: CycleTime,
+) -> ArenaResult<NoteSequence> {
+    // Play intervals at sequences with times:
+    // (end_time * 1) / (chunk_count + 1),
+    // (end_time * 2) / (chunk_count + 1),
+    // ...,
+    // (end_time * chunk_count) / (chunk_count + 1),
+    // end_time.
+    let next_times = (1..=chunk_count.get())
+        .map(i32::from)
+        .map(CycleTime::from_int)
+        .map(|chunk_index| {
+            let chunk_count_as_time =
+                CycleTime::from_int(chunk_count.get().into());
+            let interpreter_time = end_time
+                .mul(chunk_index)
+                .div(chunk_count_as_time.add(CycleTime::ONE));
+            interpreter_time
+        })
+        .chain(Some(end_time));
+
+    let mut result = NoteSequence {
+        head: head.clone(),
+        offset,
+        multiplier,
+        expected: Vec::new(),
+    };
+
+    let mut current_time = CycleTime::ZERO;
+    for next_time in next_times {
+        let chunk_sequence = repeated_unit_with_start(
+            head.clone(),
+            &get_unit,
+            current_time,
+            next_time,
+            offset,
+            multiplier,
+        );
+        assert_eq!(chunk_sequence.head, head);
+        assert_eq!(chunk_sequence.multiplier, multiplier);
+        assert_eq!(chunk_sequence.offset, offset);
+        assert_eq!(chunk_sequence.expected.len(), 1);
+        assert_eq!(chunk_sequence.expected[0].0, next_time);
+
+        // Append chunk to total expected.
+        result
+            .expected
+            .extend(chunk_sequence.expected);
+        current_time = next_time;
+    }
+
+    Ok(result)
+}
+
+pub fn repeated_unit(
+    head: Index<Pattern>,
+    get_unit: impl Fn(CycleTime) -> NoteUnit,
+    end_time: CycleTime,
+    offset: CycleTime,
+    multiplier: CycleTime,
+) -> ArenaResult<NoteSequence> {
+    chunked_repeated_unit(
+        head,
+        get_unit,
+        NonZeroU16::new(1).unwrap(),
+        end_time,
+        offset,
+        multiplier,
+    )
+}
