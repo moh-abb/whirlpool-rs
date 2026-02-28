@@ -16,23 +16,24 @@ use crate::structures::index::Index;
 use crate::structures::multiple::Multiple;
 
 mod private {
-    use core::cell::RefCell;
-    use core::ops::DerefMut;
+    pub trait Sealed {}
+}
 
-    pub trait BorrowAdapter<T> {
-        fn borrow_mut(&mut self) -> impl DerefMut<Target = T>;
+pub trait InterpreterBorrowAdapter<T>: private::Sealed {
+    fn borrow_mut(&mut self) -> impl DerefMut<Target = T>;
+}
+
+impl<T> private::Sealed for &RefCell<T> {}
+impl<T> InterpreterBorrowAdapter<T> for &RefCell<T> {
+    fn borrow_mut(&mut self) -> impl DerefMut<Target = T> {
+        RefCell::borrow_mut(self)
     }
+}
 
-    impl<T> BorrowAdapter<T> for &RefCell<T> {
-        fn borrow_mut(&mut self) -> impl DerefMut<Target = T> {
-            RefCell::borrow_mut(self)
-        }
-    }
-
-    impl<T> BorrowAdapter<T> for &mut T {
-        fn borrow_mut(&mut self) -> impl DerefMut<Target = T> {
-            self.deref_mut()
-        }
+impl<T> private::Sealed for &mut T {}
+impl<T> InterpreterBorrowAdapter<T> for &mut T {
+    fn borrow_mut(&mut self) -> impl DerefMut<Target = T> {
+        self.deref_mut()
     }
 }
 
@@ -40,7 +41,7 @@ mod private {
 /// plays units (traversing the [Pattern]'s tree) when new units are
 /// encountered.
 #[allow(unused)]
-pub struct Interpreter<'a, Arenas, Player, B: private::BorrowAdapter<Player>> {
+pub struct Interpreter<'a, Arenas, Player, B> {
     pattern: Index<Pattern>,
     arenas: &'a Arenas,
     borrow_adapter: B,
@@ -90,7 +91,7 @@ impl<
     'a,
     Arenas: PatternArenas,
     Player: PatternPlayer,
-    Borrow: private::BorrowAdapter<Player>,
+    Borrow: InterpreterBorrowAdapter<Player>,
 > Interpreter<'a, Arenas, Player, Borrow>
 {
     #[allow(unused)]
