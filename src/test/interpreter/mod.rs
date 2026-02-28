@@ -11,6 +11,7 @@ use crate::player::MockPatternPlayer;
 use crate::player::unit::SoundUnit;
 use crate::structures::index::Index;
 
+mod arbitrary;
 mod cat_silence;
 mod examples;
 mod sequence;
