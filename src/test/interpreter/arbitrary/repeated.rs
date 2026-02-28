@@ -57,12 +57,12 @@ pub fn chunked_repeated_unit(
     multiplier: CycleTime,
 ) -> ArenaResult<NoteSequence> {
     // Play intervals at sequences with times:
-    // (end_time * 1) / (chunk_count + 1),
-    // (end_time * 2) / (chunk_count + 1),
+    // (end_time * 1) / chunk_count,
+    // (end_time * 2) / chunk_count,
     // ...,
-    // (end_time * chunk_count) / (chunk_count + 1),
+    // (end_time * (chunk_count - 1)) / chunk_count,
     // end_time.
-    let next_times = (1..=chunk_count.get())
+    let next_times = (1..chunk_count.get())
         .map(i32::from)
         .map(CycleTime::from_int)
         .map(|chunk_index| {
@@ -70,7 +70,7 @@ pub fn chunked_repeated_unit(
                 CycleTime::from_int(chunk_count.get().into());
             let interpreter_time = end_time
                 .mul(chunk_index)
-                .div(chunk_count_as_time.add(CycleTime::ONE));
+                .div(chunk_count_as_time);
             interpreter_time
         })
         .chain(Some(end_time));
