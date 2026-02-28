@@ -320,7 +320,10 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
         let player = &mut inner.player;
 
         windows.for_each(|interval| {
-            let scaled_start = interval.start().add(self.offset);
+            let scaled_start = interval
+                .start()
+                .mul(unit_duration)
+                .add(self.offset);
             player.schedule_note_unit(unit.clone(), scaled_start);
         })
     }
