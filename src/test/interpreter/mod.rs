@@ -38,9 +38,45 @@ fn test_expectations<
     head_index: Index<Pattern>,
     expected_schedule_actions: Expectations,
 ) {
+    test_expectations_with_interpreter_setup(
+        arenas,
+        head_index,
+        expected_schedule_actions,
+        EmptyInterpreterSetup,
+    )
+}
+
+pub trait TestSetupStrategy {
+    fn setup_interpreter<Arenas, Player, BorrowAdapter>(
+        self,
+        interpreter: &mut Interpreter<Arenas, Player, BorrowAdapter>,
+    );
+}
+
+struct EmptyInterpreterSetup;
+impl TestSetupStrategy for EmptyInterpreterSetup {
+    fn setup_interpreter<Arenas, Player, BorrowAdapter>(
+        self,
+        _: &mut Interpreter<Arenas, Player, BorrowAdapter>,
+    ) {
+        // Does nothing.
+    }
+}
+
+fn test_expectations_with_interpreter_setup<
+    'a,
+    ExpectationsAtTime: IntoIterator<Item = &'a ScheduledExpectation> + Clone + 'a,
+    Expectations: IntoIterator<Item = &'a (CycleTime, ExpectationsAtTime)> + Clone,
+>(
+    arenas: &'a impl PatternArenas,
+    head_index: Index<Pattern>,
+    expected_schedule_actions: Expectations,
+    test_setup: impl TestSetupStrategy,
+) {
     let mock_player = RefCell::new(MockPatternPlayer::new());
     let mut interpreter =
         Interpreter::new_with_refcell(head_index, arenas, &mock_player);
+    test_setup.setup_interpreter(&mut interpreter);
 
     let expect_note_unit =
         |expectation: ScheduledExpectation, all: &ExpectationsAtTime| {
