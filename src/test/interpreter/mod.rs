@@ -56,6 +56,20 @@ pub trait TestSetupStrategy {
     );
 }
 
+pub struct FullInterpreterSetup {
+    pub offset: CycleTime,
+    pub multiplier: CycleTime,
+}
+impl TestSetupStrategy for FullInterpreterSetup {
+    fn setup_interpreter<Arenas, Player, BorrowAdapter>(
+        self,
+        interpreter: &mut Interpreter<Arenas, Player, BorrowAdapter>,
+    ) {
+        interpreter.set_multiplier(self.multiplier);
+        interpreter.set_offset(self.offset);
+    }
+}
+
 struct EmptyInterpreterSetup;
 impl TestSetupStrategy for EmptyInterpreterSetup {
     fn setup_interpreter<Arenas, Player, BorrowAdapter>(

@@ -7,10 +7,9 @@ use proptest::test_runner::Reason;
 use crate::arena::Arena;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::ast::pattern::interpreter::Interpreter;
 use crate::ast::pattern::note::NoteUnit;
 use crate::ast::time::CycleTime;
-use crate::test::interpreter::TestSetupStrategy;
+use crate::test::interpreter::FullInterpreterSetup;
 use crate::test::interpreter::arbitrary::repeated::chunked_repeated_unit;
 use crate::test::interpreter::arbitrary::repeated::repeated_unit;
 use crate::test::interpreter::arbitrary::time::arb_cycle_time;
@@ -96,20 +95,6 @@ fn unit_sequence_strategy_args()
     )
 }
 
-struct UnitSequenceTestSetup {
-    offset: CycleTime,
-    multiplier: CycleTime,
-}
-impl TestSetupStrategy for UnitSequenceTestSetup {
-    fn setup_interpreter<Arenas, Player, BorrowAdapter>(
-        self,
-        interpreter: &mut Interpreter<Arenas, Player, BorrowAdapter>,
-    ) {
-        interpreter.set_multiplier(self.multiplier);
-        interpreter.set_offset(self.offset);
-    }
-}
-
 struct PlayNoteSequence;
 impl ArenaTest<NoteSequence> for PlayNoteSequence {
     fn run(arenas: &impl PatternArenas, sequence: NoteSequence) {
@@ -117,7 +102,7 @@ impl ArenaTest<NoteSequence> for PlayNoteSequence {
             arenas,
             sequence.head,
             &sequence.expected,
-            UnitSequenceTestSetup {
+            FullInterpreterSetup {
                 offset: sequence.offset,
                 multiplier: sequence.multiplier,
             },
