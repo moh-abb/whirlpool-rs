@@ -1,3 +1,5 @@
+use core::num::NonZeroU16;
+
 use proptest::prelude::Strategy;
 use proptest::prelude::any;
 use proptest::test_runner::Reason;
@@ -58,6 +60,68 @@ pub fn unit_sequence_with_start(
     }
 }
 
+pub fn chunked_unit_sequence(
+    alloc_unit: impl FnOnce(Pattern) -> ArenaResult<Index<Pattern>>,
+    note_unit: NoteUnit,
+    chunk_count: NonZeroU16,
+    end_time: CycleTime,
+    offset: CycleTime,
+    multiplier: CycleTime,
+) -> ArenaResult<NoteSequence> {
+    // Play intervals at sequences with times:
+    // (end_time * 1) / (chunk_count + 1),
+    // (end_time * 2) / (chunk_count + 1),
+    // ...,
+    // (end_time * chunk_count) / (chunk_count + 1),
+    // end_time.
+    let next_times = (1..=chunk_count.get())
+        .map(i32::from)
+        .map(CycleTime::from_int)
+        .map(|chunk_index| {
+            let chunk_count_as_time =
+                CycleTime::from_int(chunk_count.get().into());
+            let interpreter_time = end_time
+                .mul(chunk_index)
+                .div(chunk_count_as_time.add(CycleTime::ONE));
+            interpreter_time
+        })
+        .chain(Some(end_time));
+
+    let head = alloc_unit(Pattern::Note(note_unit))?;
+
+    let mut result = NoteSequence {
+        head: head.clone(),
+        offset,
+        multiplier,
+        expected: Vec::new(),
+    };
+
+    let mut current_time = CycleTime::ZERO;
+    for next_time in next_times {
+        let chunk_sequence = unit_sequence_with_start(
+            head.clone(),
+            note_unit,
+            current_time,
+            next_time,
+            offset,
+            multiplier,
+        );
+        assert_eq!(chunk_sequence.head, head);
+        assert_eq!(chunk_sequence.multiplier, multiplier);
+        assert_eq!(chunk_sequence.offset, offset);
+        assert_eq!(chunk_sequence.expected.len(), 1);
+        assert_eq!(chunk_sequence.expected[0].0, next_time);
+
+        // Append chunk to total expected.
+        result
+            .expected
+            .extend(chunk_sequence.expected);
+        current_time = next_time;
+    }
+
+    Ok(result)
+}
+
 pub fn unit_sequence(
     alloc_unit: impl FnOnce(Pattern) -> ArenaResult<Index<Pattern>>,
     note_unit: NoteUnit,
@@ -65,14 +129,14 @@ pub fn unit_sequence(
     offset: CycleTime,
     multiplier: CycleTime,
 ) -> ArenaResult<NoteSequence> {
-    Ok(unit_sequence_with_start(
-        alloc_unit(Pattern::Note(note_unit))?,
+    chunked_unit_sequence(
+        alloc_unit,
         note_unit,
-        CycleTime::ZERO,
+        NonZeroU16::new(1).unwrap(),
         end_time,
         offset,
         multiplier,
-    ))
+    )
 }
 
 struct UnitSequenceStrategy;
