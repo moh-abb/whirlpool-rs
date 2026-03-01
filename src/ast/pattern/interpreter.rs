@@ -1,5 +1,6 @@
 use core::cell::RefCell;
 use core::iter;
+use core::iter::repeat_with;
 use core::marker::PhantomData;
 use core::ops::DerefMut;
 
@@ -307,26 +308,53 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
         let end = start.add(self.duration);
         let interval = CycleTimeInterval::new(start, end);
 
-        // Only play notes which are aligned to the cycle (i.e., discard
-        // windows of size <1 which start midway through a unit).
-        let is_aligned_to_single_cycle = |interval: &CycleTimeInterval| {
-            let start = interval.start();
-            start == start.ceil()
-        };
-        let windows = interval_chunks(interval, CycleTime::ONE)
-            .filter(is_aligned_to_single_cycle);
-
-        let mut inner = self.inner.borrow_mut();
-        let player = &mut inner.player;
-
-        windows.for_each(|interval| {
-            let scaled_start = interval
+        let units_in_cycle = |_repetitions: i32, cycle: CycleTimeInterval| {
+            let scaled_start = cycle
                 .start()
                 .mul(unit_duration)
                 .add(self.offset);
-            player.schedule_note_unit(unit.clone(), scaled_start);
-        })
+            // Only play notes which are aligned to the cycle (i.e., discard
+            // windows of size <1 which start midway through a unit).
+            let scaled_unit = (cycle.start() == cycle.start().floor())
+                .then_some((unit.clone(), scaled_start));
+            scaled_unit.into_iter()
+        };
+
+        let mut inner = self.inner.borrow_mut();
+        let player = &mut inner.player;
+        let play_cycle_unit = |(unit, scaled_start): (SoundUnit, CycleTime)| {
+            player.schedule_note_unit(unit, scaled_start)
+        };
+
+        play_repetitions(interval, 1, units_in_cycle, play_cycle_unit)
     }
 
     fn map_silence(&self) -> Self::PatternOutput {}
+}
+
+fn play_repetitions<CycleUnit, CycleIterator: Iterator<Item = CycleUnit>>(
+    interval: CycleTimeInterval,
+    cycle_length: i32,
+    mut units_in_cycle: impl FnMut(i32, CycleTimeInterval) -> CycleIterator,
+    play_cycle_unit: impl FnMut(CycleUnit),
+) {
+    // Find out which repetition we are currently on; i.e., how many cycle
+    // lengths have elapsed until the start.
+    let start_repetition_count = interval
+        .start()
+        .div_euclid(CycleTime::from_int(cycle_length));
+
+    let mut cur_repetition_count = start_repetition_count;
+    let repetition_counts = repeat_with(|| {
+        let result = cur_repetition_count;
+        cur_repetition_count = cur_repetition_count.add(CycleTime::ONE);
+        result
+    });
+
+    repetition_counts
+        .zip(interval_chunks(interval, CycleTime::from_int(cycle_length)))
+        .flat_map(|(repetition_count, whole_cycle)| {
+            units_in_cycle(repetition_count.to_int(), whole_cycle)
+        })
+        .for_each(play_cycle_unit);
 }
