@@ -311,7 +311,7 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
         let units_in_cycle = |_repetitions: i32, cycle: CycleTimeInterval| {
             let scaled_start = cycle
                 .start()
-                .mul(unit_duration)
+                .div(self.multiplier)
                 .add(self.offset);
             // Only play notes which are aligned to the cycle (i.e., discard
             // windows of size <1 which start midway through a unit).
