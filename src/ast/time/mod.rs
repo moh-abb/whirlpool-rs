@@ -21,7 +21,7 @@ impl CycleTime {
     #[inline]
     pub const fn checked_from_int(time: i32) -> Option<Self> {
         const MAX_POS_TIME: i32 = (1_i32 << (Inner::INT_NBITS - 1)) - 1;
-        const MAX_NEG_TIME: i32 = - MAX_POS_TIME - 1;
+        const MAX_NEG_TIME: i32 = -MAX_POS_TIME - 1;
         if time > MAX_POS_TIME || time < MAX_NEG_TIME {
             return None;
         }
