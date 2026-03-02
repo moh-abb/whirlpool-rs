@@ -1,5 +1,6 @@
 use core::cell::RefCell;
 use core::iter;
+use core::iter::repeat;
 use core::iter::repeat_with;
 use core::marker::PhantomData;
 use core::ops::DerefMut;
@@ -233,47 +234,63 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
 
         let cycle_length = CycleTime::from_int(i32::from(multiple.length()));
 
-        // Use the repetition count to calculate subpatterns' offsets.
-        let play_subpattern =
-            |unit_offset: CycleTime,
-             (opt_unit, pattern): (Option<CycleTimeInterval>, _)| {
-                if let Some(unit_interval) = opt_unit {
-                    let mut inner_mut = self.inner.borrow_mut();
-                    let subpattern_visitor = InterpreterVisitor {
-                        arenas: self.arenas,
-                        start: unit_interval.start().add(unit_offset),
-                        duration: CycleTime::ONE,
-                        offset: self.offset.sub(unit_offset),
-                        multiplier: self.multiplier,
-                        inner: RefCell::new(VisitorInner {
-                            player: inner_mut.player,
-                        }),
-                    };
-                    visit_pattern(&subpattern_visitor, pattern);
-                }
-                unit_offset.add(CycleTime::ONE)
-            };
-
-        // Find out which repetition we are currently on; i.e., how many cycle
-        // lengths have elapsed until the start.
-        let start_repetition_count = self.start.div_euclid(cycle_length);
-        let play_repetition =
-            |repetition_count: CycleTime, repetition: CycleTimeInterval| {
-                let units = interval_chunks_with_increments(
-                    repetition,
+        let units_in_cycle =
+            |repetition_count: i32, cycle: CycleTimeInterval| {
+                let repetition_counts = repeat(repetition_count);
+                let interval_chunks = interval_chunks_with_increments(
+                    cycle,
                     cycle_length,
                     CycleTime::ONE,
                 );
-                units
-                    .zip(multiple.iter(self.arenas.get_pattern_chain_arena()))
-                    .fold(repetition_count, play_subpattern);
-                repetition_count.add(CycleTime::ONE)
+                let multiple_iter =
+                    multiple.iter(self.arenas.get_pattern_chain_arena());
+                repetition_counts
+                    .zip(interval_chunks)
+                    .zip(multiple_iter)
             };
+
+        // Use the repetition count to calculate subpatterns' offsets.
+        let play_cycle_unit = |((repetition_count, opt_unit), pattern): (
+            (i32, Option<CycleTimeInterval>),
+            _,
+        )| {
+            let Some(unit_interval) = opt_unit else {
+                return;
+            };
+
+            let subpattern_start = CycleTime::from_int(repetition_count)
+                .add(unit_interval.start().frac());
+            let subpattern_duration = unit_interval
+                .end()
+                .sub(unit_interval.start());
+
+            let subpattern_offset = unit_interval
+                .start()
+                .sub(subpattern_start)
+                .div(self.multiplier)
+                .add(self.offset);
+
+            let mut inner_mut = self.inner.borrow_mut();
+            let subpattern_visitor = InterpreterVisitor {
+                arenas: self.arenas,
+                start: subpattern_start,
+                duration: subpattern_duration,
+                offset: subpattern_offset,
+                multiplier: self.multiplier,
+                inner: RefCell::new(VisitorInner { player: inner_mut.player }),
+            };
+            visit_pattern(&subpattern_visitor, pattern);
+        };
 
         let interval =
             CycleTimeInterval::new(self.start, self.start.add(self.duration));
-        interval_chunks(interval, cycle_length)
-            .fold(start_repetition_count, play_repetition);
+
+        play_repetitions(
+            interval,
+            i32::from(multiple.length()),
+            units_in_cycle,
+            play_cycle_unit,
+        )
     }
 
     fn map_seq(&self, _multiple: Multiple<Pattern>) -> Self::PatternOutput {
