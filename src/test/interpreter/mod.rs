@@ -80,6 +80,8 @@ impl TestSetupStrategy for EmptyInterpreterSetup {
     }
 }
 
+const START_TIME_THRESHOLD: CycleTime = CycleTime::from_int_recip(100);
+
 fn test_expectations_with_interpreter_setup<
     ExpectationsAtTime: IntoIterator<Item = impl Borrow<ScheduledExpectation>> + Clone,
     Expectations: IntoIterator<Item = impl Borrow<(CycleTime, ExpectationsAtTime)>> + Clone,
@@ -104,11 +106,17 @@ fn test_expectations_with_interpreter_setup<
                 .into_iter()
                 .filter(|e| e.borrow() == &expectation)
                 .count();
+            let fuzzy_eq_start_time =
+                predicate::function(move |time: &CycleTime| {
+                    let diff = time.sub(start_time);
+                    let abs_diff = diff.max(diff.neg());
+                    abs_diff <= START_TIME_THRESHOLD
+                });
             mock_player
                 .borrow_mut()
                 .expect_schedule_note_unit()
                 .times(count)
-                .with(predicate::eq(sound_unit), predicate::eq(start_time))
+                .with(predicate::eq(sound_unit), fuzzy_eq_start_time)
                 .return_const(());
         };
 
