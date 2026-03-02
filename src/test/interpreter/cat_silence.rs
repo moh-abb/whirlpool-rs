@@ -123,13 +123,11 @@ fn play_cat_of_three_units_with_multiplier(multiplier: CycleTime) {
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
 
     let make_scheduled_action = |start_time, letter: Letter| {
-        let result = [ScheduledExpectation {
+        [ScheduledExpectation {
             start_time: CycleTime::from_int(start_time).div(multiplier),
             duration: multiplier.recip(),
             note_unit: note_unit(letter),
-        }];
-        println!("Result: {result:?}");
-        result
+        }]
     };
     let expected_schedule_actions = [
         (CycleTime::from_int(1), &make_scheduled_action(0, Letter::A)[..]),

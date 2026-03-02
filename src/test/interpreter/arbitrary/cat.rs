@@ -33,8 +33,6 @@ fn arb_note_sequence_from_cat_of_units<Arenas: PatternArenas + 'static>(
                     units[start_time_index % units.len()]
                 };
 
-                println!("End time {end_time:?}, Offset {offset:?}, Multiplier {multiplier:?}, Units {units:?}");
-
                 chunked_repeated_unit(
                     head,
                     get_unit,
