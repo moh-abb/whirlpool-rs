@@ -24,8 +24,8 @@ fn arb_note_sequence_from_cat_of_units<Arenas: PatternArenas + 'static>(
                 let (head, units) = arenas_to.call(arenas)?;
                 let get_unit = |start_time: CycleTime| {
                     assert_eq!(
-                        start_time,
-                        start_time.round_down_to_nearest(CycleTime::ONE),
+                        start_time.frac(),
+                        CycleTime::ZERO,
                         "Cat unit start time should be aligned"
                     );
                     let start_time_index = usize::try_from(start_time.to_int())

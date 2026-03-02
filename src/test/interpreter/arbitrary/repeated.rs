@@ -24,8 +24,8 @@ fn repeated_unit_with_start(
     multiplier: CycleTime,
 ) -> NoteSequence {
     let mut scheduled_expectations = Vec::<ScheduledExpectation>::new();
-    let aligned_start_time = start_time.round_up_to_nearest(CycleTime::ONE);
-    let aligned_end_time = end_time.round_up_to_nearest(CycleTime::ONE);
+    let aligned_start_time = start_time.ceil();
+    let aligned_end_time = end_time.ceil();
     let unit_duration = multiplier.recip();
 
     let mut current = aligned_start_time;
