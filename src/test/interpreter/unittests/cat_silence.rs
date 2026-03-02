@@ -5,14 +5,14 @@ use crate::ast::pattern::note::NoteUnit;
 use crate::ast::time::CycleTime;
 use crate::test::interpreter::FullInterpreterSetup;
 use crate::test::interpreter::ScheduledExpectation;
-use crate::test::interpreter::examples::binary_tree_depth_two;
-use crate::test::interpreter::examples::half_binary_tree_depth_two;
-use crate::test::interpreter::examples::multiple_of_three_units;
-use crate::test::interpreter::examples::multiple_of_unit_then_silence_then_unit;
-use crate::test::interpreter::examples::one_cycle_silence;
-use crate::test::interpreter::examples::one_cycle_unit;
 use crate::test::interpreter::test_expectations;
 use crate::test::interpreter::test_expectations_with_interpreter_setup;
+use crate::test::interpreter::unittests::examples::binary_tree_depth_two;
+use crate::test::interpreter::unittests::examples::half_binary_tree_depth_two;
+use crate::test::interpreter::unittests::examples::multiple_of_three_units;
+use crate::test::interpreter::unittests::examples::multiple_of_unit_then_silence_then_unit;
+use crate::test::interpreter::unittests::examples::one_cycle_silence;
+use crate::test::interpreter::unittests::examples::one_cycle_unit;
 
 #[test]
 fn can_play_unit_for_one_cycle() {

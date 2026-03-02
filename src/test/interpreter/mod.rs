@@ -13,10 +13,8 @@ use crate::player::unit::SoundUnit;
 use crate::structures::index::Index;
 
 mod arbitrary;
-mod cat_silence;
-mod examples;
 mod sequence;
-mod stack;
+mod unittests;
 
 /// A triple of an expected scheduled start time, duration, and note unit.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
