@@ -31,7 +31,7 @@ fn repeated_unit_with_start(
     let mut current = aligned_start_time;
     while current < aligned_end_time {
         let expectation = ScheduledExpectation {
-            start_time: current.mul(unit_duration).add(offset),
+            start_time: offset.add(current.div(multiplier)),
             duration: unit_duration,
             note_unit: get_unit(current),
         };
