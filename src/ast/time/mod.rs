@@ -1,6 +1,8 @@
 use fixed::FixedI32;
 use fixed::types::extra::U12;
 
+mod traits;
+
 type Inner = FixedI32<U12>;
 
 /// Used to represent cycles, units of time (progression through a
