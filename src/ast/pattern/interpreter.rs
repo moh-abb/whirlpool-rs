@@ -6,6 +6,7 @@ use core::marker::PhantomData;
 use core::ops::DerefMut;
 
 use crate::ast::pattern::Pattern;
+use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::note::NoteUnit;
 use crate::ast::pattern::visitor::PatternVisitor;
@@ -153,6 +154,58 @@ struct InterpreterVisitor<'a, Arenas, Player> {
     inner: RefCell<VisitorInner<'a, Player>>,
 }
 
+impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
+    InterpreterVisitor<'a, Arenas, Player>
+{
+    fn map_cat_or_seq(&self, multiple: Multiple<Pattern>, is_fast: bool) {
+        if multiple.is_empty() {
+            panic!("Cannot play empty multiple patterns");
+        }
+
+        let interval =
+            CycleTimeInterval::new(self.start, self.start + self.duration);
+        play_multiple(
+            interval,
+            CycleTime::from_int(i32::from(multiple.length())),
+            || {
+                repeat(CycleTime::ONE)
+                    .zip(multiple.iter(self.arenas.get_pattern_chain_arena()))
+            },
+            is_fast,
+            self.offset,
+            self.multiplier,
+            |subpattern, subinterval, suboffset, submultiplier| {
+                let mut inner_mut = self.inner.borrow_mut();
+                let visitor = InterpreterVisitor {
+                    arenas: self.arenas,
+                    start: subinterval.start(),
+                    duration: subinterval.end() - subinterval.start(),
+                    offset: suboffset,
+                    multiplier: submultiplier,
+                    inner: RefCell::new(VisitorInner {
+                        player: inner_mut.player,
+                    }),
+                };
+                visit_pattern(&visitor, subpattern.clone())
+            },
+        )
+    }
+
+    fn map_arrange_or_time_cat(
+        &self,
+        multiple: Multiple<TimedStep>,
+        _is_fast: bool,
+    ) {
+        if multiple.is_empty() {
+            panic!("Cannot play empty multiple patterns");
+        }
+
+        let _interval =
+            CycleTimeInterval::new(self.start, self.start + self.duration);
+        todo!()
+    }
+}
+
 struct VisitorInner<'a, Player> {
     player: &'a mut Player,
 }
@@ -176,71 +229,11 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
     }
 
     fn map_cat(&self, multiple: Multiple<Pattern>) -> Self::PatternOutput {
-        if multiple.is_empty() {
-            panic!("Cannot play empty multiple patterns");
-        }
-
-        let interval =
-            CycleTimeInterval::new(self.start, self.start + self.duration);
-        play_multiple(
-            interval,
-            CycleTime::from_int(i32::from(multiple.length())),
-            || {
-                repeat(CycleTime::ONE)
-                    .zip(multiple.iter(self.arenas.get_pattern_chain_arena()))
-            },
-            false,
-            self.offset,
-            self.multiplier,
-            |subpattern, subinterval, suboffset, submultiplier| {
-                let mut inner_mut = self.inner.borrow_mut();
-                let visitor = InterpreterVisitor {
-                    arenas: self.arenas,
-                    start: subinterval.start(),
-                    duration: subinterval.end() - subinterval.start(),
-                    offset: suboffset,
-                    multiplier: submultiplier,
-                    inner: RefCell::new(VisitorInner {
-                        player: inner_mut.player,
-                    }),
-                };
-                visit_pattern(&visitor, subpattern.clone())
-            },
-        )
+        self.map_cat_or_seq(multiple, false);
     }
 
     fn map_seq(&self, multiple: Multiple<Pattern>) -> Self::PatternOutput {
-        if multiple.is_empty() {
-            panic!("Cannot play empty multiple patterns");
-        }
-
-        let interval =
-            CycleTimeInterval::new(self.start, self.start + self.duration);
-        play_multiple(
-            interval,
-            CycleTime::from_int(i32::from(multiple.length())),
-            || {
-                repeat(CycleTime::ONE)
-                    .zip(multiple.iter(self.arenas.get_pattern_chain_arena()))
-            },
-            true,
-            self.offset,
-            self.multiplier,
-            |subpattern, subinterval, suboffset, submultiplier| {
-                let mut inner_mut = self.inner.borrow_mut();
-                let visitor = InterpreterVisitor {
-                    arenas: self.arenas,
-                    start: subinterval.start(),
-                    duration: subinterval.end() - subinterval.start(),
-                    offset: suboffset,
-                    multiplier: submultiplier,
-                    inner: RefCell::new(VisitorInner {
-                        player: inner_mut.player,
-                    }),
-                };
-                visit_pattern(&visitor, subpattern.clone())
-            },
-        )
+        self.map_cat_or_seq(multiple, true);
     }
 
     fn map_stack(&self, multiple: Multiple<Pattern>) -> Self::PatternOutput {
@@ -257,9 +250,9 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
 
     fn map_time_cat(
         &self,
-        _multiple: Multiple<super::TimedStep>,
+        multiple: Multiple<super::TimedStep>,
     ) -> Self::PatternOutput {
-        todo!()
+        self.map_arrange_or_time_cat(multiple, true);
     }
 
     fn map_note_unit(&self, unit: NoteUnit) -> Self::PatternOutput {
@@ -345,9 +338,15 @@ fn play_slow_multiple<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
         // Upper and lower bounds of rep.
         // Not all of these will be inside the played interval, so we need to
         // verify its intersection.
-        let first_rep =
-            ((interval.start() - elem_interval.start()) / length).floor();
-        let last_rep = ((interval.end() - elem_interval.end()) / length).ceil();
+        // Due to rounding errors, we need to conservatively estimate
+        // the difference in repetitions by taking the maximum possible distance
+        // between the interval and elem interval's endpoints.
+        let max_start_difference =
+            interval.start().floor() - elem_interval.start().ceil();
+        let max_end_difference =
+            interval.end().ceil() - elem_interval.end().floor();
+        let first_rep = (max_start_difference / length).floor();
+        let last_rep = (max_end_difference / length).ceil();
 
         debug_assert!(
             elem_start + first_rep * length <= interval.start(),
@@ -488,6 +487,7 @@ fn play_multiple<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
     multiplier: CycleTime,
     play_elem: impl FnMut(&T, CycleTimeInterval, CycleTime, CycleTime),
 ) {
+    debug_assert_ne!(length, CycleTime::ZERO);
     debug_assert!({
         let unit_length_sum = elements()
             .map(|(elem_length, _)| elem_length)
