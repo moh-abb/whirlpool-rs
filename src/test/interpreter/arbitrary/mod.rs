@@ -4,10 +4,8 @@ use crate::test::interpreter::sequence::NoteSequence;
 use crate::test::interpreter::test_expectations_with_interpreter_setup;
 use crate::test::pattern::arena_alloc::ArenaTest;
 
-mod cat;
-mod repeated;
-mod time;
-mod unit;
+mod expectations;
+mod strategy;
 
 pub struct PlayNoteSequence;
 impl ArenaTest<NoteSequence> for PlayNoteSequence {
