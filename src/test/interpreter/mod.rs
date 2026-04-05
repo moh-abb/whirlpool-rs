@@ -91,6 +91,25 @@ fn test_expectations_with_interpreter_setup<
     expected_schedule_actions: Expectations,
     test_setup: impl TestSetupStrategy,
 ) {
+    test_expectations_with_interpreter_setup_and_start_time(
+        arenas,
+        head_index,
+        CycleTime::ZERO,
+        expected_schedule_actions,
+        test_setup,
+    )
+}
+
+fn test_expectations_with_interpreter_setup_and_start_time<
+    ExpectationsAtTime: IntoIterator<Item = impl Borrow<ScheduledExpectation>> + Clone,
+    Expectations: IntoIterator<Item = impl Borrow<(CycleTime, ExpectationsAtTime)>> + Clone,
+>(
+    arenas: &impl PatternArenas,
+    head_index: Index<Pattern>,
+    start_time: CycleTime,
+    expected_schedule_actions: Expectations,
+    test_setup: impl TestSetupStrategy,
+) {
     let mut mock_player = MockPatternPlayer::new();
     let logging_player =
         RefCell::new(LoggingPlayer::new(&mut mock_player, true));
@@ -103,6 +122,17 @@ fn test_expectations_with_interpreter_setup<
     let mut interpreter =
         Interpreter::new_with_refcell(head_index, arenas, &logging_player);
     test_setup.setup_interpreter(&mut interpreter);
+
+    // Advance the interpreter to the start position.
+    // First, ignore all possible played notes before the start position.
+    with_mock_player(&|player| {
+        player
+            .expect_schedule_note_unit()
+            .times(..)
+            .return_const(());
+    });
+    interpreter.update_time(start_time);
+    with_mock_player(&|player| player.checkpoint());
 
     let expect_note_unit =
         |expectation: ScheduledExpectation, all: &ExpectationsAtTime| {
