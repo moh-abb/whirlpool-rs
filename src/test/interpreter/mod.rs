@@ -11,8 +11,10 @@ use crate::ast::time::CycleTime;
 use crate::player::MockPatternPlayer;
 use crate::player::unit::SoundUnit;
 use crate::structures::index::Index;
+use crate::test::interpreter::logging::LoggingPlayer;
 
 mod arbitrary;
+mod logging;
 mod sequence;
 mod unittests;
 
@@ -89,9 +91,17 @@ fn test_expectations_with_interpreter_setup<
     expected_schedule_actions: Expectations,
     test_setup: impl TestSetupStrategy,
 ) {
-    let mock_player = RefCell::new(MockPatternPlayer::new());
+    let mut mock_player = MockPatternPlayer::new();
+    let logging_player =
+        RefCell::new(LoggingPlayer::new(&mut mock_player, true));
+    let with_mock_player = |f: &dyn Fn(&mut MockPatternPlayer)| {
+        let mut borrowed_logger = logging_player.borrow_mut();
+        let borrowed_player = borrowed_logger.get_mut_player();
+        f(borrowed_player)
+    };
+
     let mut interpreter =
-        Interpreter::new_with_refcell(head_index, arenas, &mock_player);
+        Interpreter::new_with_refcell(head_index, arenas, &logging_player);
     test_setup.setup_interpreter(&mut interpreter);
 
     let expect_note_unit =
@@ -110,12 +120,17 @@ fn test_expectations_with_interpreter_setup<
                     let abs_diff = diff.max(diff.neg());
                     abs_diff <= START_TIME_THRESHOLD
                 });
-            mock_player
-                .borrow_mut()
-                .expect_schedule_note_unit()
-                .times(count)
-                .with(predicate::eq(sound_unit), fuzzy_eq_start_time)
-                .return_const(());
+            let add_expectation = |borrowed_player: &mut MockPatternPlayer| {
+                borrowed_player
+                    .expect_schedule_note_unit()
+                    .times(count)
+                    .with(
+                        predicate::eq(sound_unit.clone()),
+                        fuzzy_eq_start_time,
+                    )
+                    .return_const(());
+            };
+            with_mock_player(&add_expectation)
         };
 
     for borrow_scheduled_actions in expected_schedule_actions {
@@ -125,6 +140,6 @@ fn test_expectations_with_interpreter_setup<
             .into_iter()
             .for_each(|e| expect_note_unit(e.borrow().clone(), expectations));
         interpreter.update_time(*next_cycle_time);
-        mock_player.borrow_mut().checkpoint();
+        with_mock_player(&|player| player.checkpoint());
     }
 }
