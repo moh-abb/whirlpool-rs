@@ -11,18 +11,17 @@ use crate::test::interpreter::unittests::examples::half_binary_tree_depth_two;
 use crate::test::interpreter::unittests::examples::multiple_of_three_units;
 use crate::test::interpreter::unittests::examples::multiple_of_unit_then_silence_then_unit;
 
-#[test]
-fn can_play_double_sequential_seqs() {
+fn play_double_sequential_seqs_with_multiplier(multiplier: CycleTime) {
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
     let multiple_length_product = CycleTime::from_int(4);
 
     let interpreter_time =
         |start_time| CycleTime::from_int(start_time) / multiple_length_product;
     let make_scheduled_action = |start_time, letter: Letter| {
-        let unit_duration = multiple_length_product.recip();
+        let unit_duration = (multiple_length_product * multiplier).recip();
         [ScheduledExpectation {
             start_time: CycleTime::from_int(start_time)
-                / multiple_length_product,
+                / (multiple_length_product * multiplier),
             duration: unit_duration,
             note_unit: note_unit(letter),
         }]
@@ -39,7 +38,28 @@ fn can_play_double_sequential_seqs() {
     ];
     let (arenas, head_index) =
         binary_tree_depth_two(Pattern::Seq, Pattern::Seq, Pattern::Seq);
-    test_expectations(&arenas, head_index, &expected_schedule_actions);
+
+    test_expectations_with_interpreter_setup(
+        &arenas,
+        head_index,
+        &expected_schedule_actions,
+        FullInterpreterSetup { offset: CycleTime::ZERO, multiplier },
+    );
+}
+
+#[test]
+fn can_play_double_sequential_seqs() {
+    play_double_sequential_seqs_with_multiplier(CycleTime::ONE);
+}
+
+#[test]
+fn can_play_double_sequential_seqs_at_double_speed() {
+    play_double_sequential_seqs_with_multiplier(CycleTime::from_int(2));
+}
+
+#[test]
+fn can_play_double_sequential_seqs_at_seven_times_speed() {
+    play_double_sequential_seqs_with_multiplier(CycleTime::from_int(7));
 }
 
 fn play_double_seq_then_unit_with_multiplier(multiplier: CycleTime) {
