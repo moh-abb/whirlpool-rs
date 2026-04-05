@@ -1,5 +1,6 @@
 use core::fmt::Debug;
 use core::iter::repeat;
+use core::num::NonZeroU16;
 
 use proptest::prelude::Strategy;
 use proptest::prelude::any;
@@ -150,11 +151,13 @@ pub fn pattern_expectations(
                             .ok()
                     })
             };
+            let length = elems_with_durations()
+                .map(|(dur, _)| dur)
+                .fold(CycleTime::ZERO, CycleTime::add);
+            assert_ne!(length, CycleTime::ZERO);
             multiple_expectations(
                 interval,
-                elems_with_durations()
-                    .map(|(dur, _)| dur)
-                    .fold(CycleTime::ZERO, CycleTime::add),
+                length,
                 elems_with_durations,
                 true,
                 offset,
@@ -190,7 +193,8 @@ pub fn arb_end_offset_and_multiplier()
         Reason::from("End time should be at most {MAX_END_TIME:?}"),
         |time| time <= &MAX_END_TIME,
     );
-    let arb_multiplier = any::<u8>()
+    let arb_multiplier = any::<NonZeroU16>()
+        .prop_map(NonZeroU16::get)
         .prop_map(i32::from)
         .prop_map(CycleTime::from_int);
     (arb_end_time, arb_cycle_time(), arb_multiplier)
