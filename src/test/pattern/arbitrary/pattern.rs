@@ -1,12 +1,10 @@
 use proptest::prelude::Just;
 use proptest::prelude::Strategy;
-use proptest::prelude::any;
 use proptest::prelude::prop;
 use proptest::prop_oneof;
 
 use crate::arena::Arena;
 use crate::ast::pattern::Pattern;
-use crate::ast::pattern::TimeUnit;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::clone::alloc_pattern;
@@ -16,15 +14,17 @@ use crate::ast::pattern::drop::MultipleTimedStepDropAdapter;
 use crate::ast::pattern::drop::PatternDropAdapter;
 use crate::ast::pattern::drop::TimedStepDropAdapter;
 use crate::ast::pattern::drop::multiple_cons;
+use crate::ast::time::CycleTime;
 use crate::structures::index::INVALID_INDEX_VALUE;
 use crate::structures::index::Index;
 use crate::structures::multiple::Multiple;
 use crate::test::pattern::arbitrary::arenas_to::ArenasTo;
 use crate::test::pattern::arbitrary::silence::arb_pattern_leaf;
+use crate::test::pattern::arbitrary::time::arb_cycle_time;
 
 fn pattern_to_timed_step<Arenas: PatternArenas + 'static>(
     x: ArenasTo<Arenas, Index<Pattern>>,
-    time_unit: TimeUnit,
+    time_unit: CycleTime,
 ) -> ArenasTo<Arenas, Index<TimedStep>> {
     ArenasTo::new(move |arenas: &Arenas| {
         let timed_step_arena = arenas.get_timed_step_arena();
@@ -49,7 +49,7 @@ fn pattern_to_timed_step<Arenas: PatternArenas + 'static>(
 
 fn pattern_to_time_cat<Arenas: PatternArenas + 'static>(
     xs: Vec<ArenasTo<Arenas, Index<Pattern>>>,
-    time_unit: TimeUnit,
+    time_unit: CycleTime,
 ) -> ArenasTo<Arenas, Index<Pattern>> {
     ArenasTo::new(move |arenas: &Arenas| {
         let chain_arena = arenas.get_timed_step_chain_arena();
@@ -124,7 +124,7 @@ fn pattern_to_multiple_pattern<Arenas: PatternArenas + 'static>(
 
 pub fn arb_pattern<Arenas: PatternArenas + 'static>()
 -> impl Strategy<Value = ArenasTo<Arenas, Index<Pattern>>> {
-    let result = arb_pattern_leaf().prop_recursive(
+    arb_pattern_leaf().prop_recursive(
         8,   // levels deep
         256, // maximum number of nodes
         10,  // up to 10 items per collection
@@ -134,11 +134,9 @@ pub fn arb_pattern<Arenas: PatternArenas + 'static>()
                 Just(Pattern::Seq as fn(_) -> _),
                 Just(Pattern::Stack as fn(_) -> _),
             ];
-            (
-                prop::collection::vec(inner, 0..10),
-                functions,
-                any::<Option<TimeUnit>>(),
-            )
+            let opt_time_units =
+                prop_oneof![arb_cycle_time().prop_map(Some), Just(None)];
+            (prop::collection::vec(inner, 0..10), functions, opt_time_units)
                 .prop_map(|(xs, f, opt_time_unit)| {
                     if let Some(time_unit) = opt_time_unit {
                         pattern_to_time_cat(xs, time_unit)
@@ -147,7 +145,5 @@ pub fn arb_pattern<Arenas: PatternArenas + 'static>()
                     }
                 })
         },
-    );
-
-    result
+    )
 }

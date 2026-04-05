@@ -1,8 +1,6 @@
 use core::cmp::Ordering;
 
-#[cfg(test)]
-use proptest_derive::Arbitrary;
-
+use crate::ast::time::CycleTime;
 use crate::structures::index::Index;
 use crate::structures::multiple::Multiple;
 
@@ -17,12 +15,8 @@ pub mod note;
 pub mod string_display;
 mod visitor;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(test, derive(Arbitrary))]
-pub struct TimeUnit(pub u32);
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct TimedStep(pub TimeUnit, pub Index<Pattern>);
+pub struct TimedStep(pub CycleTime, pub Index<Pattern>);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Pattern {
