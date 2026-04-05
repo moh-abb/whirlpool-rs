@@ -20,7 +20,7 @@ use crate::structures::index::Index;
 use crate::structures::multiple::Multiple;
 use crate::test::pattern::arbitrary::arenas_to::ArenasTo;
 use crate::test::pattern::arbitrary::silence::arb_pattern_leaf;
-use crate::test::pattern::arbitrary::time::arb_cycle_time;
+use crate::test::pattern::arbitrary::time::arb_positive_cycle_time;
 
 fn pattern_to_timed_step<Arenas: PatternArenas + 'static>(
     x: ArenasTo<Arenas, Index<Pattern>>,
@@ -122,21 +122,26 @@ fn pattern_to_multiple_pattern<Arenas: PatternArenas + 'static>(
     })
 }
 
-pub fn arb_pattern<Arenas: PatternArenas + 'static>()
--> impl Strategy<Value = ArenasTo<Arenas, Index<Pattern>>> {
+fn arb_pattern<Arenas: PatternArenas + 'static>(
+    depth: u32,
+    max_number_of_nodes: u32,
+    items_per_collection: u32,
+) -> impl Strategy<Value = ArenasTo<Arenas, Index<Pattern>>> {
     arb_pattern_leaf().prop_recursive(
-        8,   // levels deep
-        256, // maximum number of nodes
-        10,  // up to 10 items per collection
+        depth,
+        max_number_of_nodes,
+        items_per_collection,
         |inner| {
             let functions = prop_oneof![
                 Just(Pattern::Cat as fn(_) -> _),
                 Just(Pattern::Seq as fn(_) -> _),
                 Just(Pattern::Stack as fn(_) -> _),
             ];
-            let opt_time_units =
-                prop_oneof![arb_cycle_time().prop_map(Some), Just(None)];
-            (prop::collection::vec(inner, 0..10), functions, opt_time_units)
+            let opt_time_units = prop_oneof![
+                arb_positive_cycle_time().prop_map(Some),
+                Just(None)
+            ];
+            (prop::collection::vec(inner, 1..10), functions, opt_time_units)
                 .prop_map(|(xs, f, opt_time_unit)| {
                     if let Some(time_unit) = opt_time_unit {
                         pattern_to_time_cat(xs, time_unit)
@@ -146,4 +151,14 @@ pub fn arb_pattern<Arenas: PatternArenas + 'static>()
                 })
         },
     )
+}
+
+pub fn arb_small_pattern<Arenas: PatternArenas + 'static>()
+-> impl Strategy<Value = ArenasTo<Arenas, Index<Pattern>>> {
+    arb_pattern(5, 75, 7)
+}
+
+pub fn arb_large_pattern<Arenas: PatternArenas + 'static>()
+-> impl Strategy<Value = ArenasTo<Arenas, Index<Pattern>>> {
+    arb_pattern(8, 256, 10)
 }

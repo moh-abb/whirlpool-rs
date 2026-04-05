@@ -9,7 +9,7 @@ use crate::ast::pattern::arenas::PatternArenas;
 use crate::structures::chain::Chain;
 use crate::structures::index::Index;
 use crate::test::pattern::arbitrary::arenas_to::ArenasTo;
-use crate::test::pattern::arbitrary::pattern::arb_pattern;
+use crate::test::pattern::arbitrary::pattern::arb_large_pattern;
 
 #[derive(Debug)]
 pub struct GrowableArenas(
@@ -148,7 +148,7 @@ pub struct AnyPatternStrategy;
 impl StrategyWithArena<Index<Pattern>> for AnyPatternStrategy {
     fn item_strategy<Arenas: PatternArenas + 'static>()
     -> impl Strategy<Value = ArenasTo<Arenas, Index<Pattern>>> {
-        arb_pattern()
+        arb_large_pattern()
     }
 }
 

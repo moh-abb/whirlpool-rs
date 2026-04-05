@@ -9,7 +9,7 @@ use crate::test::interpreter::arbitrary::expectations::arb_end_offset_and_multip
 use crate::test::interpreter::arbitrary::expectations::pattern_expectations;
 use crate::test::interpreter::sequence::NoteSequence;
 use crate::test::pattern::arbitrary::arenas_to::ArenasTo;
-use crate::test::pattern::arbitrary::pattern::arb_pattern;
+use crate::test::pattern::arbitrary::pattern::arb_small_pattern;
 use crate::test::pattern::arena_alloc::StrategyWithArena;
 
 pub struct ArbitrarySequenceStrategy;
@@ -19,7 +19,7 @@ impl StrategyWithArena<(Index<Pattern>, NoteSequence)>
     fn item_strategy<Arenas: PatternArenas + 'static>()
     -> impl Strategy<Value = ArenasTo<Arenas, (Index<Pattern>, NoteSequence)>>
     {
-        (arb_pattern(), arb_end_offset_and_multiplier()).prop_map(
+        (arb_small_pattern(), arb_end_offset_and_multiplier()).prop_map(
             |(arenas_to_pattern, (end_time, offset, multiplier))| {
                 ArenasTo::new(move |arenas: &Arenas| {
                     let pattern = arenas_to_pattern.call(arenas)?;
