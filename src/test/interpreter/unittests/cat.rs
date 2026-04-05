@@ -11,13 +11,13 @@ use crate::test::interpreter::unittests::examples::half_binary_tree_depth_two;
 use crate::test::interpreter::unittests::examples::multiple_of_three_units;
 use crate::test::interpreter::unittests::examples::multiple_of_unit_then_silence_then_unit;
 
-#[test]
-fn can_play_double_alternating_cats() {
+fn play_double_alternating_cats_with_multiplier(multiplier: CycleTime) {
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
+    let unit_duration = multiplier.recip();
     let make_scheduled_action = |start_time, letter: Letter| {
         [ScheduledExpectation {
-            start_time: CycleTime::from_int(start_time),
-            duration: CycleTime::ONE,
+            start_time: CycleTime::from_int(start_time) / multiplier,
+            duration: unit_duration,
             note_unit: note_unit(letter),
         }]
     };
@@ -33,7 +33,27 @@ fn can_play_double_alternating_cats() {
     ];
     let (arenas, head_index) =
         binary_tree_depth_two(Pattern::Cat, Pattern::Cat, Pattern::Cat);
-    test_expectations(&arenas, head_index, &expected_schedule_actions);
+    test_expectations_with_interpreter_setup(
+        &arenas,
+        head_index,
+        &expected_schedule_actions,
+        FullInterpreterSetup { offset: CycleTime::ZERO, multiplier },
+    );
+}
+
+#[test]
+fn can_play_double_alternating_cats() {
+    play_double_alternating_cats_with_multiplier(CycleTime::ONE);
+}
+
+#[test]
+fn can_play_double_alternating_cats_at_double_speed() {
+    play_double_alternating_cats_with_multiplier(CycleTime::from_int(2));
+}
+
+#[test]
+fn can_play_double_alternating_cats_at_seven_times_speed() {
+    play_double_alternating_cats_with_multiplier(CycleTime::from_int(7));
 }
 
 fn play_double_cat_then_unit_with_multiplier(multiplier: CycleTime) {
@@ -47,7 +67,7 @@ fn play_double_cat_then_unit_with_multiplier(multiplier: CycleTime) {
     let unit_duration = multiplier.recip();
     let make_scheduled_action = |start_time, letter: Letter| {
         [ScheduledExpectation {
-            start_time: CycleTime::from_int(start_time).div(multiplier),
+            start_time: CycleTime::from_int(start_time) / multiplier,
             duration: unit_duration,
             note_unit: note_unit(letter),
         }]
@@ -95,7 +115,7 @@ fn play_cat_of_three_units_with_multiplier(multiplier: CycleTime) {
 
     let make_scheduled_action = |start_time, letter: Letter| {
         [ScheduledExpectation {
-            start_time: CycleTime::from_int(start_time).div(multiplier),
+            start_time: CycleTime::from_int(start_time) / multiplier,
             duration: multiplier.recip(),
             note_unit: note_unit(letter),
         }]
