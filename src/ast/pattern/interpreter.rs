@@ -1,6 +1,7 @@
 use core::cell::RefCell;
 use core::fmt::Debug;
 use core::iter;
+use core::iter::repeat;
 use core::marker::PhantomData;
 use core::ops::DerefMut;
 
@@ -184,9 +185,11 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
         play_multiple(
             interval,
             CycleTime::from_int(i32::from(multiple.length())),
-            || multiple.iter(self.arenas.get_pattern_chain_arena()),
+            || {
+                repeat(CycleTime::ONE)
+                    .zip(multiple.iter(self.arenas.get_pattern_chain_arena()))
+            },
             false,
-            |_| CycleTime::ONE,
             self.offset,
             self.multiplier,
             |subpattern, subinterval, suboffset, submultiplier| {
@@ -216,9 +219,11 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
         play_multiple(
             interval,
             CycleTime::from_int(i32::from(multiple.length())),
-            || multiple.iter(self.arenas.get_pattern_chain_arena()),
+            || {
+                repeat(CycleTime::ONE)
+                    .zip(multiple.iter(self.arenas.get_pattern_chain_arena()))
+            },
             true,
-            |_| CycleTime::ONE,
             self.offset,
             self.multiplier,
             |subpattern, subinterval, suboffset, submultiplier| {
@@ -262,9 +267,13 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
         play_multiple(
             CycleTimeInterval::new(self.start, self.start + self.duration),
             CycleTime::ONE,
-            || iter::once(SoundUnit::new(unit, unit_duration)),
+            || {
+                iter::once((
+                    CycleTime::ONE,
+                    SoundUnit::new(unit, unit_duration),
+                ))
+            },
             false,
-            |_| CycleTime::ONE,
             self.offset,
             self.multiplier,
             |soundunit, subinterval, suboffset, submultiplier| {
@@ -284,11 +293,10 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
     fn map_silence(&self) -> Self::PatternOutput {}
 }
 
-fn play_slow_multiple<T: Debug, Iter: Iterator<Item = T>>(
+fn play_slow_multiple<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
     interval: CycleTimeInterval,
     length: CycleTime,
     elements: impl Fn() -> Iter,
-    length_of_elem: impl Fn(&T) -> CycleTime,
     offset: CycleTime,
     multiplier: CycleTime,
     mut play_elem: impl FnMut(&T, CycleTimeInterval, CycleTime, CycleTime),
@@ -329,9 +337,8 @@ fn play_slow_multiple<T: Debug, Iter: Iterator<Item = T>>(
     // Iterate over k = 1 to n.
     // Mathematically, elem_start = S(k-1) with initially S(k-1) = S(0) = 0.
     let mut elem_start = CycleTime::ZERO;
-    for elem in elements() {
+    for (elem_length, elem) in elements() {
         // Mathematically, elem_length = t_k
-        let elem_length = length_of_elem(&elem);
         let elem_interval =
             CycleTimeInterval::new(elem_start, elem_start + elem_length);
 
@@ -423,11 +430,10 @@ fn play_slow_multiple<T: Debug, Iter: Iterator<Item = T>>(
     }
 }
 
-fn play_fast_multiple<T: Debug, Iter: Iterator<Item = T>>(
+fn play_fast_multiple<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
     interval: CycleTimeInterval,
     length: CycleTime,
     elements: impl Fn() -> Iter,
-    length_of_elem: impl Fn(&T) -> CycleTime,
     offset: CycleTime,
     multiplier: CycleTime,
     play_elem: impl FnMut(&T, CycleTimeInterval, CycleTime, CycleTime),
@@ -466,7 +472,6 @@ fn play_fast_multiple<T: Debug, Iter: Iterator<Item = T>>(
         scaled_interval,
         length,
         elements,
-        length_of_elem,
         scaled_offset,
         scaled_multiplier,
         play_elem,
@@ -474,54 +479,37 @@ fn play_fast_multiple<T: Debug, Iter: Iterator<Item = T>>(
 }
 
 #[inline]
-fn play_multiple<T: Debug, Iter: Iterator<Item = T>>(
+fn play_multiple<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
     interval: CycleTimeInterval,
     length: CycleTime,
     elements: impl Fn() -> Iter,
     is_fast: bool,
-    length_of_elem: impl Fn(&T) -> CycleTime,
     offset: CycleTime,
     multiplier: CycleTime,
     play_elem: impl FnMut(&T, CycleTimeInterval, CycleTime, CycleTime),
 ) {
     debug_assert!({
         let unit_length_sum = elements()
-            .map(|elem| length_of_elem(&elem))
+            .map(|(elem_length, _)| elem_length)
             .fold(CycleTime::ZERO, CycleTime::add);
         length == unit_length_sum
     });
     let play_func =
         if is_fast { play_fast_multiple } else { play_slow_multiple };
-    play_func(
-        interval,
-        length,
-        elements,
-        length_of_elem,
-        offset,
-        multiplier,
-        play_elem,
-    )
+    play_func(interval, length, elements, offset, multiplier, play_elem)
 }
 
 #[cfg(test)]
-pub fn test_play_multiple<T: Debug, Iter: Iterator<Item = T>>(
+pub fn test_play_multiple<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
     interval: CycleTimeInterval,
     length: CycleTime,
     elements: impl Fn() -> Iter,
     is_fast: bool,
-    length_of_elem: impl Fn(&T) -> CycleTime,
     offset: CycleTime,
     multiplier: CycleTime,
     play_elem: impl FnMut(&T, CycleTimeInterval, CycleTime, CycleTime),
 ) {
     play_multiple(
-        interval,
-        length,
-        elements,
-        is_fast,
-        length_of_elem,
-        offset,
-        multiplier,
-        play_elem,
+        interval, length, elements, is_fast, offset, multiplier, play_elem,
     )
 }
