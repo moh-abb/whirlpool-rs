@@ -111,8 +111,7 @@ fn test_expectations_with_interpreter_setup_and_start_time<
     test_setup: impl TestSetupStrategy,
 ) {
     let mut mock_player = MockPatternPlayer::new();
-    let logging_player =
-        RefCell::new(LoggingPlayer::new(&mut mock_player, true));
+    let logging_player = RefCell::new(LoggingPlayer::new(&mut mock_player));
     let with_mock_player = |f: &dyn Fn(&mut MockPatternPlayer)| {
         let mut borrowed_logger = logging_player.borrow_mut();
         let borrowed_player = borrowed_logger.get_mut_player();

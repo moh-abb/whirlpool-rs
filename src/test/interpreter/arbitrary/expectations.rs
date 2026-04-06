@@ -1,9 +1,10 @@
 use core::fmt::Debug;
+use core::iter::once;
 use core::iter::repeat;
+use core::num::NonZeroU8;
 use core::num::NonZeroU16;
 
 use proptest::prelude::Strategy;
-use proptest::prelude::any;
 use proptest::test_runner::Reason;
 
 use crate::alloc_types::Vec;
@@ -13,7 +14,6 @@ use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::interpreter::test_play_multiple;
-use crate::ast::pattern::note::NoteUnit;
 use crate::ast::time::CycleTime;
 use crate::ast::time::CycleTimeInterval;
 use crate::structures::index::Index;
@@ -21,31 +21,6 @@ use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::sequence::NoteSequence;
 use crate::test::pattern::arbitrary::time::arb_cycle_time;
 use crate::test::pattern::arbitrary::time::arb_positive_cycle_time;
-
-fn interval_whole_times(
-    interval: CycleTimeInterval,
-) -> impl Iterator<Item = CycleTime> {
-    let start = interval.start().ceil().to_int();
-    let end = interval.end().floor().to_int();
-    (start..=end).map(CycleTime::from_int)
-}
-
-fn unit_expectations(
-    interval: CycleTimeInterval,
-    note_unit: NoteUnit,
-    offset: CycleTime,
-    multiplier: CycleTime,
-) -> NoteSequence {
-    let unit_duration = multiplier.recip();
-    let expected = interval_whole_times(interval)
-        .map(|start_time| ScheduledExpectation {
-            start_time,
-            duration: unit_duration,
-            note_unit,
-        })
-        .collect();
-    NoteSequence { interval, offset, multiplier, expected }
-}
 
 fn multiple_expectations<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
     interval: CycleTimeInterval,
@@ -174,9 +149,34 @@ pub fn pattern_expectations(
                 },
             )
         }
-        Pattern::Note(note_unit) => {
-            unit_expectations(interval, note_unit, offset, multiplier)
-        }
+        Pattern::Note(note_unit) => multiple_expectations(
+            interval,
+            CycleTime::ONE,
+            || once((CycleTime::ONE, note_unit)),
+            false,
+            offset,
+            multiplier,
+            |elem, sim_interval, sim_offset, sim_multiplier| {
+                assert_eq!(elem, &note_unit);
+                let played_note =
+                    if sim_interval.start() == sim_interval.start().floor() {
+                        vec![ScheduledExpectation {
+                            start_time: (sim_interval.start() + sim_offset)
+                                / sim_multiplier,
+                            duration: sim_multiplier.recip(),
+                            note_unit,
+                        }]
+                    } else {
+                        Vec::new()
+                    };
+                NoteSequence {
+                    interval,
+                    offset,
+                    multiplier,
+                    expected: played_note,
+                }
+            },
+        ),
         Pattern::Silence => {
             NoteSequence { interval, offset, multiplier, expected: Vec::new() }
         }
@@ -184,18 +184,24 @@ pub fn pattern_expectations(
     Ok(result)
 }
 
-const MAX_END_TIME: CycleTime = CycleTime::from_int(2048);
+const MAX_START_TIME: CycleTime = CycleTime::from_int(2048);
+const MAX_DURATION: CycleTime = CycleTime::from_int(40);
 
 /// Returns an arbitrary end time, offset and multiplier.
-pub fn arb_end_offset_and_multiplier()
--> impl Strategy<Value = (CycleTime, CycleTime, CycleTime)> {
-    let arb_end_time = arb_positive_cycle_time().prop_filter(
-        Reason::from("End time should be at most {MAX_END_TIME:?}"),
-        |time| time <= &MAX_END_TIME,
+pub fn arb_interval_offset_and_multiplier()
+-> impl Strategy<Value = (CycleTimeInterval, CycleTime, CycleTime)> {
+    let arb_start_time = arb_positive_cycle_time::<NonZeroU16>().prop_filter(
+        Reason::from("Start time should be at most {MAX_START_TIME:?}"),
+        |time| time <= &MAX_START_TIME,
     );
-    let arb_multiplier = any::<NonZeroU16>()
-        .prop_map(NonZeroU16::get)
-        .prop_map(i32::from)
-        .prop_map(CycleTime::from_int);
-    (arb_end_time, arb_cycle_time(), arb_multiplier)
+    let arb_duration = arb_positive_cycle_time::<NonZeroU8>().prop_filter(
+        Reason::from("Duration should be at most {MAX_DURATION:?}"),
+        |time| time <= &MAX_DURATION,
+    );
+    let arb_interval =
+        (arb_start_time, arb_duration).prop_map(|(start, duration)| {
+            CycleTimeInterval::new(start, start + duration)
+        });
+    let arb_multiplier = arb_positive_cycle_time::<NonZeroU8>();
+    (arb_interval, arb_cycle_time(), arb_multiplier)
 }
