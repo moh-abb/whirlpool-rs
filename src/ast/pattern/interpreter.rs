@@ -5,6 +5,7 @@ use core::iter::repeat;
 use core::marker::PhantomData;
 use core::ops::DerefMut;
 
+use crate::arena::Arena;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
@@ -194,15 +195,51 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
     fn map_arrange_or_time_cat(
         &self,
         multiple: Multiple<TimedStep>,
-        _is_fast: bool,
+        is_fast: bool,
     ) {
         if multiple.is_empty() {
             panic!("Cannot play empty multiple patterns");
         }
 
-        let _interval =
+        let interval =
             CycleTimeInterval::new(self.start, self.start + self.duration);
-        todo!()
+        let elems_with_durations = || {
+            multiple
+                .iter(self.arenas.get_timed_step_chain_arena())
+                .filter_map(|timed_step| {
+                    self.arenas
+                        .get_timed_step_arena()
+                        .inspect(timed_step, Clone::clone)
+                        .map(|TimedStep(unit, pattern)| (unit, pattern))
+                        .ok()
+                })
+        };
+        // TODO: Store the total length to reduce repeated calculation
+        let length = elems_with_durations()
+            .map(|(dur, _)| dur)
+            .fold(CycleTime::ZERO, CycleTime::add);
+        play_multiple(
+            interval,
+            length,
+            elems_with_durations,
+            is_fast,
+            self.offset,
+            self.multiplier,
+            |subpattern, subinterval, suboffset, submultiplier| {
+                let mut inner_mut = self.inner.borrow_mut();
+                let visitor = InterpreterVisitor {
+                    arenas: self.arenas,
+                    start: subinterval.start(),
+                    duration: subinterval.end() - subinterval.start(),
+                    offset: suboffset,
+                    multiplier: submultiplier,
+                    inner: RefCell::new(VisitorInner {
+                        player: inner_mut.player,
+                    }),
+                };
+                visit_pattern(&visitor, subpattern.clone())
+            },
+        )
     }
 }
 
