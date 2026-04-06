@@ -201,6 +201,22 @@ impl<'a, 'b, Arenas: PatternArenas> PatternVisitor
             .and_then(|()| write_str(self, ")"))
     }
 
+    fn map_arrange(
+        &self,
+        multiple: Multiple<super::TimedStep>,
+    ) -> Self::PatternOutput {
+        let print_timed_steps = |()| {
+            print_multiple_timed_step(
+                multiple,
+                self.arenas,
+                self.formatter.borrow_mut().deref_mut(),
+            )
+        };
+        write_str(self, "Arrange(")
+            .and_then(print_timed_steps)
+            .and_then(|()| write_str(self, ")"))
+    }
+
     fn map_note_unit(
         &self,
         unit: super::note::NoteUnit,

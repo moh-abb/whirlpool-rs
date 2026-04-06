@@ -200,7 +200,11 @@ fn cmp_multiple_timed_step<Arenas1: PatternArenas, Arenas2: PatternArenas>(
             visit_pattern(&visitor, source_pattern)
         };
     let cmp_with_other = |other: Pattern| {
-        let Pattern::TimeCat(other_multiple) = other else { unreachable!() };
+        let (Pattern::TimeCat(other_multiple)
+        | Pattern::Arrange(other_multiple)) = other
+        else {
+            unreachable!()
+        };
         cmp_multiple(
             multiple,
             other_multiple,
@@ -259,6 +263,13 @@ impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> PatternVisitor
     }
 
     fn map_time_cat(
+        &self,
+        multiple: Multiple<TimedStep>,
+    ) -> Self::PatternOutput {
+        cmp_multiple_timed_step(self, multiple)
+    }
+
+    fn map_arrange(
         &self,
         multiple: Multiple<TimedStep>,
     ) -> Self::PatternOutput {

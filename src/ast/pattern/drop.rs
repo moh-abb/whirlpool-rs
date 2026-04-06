@@ -240,6 +240,13 @@ impl<'a, Arenas: PatternArenas> PatternVisitor
         mem::drop(MultipleTimedStepDropAdapter::new(multiple, self.arenas));
     }
 
+    fn map_arrange(
+        &self,
+        multiple: Multiple<TimedStep>,
+    ) -> Self::PatternOutput {
+        mem::drop(MultipleTimedStepDropAdapter::new(multiple, self.arenas));
+    }
+
     fn map_note_unit(&self, _: NoteUnit) -> Self::PatternOutput {}
 
     fn map_silence(&self) -> Self::PatternOutput {}

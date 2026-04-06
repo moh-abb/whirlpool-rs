@@ -52,6 +52,7 @@ fn pattern_to_timed_step<Arenas: PatternArenas + 'static>(
 fn pattern_to_time_cat<Arenas: PatternArenas + 'static>(
     xs: Vec<ArenasTo<Arenas, Index<Pattern>>>,
     time_unit: CycleTime,
+    f: fn(Multiple<TimedStep>) -> Pattern,
 ) -> ArenasTo<Arenas, Index<Pattern>> {
     ArenasTo::new(move |arenas: &Arenas| {
         let chain_arena = arenas.get_timed_step_chain_arena();
@@ -78,9 +79,11 @@ fn pattern_to_time_cat<Arenas: PatternArenas + 'static>(
             )?;
         let mut drop_adapter = alloc_pattern(
             arenas,
-            Pattern::TimeCat,
+            f,
             |pattern| match pattern {
-                Pattern::TimeCat(multiple) => multiple,
+                Pattern::TimeCat(multiple) | Pattern::Arrange(multiple) => {
+                    multiple
+                }
                 _ => unreachable!(),
             },
             multiple_adapter,
@@ -134,22 +137,38 @@ fn arb_pattern<Arenas: PatternArenas + 'static>(
         max_number_of_nodes,
         items_per_collection,
         |inner| {
-            let functions = prop_oneof![
+            let pattern_functions = prop_oneof![
                 Just(Pattern::Cat as fn(_) -> _),
                 Just(Pattern::Seq as fn(_) -> _),
                 Just(Pattern::Stack as fn(_) -> _),
+            ];
+            let timed_step_functions = prop_oneof![
+                Just(Pattern::TimeCat as fn(_) -> _),
+                Just(Pattern::Arrange as fn(_) -> _),
             ];
             let opt_time_units = prop_oneof![
                 arb_positive_cycle_time::<NonZeroU8>().prop_map(Some),
                 Just(None)
             ];
-            (prop::collection::vec(inner, 1..10), functions, opt_time_units)
-                .prop_map(|(xs, f, opt_time_unit)| {
-                    if let Some(time_unit) = opt_time_unit {
-                        let _ = pattern_to_time_cat(xs.clone(), time_unit);
-                    }
-                    pattern_to_multiple_pattern(xs, f)
-                })
+            (
+                prop::collection::vec(inner, 1..10),
+                opt_time_units,
+                pattern_functions,
+                timed_step_functions,
+            )
+                .prop_map(
+                    |(xs, opt_time_unit, pattern_func, timed_step_func)| {
+                        if let Some(time_unit) = opt_time_unit {
+                            pattern_to_time_cat(
+                                xs.clone(),
+                                time_unit,
+                                timed_step_func,
+                            )
+                        } else {
+                            pattern_to_multiple_pattern(xs, pattern_func)
+                        }
+                    },
+                )
         },
     )
 }

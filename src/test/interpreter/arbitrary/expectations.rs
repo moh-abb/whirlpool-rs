@@ -114,7 +114,8 @@ pub fn pattern_expectations(
                 x
             })
             .unwrap(),
-        Pattern::TimeCat(multiple) => {
+        Pattern::TimeCat(multiple) | Pattern::Arrange(multiple) => {
+            let is_fast = matches!(cloned_pattern, Pattern::TimeCat(_));
             let elems_with_durations = || {
                 multiple
                     .iter(arenas.get_timed_step_chain_arena())
@@ -134,7 +135,7 @@ pub fn pattern_expectations(
                 interval,
                 length,
                 elems_with_durations,
-                true,
+                is_fast,
                 offset,
                 multiplier,
                 |elem, sim_interval, sim_offset, sim_multiplier| {

@@ -216,6 +216,16 @@ impl<'a, Arenas: PatternArenas> PatternVisitor for CloneVisitor<'a, Arenas> {
         })
     }
 
+    fn map_arrange(
+        &self,
+        multiple: Multiple<TimedStep>,
+    ) -> Self::PatternOutput {
+        self.clone_multiple_timed_step(multiple, Pattern::Arrange, |pattern| {
+            let Pattern::Arrange(multiple) = pattern else { unreachable!() };
+            multiple
+        })
+    }
+
     fn map_note_unit(&self, unit: NoteUnit) -> Self::PatternOutput {
         let pattern_index = self
             .arenas

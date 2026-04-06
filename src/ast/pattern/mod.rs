@@ -24,6 +24,7 @@ pub enum Pattern {
     Seq(Multiple<Self>),
     Stack(Multiple<Self>),
     TimeCat(Multiple<TimedStep>),
+    Arrange(Multiple<TimedStep>),
     Note(note::NoteUnit),
     Silence,
 }
@@ -34,8 +35,9 @@ const fn pattern_discriminant(pattern: &Pattern) -> u8 {
         Pattern::Seq(_) => 2,
         Pattern::Stack(_) => 3,
         Pattern::TimeCat(_) => 4,
-        Pattern::Note(_) => 5,
-        Pattern::Silence => 6,
+        Pattern::Arrange(_) => 5,
+        Pattern::Note(_) => 6,
+        Pattern::Silence => 7,
     }
 }
 

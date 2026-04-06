@@ -199,6 +199,15 @@ impl<'a, Arenas: PatternArenas, FoldStrategy: ChainFoldRightStrategy>
         format!("TimeCat({displayed_multiple})")
     }
 
+    fn map_arrange(
+        &self,
+        multiple: Multiple<TimedStep>,
+    ) -> Self::PatternOutput {
+        let displayed_multiple =
+            print_multiple_timed_step::<_, FoldStrategy>(multiple, self.arenas);
+        format!("Arrange({displayed_multiple})")
+    }
+
     fn map_note_unit(
         &self,
         unit: super::note::NoteUnit,

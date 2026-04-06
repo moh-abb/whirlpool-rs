@@ -24,6 +24,8 @@ pub trait PatternVisitor {
         &self,
         multiple: Multiple<TimedStep>,
     ) -> Self::PatternOutput;
+    fn map_arrange(&self, multiple: Multiple<TimedStep>)
+    -> Self::PatternOutput;
 
     fn map_note_unit(&self, unit: NoteUnit) -> Self::PatternOutput;
     fn map_silence(&self) -> Self::PatternOutput;
@@ -63,8 +65,12 @@ pub fn visit_pattern<V: PatternVisitor>(
             };
             map_func(visitor, multiple)
         }
-        Pattern::TimeCat(multiple) => {
-            let map_func = V::map_time_cat;
+        Pattern::TimeCat(multiple) | Pattern::Arrange(multiple) => {
+            let map_func = match &cloned_pattern {
+                Pattern::TimeCat(_) => V::map_time_cat,
+                Pattern::Arrange(_) => V::map_arrange,
+                _ => unreachable!(),
+            };
             map_func(visitor, multiple)
         }
         Pattern::Note(note_unit) => visitor.map_note_unit(note_unit),

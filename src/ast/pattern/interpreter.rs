@@ -292,6 +292,13 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
         self.map_arrange_or_time_cat(multiple, true);
     }
 
+    fn map_arrange(
+        &self,
+        multiple: Multiple<TimedStep>,
+    ) -> Self::PatternOutput {
+        self.map_arrange_or_time_cat(multiple, false);
+    }
+
     fn map_note_unit(&self, unit: NoteUnit) -> Self::PatternOutput {
         let unit_duration = self.multiplier.recip();
         play_multiple(
