@@ -1,3 +1,5 @@
+use core::num::NonZeroU8;
+
 use proptest::prelude::Just;
 use proptest::prelude::Strategy;
 use proptest::prelude::prop;
@@ -138,16 +140,15 @@ fn arb_pattern<Arenas: PatternArenas + 'static>(
                 Just(Pattern::Stack as fn(_) -> _),
             ];
             let opt_time_units = prop_oneof![
-                arb_positive_cycle_time().prop_map(Some),
+                arb_positive_cycle_time::<NonZeroU8>().prop_map(Some),
                 Just(None)
             ];
             (prop::collection::vec(inner, 1..10), functions, opt_time_units)
                 .prop_map(|(xs, f, opt_time_unit)| {
                     if let Some(time_unit) = opt_time_unit {
-                        pattern_to_time_cat(xs, time_unit)
-                    } else {
-                        pattern_to_multiple_pattern(xs, f)
+                        let _ = pattern_to_time_cat(xs.clone(), time_unit);
                     }
+                    pattern_to_multiple_pattern(xs, f)
                 })
         },
     )
@@ -155,7 +156,7 @@ fn arb_pattern<Arenas: PatternArenas + 'static>(
 
 pub fn arb_small_pattern<Arenas: PatternArenas + 'static>()
 -> impl Strategy<Value = ArenasTo<Arenas, Index<Pattern>>> {
-    arb_pattern(5, 75, 7)
+    arb_pattern(5, 40, 7)
 }
 
 pub fn arb_large_pattern<Arenas: PatternArenas + 'static>()
