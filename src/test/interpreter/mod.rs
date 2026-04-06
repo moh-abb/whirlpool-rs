@@ -1,5 +1,6 @@
 use core::borrow::Borrow;
 use core::cell::RefCell;
+use core::fmt::Debug;
 
 use mockall::predicate;
 
@@ -80,8 +81,6 @@ impl TestSetupStrategy for EmptyInterpreterSetup {
     }
 }
 
-const START_TIME_THRESHOLD: CycleTime = CycleTime::from_int_recip(100);
-
 fn test_expectations_with_interpreter_setup<
     ExpectationsAtTime: IntoIterator<Item = impl Borrow<ScheduledExpectation>> + Clone,
     Expectations: IntoIterator<Item = impl Borrow<(CycleTime, ExpectationsAtTime)>> + Clone,
@@ -124,50 +123,41 @@ fn test_expectations_with_interpreter_setup_and_start_time<
 
     // Advance the interpreter to the start position.
     // First, ignore all possible played notes before the start position.
-    with_mock_player(&|player| {
-        player
-            .expect_schedule_note_unit()
-            .times(..)
-            .return_const(());
-    });
+    logging_player
+        .borrow_mut()
+        .set_inner_enabled(false);
     interpreter.update_time(start_time);
-    with_mock_player(&|player| player.checkpoint());
+    logging_player
+        .borrow_mut()
+        .set_inner_enabled(true);
 
-    let expect_note_unit =
-        |expectation: ScheduledExpectation, all: &ExpectationsAtTime| {
-            let ScheduledExpectation { start_time, duration, note_unit } =
-                expectation;
-            let sound_unit = SoundUnit::new(note_unit, duration);
-            let count = all
-                .clone()
-                .into_iter()
-                .filter(|e| e.borrow() == &expectation)
-                .count();
-            let fuzzy_eq_start_time =
-                predicate::function(move |time: &CycleTime| {
-                    let diff = time.sub(start_time);
-                    let abs_diff = diff.max(diff.neg());
-                    abs_diff <= START_TIME_THRESHOLD
-                });
-            let add_expectation = |borrowed_player: &mut MockPatternPlayer| {
-                borrowed_player
-                    .expect_schedule_note_unit()
-                    .times(count)
-                    .with(
-                        predicate::eq(sound_unit.clone()),
-                        fuzzy_eq_start_time,
-                    )
-                    .return_const(());
-            };
-            with_mock_player(&add_expectation)
+    // Enable printing log messages, if desired.
+    logging_player
+        .borrow_mut()
+        .set_logging(false);
+    let expect_note_unit = |expectation: ScheduledExpectation| {
+        let ScheduledExpectation { start_time, duration, note_unit } =
+            expectation;
+        let sound_unit = SoundUnit::new(note_unit, duration);
+        let add_expectation = |borrowed_player: &mut MockPatternPlayer| {
+            borrowed_player
+                .expect_schedule_note_unit()
+                .with(
+                    predicate::eq(sound_unit.clone()),
+                    predicate::eq(start_time),
+                )
+                .once()
+                .return_const(());
         };
+        with_mock_player(&add_expectation)
+    };
 
     for borrow_scheduled_actions in expected_schedule_actions {
         let (next_cycle_time, expectations) = borrow_scheduled_actions.borrow();
         expectations
             .clone()
             .into_iter()
-            .for_each(|e| expect_note_unit(e.borrow().clone(), expectations));
+            .for_each(|e| expect_note_unit(e.borrow().clone()));
         interpreter.update_time(*next_cycle_time);
         with_mock_player(&|player| player.checkpoint());
     }
