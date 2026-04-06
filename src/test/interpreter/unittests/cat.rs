@@ -6,17 +6,21 @@ use crate::test::interpreter::FullInterpreterSetup;
 use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::test_expectations;
 use crate::test::interpreter::test_expectations_with_interpreter_setup;
+use crate::test::interpreter::unittests::NONZERO_OFFSET;
 use crate::test::interpreter::unittests::examples::binary_tree_depth_two;
 use crate::test::interpreter::unittests::examples::half_binary_tree_depth_two;
 use crate::test::interpreter::unittests::examples::multiple_of_three_units;
 use crate::test::interpreter::unittests::examples::multiple_of_unit_then_silence_then_unit;
 
-fn play_double_alternating_cats_with_multiplier(multiplier: CycleTime) {
+fn play_double_alternating_cats_with_offset_and_multiplier(
+    offset: CycleTime,
+    multiplier: CycleTime,
+) {
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
     let unit_duration = multiplier.recip();
     let make_scheduled_action = |start_time, letter: Letter| {
         [ScheduledExpectation {
-            start_time: CycleTime::from_int(start_time) / multiplier,
+            start_time: (CycleTime::from_int(start_time) + offset) / multiplier,
             duration: unit_duration,
             note_unit: note_unit(letter),
         }]
@@ -37,23 +41,56 @@ fn play_double_alternating_cats_with_multiplier(multiplier: CycleTime) {
         &arenas,
         head_index,
         &expected_schedule_actions,
-        FullInterpreterSetup { offset: CycleTime::ZERO, multiplier },
+        FullInterpreterSetup { offset, multiplier },
     );
 }
 
 #[test]
 fn can_play_double_alternating_cats() {
-    play_double_alternating_cats_with_multiplier(CycleTime::ONE);
+    play_double_alternating_cats_with_offset_and_multiplier(
+        CycleTime::ZERO,
+        CycleTime::ONE,
+    );
 }
 
 #[test]
 fn can_play_double_alternating_cats_at_double_speed() {
-    play_double_alternating_cats_with_multiplier(CycleTime::from_int(2));
+    play_double_alternating_cats_with_offset_and_multiplier(
+        CycleTime::ZERO,
+        CycleTime::from_int(2),
+    );
 }
 
 #[test]
 fn can_play_double_alternating_cats_at_seven_times_speed() {
-    play_double_alternating_cats_with_multiplier(CycleTime::from_int(7));
+    play_double_alternating_cats_with_offset_and_multiplier(
+        CycleTime::ZERO,
+        CycleTime::from_int(7),
+    );
+}
+
+#[test]
+fn can_play_double_alternating_cats_at_nonzero_offset() {
+    play_double_alternating_cats_with_offset_and_multiplier(
+        NONZERO_OFFSET,
+        CycleTime::ONE,
+    );
+}
+
+#[test]
+fn can_play_double_alternating_cats_at_double_speed_and_nonzero_offset() {
+    play_double_alternating_cats_with_offset_and_multiplier(
+        NONZERO_OFFSET,
+        CycleTime::from_int(2),
+    );
+}
+
+#[test]
+fn can_play_double_alternating_cats_at_seven_times_speed_and_nonzero_offset() {
+    play_double_alternating_cats_with_offset_and_multiplier(
+        NONZERO_OFFSET,
+        CycleTime::from_int(7),
+    );
 }
 
 fn play_double_cat_then_unit_with_multiplier(multiplier: CycleTime) {
@@ -107,7 +144,10 @@ fn can_play_double_cat_then_unit_at_seven_times_speed() {
     play_double_cat_then_unit_with_multiplier(CycleTime::from_int(7))
 }
 
-fn play_cat_of_three_units_with_multiplier(multiplier: CycleTime) {
+fn play_cat_of_three_units_with_offset_and_multiplier(
+    offset: CycleTime,
+    multiplier: CycleTime,
+) {
     // [  Cat  ]
     // ↓ ↓ ↓
     // A  B  C
@@ -115,7 +155,7 @@ fn play_cat_of_three_units_with_multiplier(multiplier: CycleTime) {
 
     let make_scheduled_action = |start_time, letter: Letter| {
         [ScheduledExpectation {
-            start_time: CycleTime::from_int(start_time) / multiplier,
+            start_time: (CycleTime::from_int(start_time) + offset) / multiplier,
             duration: multiplier.recip(),
             note_unit: note_unit(letter),
         }]
@@ -133,23 +173,56 @@ fn play_cat_of_three_units_with_multiplier(multiplier: CycleTime) {
         &arenas,
         head_index,
         &expected_schedule_actions,
-        FullInterpreterSetup { offset: CycleTime::ZERO, multiplier },
+        FullInterpreterSetup { offset, multiplier },
     );
 }
 
 #[test]
 fn can_play_cat_of_three_units() {
-    play_cat_of_three_units_with_multiplier(CycleTime::ONE);
+    play_cat_of_three_units_with_offset_and_multiplier(
+        CycleTime::ZERO,
+        CycleTime::ONE,
+    );
 }
 
 #[test]
 fn can_play_cat_of_three_units_at_double_speed() {
-    play_cat_of_three_units_with_multiplier(CycleTime::from_int(2))
+    play_cat_of_three_units_with_offset_and_multiplier(
+        CycleTime::ZERO,
+        CycleTime::from_int(2),
+    )
 }
 
 #[test]
 fn can_play_cat_of_three_units_at_seven_times_speed() {
-    play_cat_of_three_units_with_multiplier(CycleTime::from_int(7))
+    play_cat_of_three_units_with_offset_and_multiplier(
+        CycleTime::ZERO,
+        CycleTime::from_int(7),
+    )
+}
+
+#[test]
+fn can_play_cat_of_three_units_at_nonzero_offset() {
+    play_cat_of_three_units_with_offset_and_multiplier(
+        NONZERO_OFFSET,
+        CycleTime::ONE,
+    );
+}
+
+#[test]
+fn can_play_cat_of_three_units_at_double_speed_and_nonzero_offset() {
+    play_cat_of_three_units_with_offset_and_multiplier(
+        NONZERO_OFFSET,
+        CycleTime::from_int(2),
+    )
+}
+
+#[test]
+fn can_play_cat_of_three_units_at_seven_times_speed_and_nonzero_offset() {
+    play_cat_of_three_units_with_offset_and_multiplier(
+        NONZERO_OFFSET,
+        CycleTime::from_int(7),
+    )
 }
 
 #[test]

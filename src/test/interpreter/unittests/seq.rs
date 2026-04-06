@@ -6,12 +6,16 @@ use crate::test::interpreter::FullInterpreterSetup;
 use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::test_expectations;
 use crate::test::interpreter::test_expectations_with_interpreter_setup;
+use crate::test::interpreter::unittests::NONZERO_OFFSET;
 use crate::test::interpreter::unittests::examples::binary_tree_depth_two;
 use crate::test::interpreter::unittests::examples::half_binary_tree_depth_two;
 use crate::test::interpreter::unittests::examples::multiple_of_three_units;
 use crate::test::interpreter::unittests::examples::multiple_of_unit_then_silence_then_unit;
 
-fn play_double_sequential_seqs_with_multiplier(multiplier: CycleTime) {
+fn play_double_sequential_seqs_with_offset_and_multiplier(
+    offset: CycleTime,
+    multiplier: CycleTime,
+) {
     let note_unit = |letter: Letter| NoteUnit::Letter(letter);
     let multiple_length_product = CycleTime::from_int(4);
 
@@ -20,8 +24,10 @@ fn play_double_sequential_seqs_with_multiplier(multiplier: CycleTime) {
     let make_scheduled_action = |start_time, letter: Letter| {
         let unit_duration = (multiple_length_product * multiplier).recip();
         [ScheduledExpectation {
-            start_time: CycleTime::from_int(start_time)
-                / (multiple_length_product * multiplier),
+            start_time: ((CycleTime::from_int(start_time)
+                / multiple_length_product)
+                + offset)
+                / multiplier,
             duration: unit_duration,
             note_unit: note_unit(letter),
         }]
@@ -43,23 +49,56 @@ fn play_double_sequential_seqs_with_multiplier(multiplier: CycleTime) {
         &arenas,
         head_index,
         &expected_schedule_actions,
-        FullInterpreterSetup { offset: CycleTime::ZERO, multiplier },
+        FullInterpreterSetup { offset, multiplier },
     );
 }
 
 #[test]
 fn can_play_double_sequential_seqs() {
-    play_double_sequential_seqs_with_multiplier(CycleTime::ONE);
+    play_double_sequential_seqs_with_offset_and_multiplier(
+        CycleTime::ZERO,
+        CycleTime::ONE,
+    );
 }
 
 #[test]
 fn can_play_double_sequential_seqs_at_double_speed() {
-    play_double_sequential_seqs_with_multiplier(CycleTime::from_int(2));
+    play_double_sequential_seqs_with_offset_and_multiplier(
+        CycleTime::ZERO,
+        CycleTime::from_int(2),
+    );
 }
 
 #[test]
 fn can_play_double_sequential_seqs_at_seven_times_speed() {
-    play_double_sequential_seqs_with_multiplier(CycleTime::from_int(7));
+    play_double_sequential_seqs_with_offset_and_multiplier(
+        CycleTime::ZERO,
+        CycleTime::from_int(7),
+    );
+}
+
+#[test]
+fn can_play_double_sequential_seqs_at_nonzero_offset() {
+    play_double_sequential_seqs_with_offset_and_multiplier(
+        NONZERO_OFFSET,
+        CycleTime::ONE,
+    );
+}
+
+#[test]
+fn can_play_double_sequential_seqs_at_double_speed_and_nonzero_offset() {
+    play_double_sequential_seqs_with_offset_and_multiplier(
+        NONZERO_OFFSET,
+        CycleTime::from_int(2),
+    );
+}
+
+#[test]
+fn can_play_double_sequential_seqs_at_seven_times_speed_and_nonzero_offset() {
+    play_double_sequential_seqs_with_offset_and_multiplier(
+        NONZERO_OFFSET,
+        CycleTime::from_int(7),
+    );
 }
 
 fn play_double_seq_then_unit_with_multiplier(multiplier: CycleTime) {
@@ -77,7 +116,7 @@ fn play_double_seq_then_unit_with_multiplier(multiplier: CycleTime) {
         [ScheduledExpectation {
             start_time: CycleTime::from_int(start_time)
                 / (multiplier * multiple_length_product),
-            duration: CycleTime::from_int_recip(duration_recip).div(multiplier),
+            duration: CycleTime::from_int_recip(duration_recip) / multiplier,
             note_unit: note_unit(letter),
         }]
     };
@@ -116,7 +155,10 @@ fn can_play_double_seq_then_unit_at_seven_times_speed() {
     play_double_seq_then_unit_with_multiplier(CycleTime::from_int(7))
 }
 
-fn play_seq_of_three_units_with_multiplier(multiplier: CycleTime) {
+fn play_seq_of_three_units_with_offset_and_multiplier(
+    offset: CycleTime,
+    multiplier: CycleTime,
+) {
     // [  Seq  ]
     // ↓ ↓ ↓
     // A  B  C
@@ -125,9 +167,10 @@ fn play_seq_of_three_units_with_multiplier(multiplier: CycleTime) {
 
     let make_scheduled_action = |start_time, letter: Letter| {
         [ScheduledExpectation {
-            start_time: CycleTime::from_int(start_time)
-                / (multiplier * multiple_length),
-            duration: multiplier.mul(multiple_length).recip(),
+            start_time: ((CycleTime::from_int(start_time) / multiple_length)
+                + offset)
+                / multiplier,
+            duration: (multiplier * multiple_length).recip(),
             note_unit: note_unit(letter),
         }]
     };
@@ -141,29 +184,61 @@ fn play_seq_of_three_units_with_multiplier(multiplier: CycleTime) {
         (interpreter_time(5), &make_scheduled_action(4, Letter::B)[..]),
         (interpreter_time(6), &make_scheduled_action(5, Letter::C)[..]),
     ];
-    println!("Expectations: {expected_schedule_actions:?}");
     let (arenas, head_index) = multiple_of_three_units(Pattern::Seq);
     test_expectations_with_interpreter_setup(
         &arenas,
         head_index,
         &expected_schedule_actions,
-        FullInterpreterSetup { offset: CycleTime::ZERO, multiplier },
+        FullInterpreterSetup { offset, multiplier },
     );
 }
 
 #[test]
 fn can_play_seq_of_three_units() {
-    play_seq_of_three_units_with_multiplier(CycleTime::ONE);
+    play_seq_of_three_units_with_offset_and_multiplier(
+        CycleTime::ZERO,
+        CycleTime::ONE,
+    );
 }
 
 #[test]
 fn can_play_seq_of_three_units_at_double_speed() {
-    play_seq_of_three_units_with_multiplier(CycleTime::from_int(2))
+    play_seq_of_three_units_with_offset_and_multiplier(
+        CycleTime::ZERO,
+        CycleTime::from_int(2),
+    )
 }
 
 #[test]
 fn can_play_seq_of_three_units_at_seven_times_speed() {
-    play_seq_of_three_units_with_multiplier(CycleTime::from_int(7))
+    play_seq_of_three_units_with_offset_and_multiplier(
+        CycleTime::ZERO,
+        CycleTime::from_int(7),
+    )
+}
+
+#[test]
+fn can_play_seq_of_three_units_at_nonzero_offset() {
+    play_seq_of_three_units_with_offset_and_multiplier(
+        NONZERO_OFFSET,
+        CycleTime::ONE,
+    );
+}
+
+#[test]
+fn can_play_seq_of_three_units_at_double_speed_and_nonzero_offset() {
+    play_seq_of_three_units_with_offset_and_multiplier(
+        NONZERO_OFFSET,
+        CycleTime::from_int(2),
+    )
+}
+
+#[test]
+fn can_play_seq_of_three_units_at_seven_times_speed_and_nonzero_offset() {
+    play_seq_of_three_units_with_offset_and_multiplier(
+        NONZERO_OFFSET,
+        CycleTime::from_int(7),
+    )
 }
 
 #[test]
@@ -191,7 +266,6 @@ fn can_play_seq_of_unit_then_silence_then_unit() {
         (interpreter_time(5), &[][..]),
         (interpreter_time(6), &make_scheduled_action(5, Letter::C)[..]),
     ];
-    println!("Expected: {expected_schedule_actions:?}");
     let (arenas, head_index) =
         multiple_of_unit_then_silence_then_unit(Pattern::Seq);
     test_expectations(&arenas, head_index, &expected_schedule_actions);
