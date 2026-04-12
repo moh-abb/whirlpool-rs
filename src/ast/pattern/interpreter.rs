@@ -155,24 +155,30 @@ struct InterpreterVisitor<'a, Arenas, Player> {
     inner: RefCell<VisitorInner<'a, Player>>,
 }
 
+/// Represents the arguments that are passed into the `play_elem` function in
+/// [play_elements].
+struct PlayElemArgs<'a, T> {
+    elem: &'a T,
+    interval: CycleTimeInterval,
+    offset: CycleTime,
+    multiplier: CycleTime,
+}
+
 impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
     InterpreterVisitor<'a, Arenas, Player>
 {
-    fn play_elem_func(
-        &self,
-    ) -> impl FnMut(&Index<Pattern>, CycleTimeInterval, CycleTime, CycleTime)
-    {
-        |subpattern, subinterval, suboffset, submultiplier| {
+    fn play_elem_func(&self) -> impl FnMut(PlayElemArgs<'_, Index<Pattern>>) {
+        |args| {
             let mut inner_mut = self.inner.borrow_mut();
             let visitor = InterpreterVisitor {
                 arenas: self.arenas,
-                start: subinterval.start(),
-                duration: subinterval.end() - subinterval.start(),
-                offset: suboffset,
-                multiplier: submultiplier,
+                start: args.interval.start(),
+                duration: args.interval.end() - args.interval.start(),
+                offset: args.offset,
+                multiplier: args.multiplier,
                 inner: RefCell::new(VisitorInner { player: inner_mut.player }),
             };
-            visit_pattern(&visitor, subpattern.clone())
+            visit_pattern(&visitor, args.elem.clone())
         }
     }
 
@@ -305,16 +311,17 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
             false,
             self.offset,
             self.multiplier,
-            |soundunit, subinterval, suboffset, submultiplier| {
+            |args| {
                 // Only play if aligned to single cycle
-                if subinterval.start() == subinterval.start().floor() {
-                    let scaled_start =
-                        (subinterval.start() + suboffset) / submultiplier;
-                    self.inner
-                        .borrow_mut()
-                        .player
-                        .schedule_note_unit(soundunit.clone(), scaled_start);
+                let start = args.interval.start();
+                if start != start.floor() {
+                    return;
                 }
+                let scaled_start = (start + args.offset) / args.multiplier;
+                self.inner
+                    .borrow_mut()
+                    .player
+                    .schedule_note_unit(args.elem.clone(), scaled_start);
             },
         );
     }
@@ -328,7 +335,7 @@ fn play_elements<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
     elements: impl Fn() -> Iter,
     offset: CycleTime,
     multiplier: CycleTime,
-    mut play_elem: impl FnMut(&T, CycleTimeInterval, CycleTime, CycleTime),
+    mut play_elem: impl FnMut(PlayElemArgs<'_, T>),
 ) {
     // Cat and similar patterns play alternating elements.
     // This is achieved by looking at the "repetition" (i.e., current time
@@ -455,7 +462,14 @@ fn play_elements<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
                     );
                 }
 
-                play_elem(&elem, sim_interval, offset + rep_offset, multiplier);
+                let sim_offset = offset + rep_offset;
+                let args = PlayElemArgs {
+                    elem: &elem,
+                    interval: sim_interval,
+                    offset: sim_offset,
+                    multiplier,
+                };
+                play_elem(args);
             }
 
             rep_start += length;
@@ -471,7 +485,7 @@ fn play_slow_multiple<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
     elements: impl Fn() -> Iter,
     offset: CycleTime,
     multiplier: CycleTime,
-    play_elem: impl FnMut(&T, CycleTimeInterval, CycleTime, CycleTime),
+    play_elem: impl FnMut(PlayElemArgs<'_, T>),
 ) {
     play_elements(interval, length, elements, offset, multiplier, play_elem)
 }
@@ -482,7 +496,7 @@ fn play_fast_multiple<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
     elements: impl Fn() -> Iter,
     offset: CycleTime,
     multiplier: CycleTime,
-    play_elem: impl FnMut(&T, CycleTimeInterval, CycleTime, CycleTime),
+    play_elem: impl FnMut(PlayElemArgs<'_, T>),
 ) {
     // The patterns for Seq and similar to Cat. Here we
     // there is no repetition.
@@ -532,7 +546,7 @@ fn play_multiple<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
     is_fast: bool,
     offset: CycleTime,
     multiplier: CycleTime,
-    play_elem: impl FnMut(&T, CycleTimeInterval, CycleTime, CycleTime),
+    play_elem: impl FnMut(PlayElemArgs<'_, T>),
 ) {
     debug_assert_ne!(length, CycleTime::ZERO);
     debug_assert!({
@@ -554,9 +568,17 @@ pub fn test_play_multiple<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
     is_fast: bool,
     offset: CycleTime,
     multiplier: CycleTime,
-    play_elem: impl FnMut(&T, CycleTimeInterval, CycleTime, CycleTime),
+    mut play_elem: impl FnMut(&T, CycleTimeInterval, CycleTime, CycleTime),
 ) {
     play_multiple(
-        interval, length, elements, is_fast, offset, multiplier, play_elem,
+        interval,
+        length,
+        elements,
+        is_fast,
+        offset,
+        multiplier,
+        |args| {
+            play_elem(args.elem, args.interval, args.offset, args.multiplier)
+        },
     )
 }
