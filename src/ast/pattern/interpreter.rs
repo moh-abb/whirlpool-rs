@@ -158,6 +158,24 @@ struct InterpreterVisitor<'a, Arenas, Player> {
 impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
     InterpreterVisitor<'a, Arenas, Player>
 {
+    fn play_elem_func(
+        &self,
+    ) -> impl FnMut(&Index<Pattern>, CycleTimeInterval, CycleTime, CycleTime)
+    {
+        |subpattern, subinterval, suboffset, submultiplier| {
+            let mut inner_mut = self.inner.borrow_mut();
+            let visitor = InterpreterVisitor {
+                arenas: self.arenas,
+                start: subinterval.start(),
+                duration: subinterval.end() - subinterval.start(),
+                offset: suboffset,
+                multiplier: submultiplier,
+                inner: RefCell::new(VisitorInner { player: inner_mut.player }),
+            };
+            visit_pattern(&visitor, subpattern.clone())
+        }
+    }
+
     fn map_cat_or_seq(&self, multiple: Multiple<Pattern>, is_fast: bool) {
         if multiple.is_empty() {
             panic!("Cannot play empty multiple patterns");
@@ -175,20 +193,7 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
             is_fast,
             self.offset,
             self.multiplier,
-            |subpattern, subinterval, suboffset, submultiplier| {
-                let mut inner_mut = self.inner.borrow_mut();
-                let visitor = InterpreterVisitor {
-                    arenas: self.arenas,
-                    start: subinterval.start(),
-                    duration: subinterval.end() - subinterval.start(),
-                    offset: suboffset,
-                    multiplier: submultiplier,
-                    inner: RefCell::new(VisitorInner {
-                        player: inner_mut.player,
-                    }),
-                };
-                visit_pattern(&visitor, subpattern.clone())
-            },
+            self.play_elem_func(),
         )
     }
 
@@ -225,20 +230,7 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
             is_fast,
             self.offset,
             self.multiplier,
-            |subpattern, subinterval, suboffset, submultiplier| {
-                let mut inner_mut = self.inner.borrow_mut();
-                let visitor = InterpreterVisitor {
-                    arenas: self.arenas,
-                    start: subinterval.start(),
-                    duration: subinterval.end() - subinterval.start(),
-                    offset: suboffset,
-                    multiplier: submultiplier,
-                    inner: RefCell::new(VisitorInner {
-                        player: inner_mut.player,
-                    }),
-                };
-                visit_pattern(&visitor, subpattern.clone())
-            },
+            self.play_elem_func(),
         )
     }
 }
@@ -330,7 +322,7 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
     fn map_silence(&self) -> Self::PatternOutput {}
 }
 
-fn play_slow_multiple<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
+fn play_elements<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
     interval: CycleTimeInterval,
     length: CycleTime,
     elements: impl Fn() -> Iter,
@@ -471,6 +463,17 @@ fn play_slow_multiple<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
 
         elem_start = elem_interval.end();
     }
+}
+
+fn play_slow_multiple<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
+    interval: CycleTimeInterval,
+    length: CycleTime,
+    elements: impl Fn() -> Iter,
+    offset: CycleTime,
+    multiplier: CycleTime,
+    play_elem: impl FnMut(&T, CycleTimeInterval, CycleTime, CycleTime),
+) {
+    play_elements(interval, length, elements, offset, multiplier, play_elem)
 }
 
 fn play_fast_multiple<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
