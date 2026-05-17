@@ -9,9 +9,9 @@ use crate::ast::pattern::visitor::PatternVisitor;
 use crate::ast::pattern::visitor::visit_pattern;
 use crate::mem::Arena;
 use crate::mem::ArenaItem;
-use crate::structures::chain::Chain;
-use crate::structures::index::Index;
-use crate::structures::multiple::Multiple;
+use crate::mem::Chain;
+use crate::mem::Index;
+use crate::mem::Multiple;
 
 pub struct OrdVisitor<'a, Arenas1, Arenas2> {
     source_arenas: &'a Arenas1,

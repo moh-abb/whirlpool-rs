@@ -3,7 +3,7 @@ use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::format_display::PatternDisplayAdapter;
 use crate::ast::pattern::string_display::PatternDisplayVisitorL;
 use crate::ast::pattern::string_display::PatternDisplayVisitorR;
-use crate::structures::index::Index;
+use crate::mem::Index;
 use crate::test::pattern::arena_alloc::AnyPatternStrategy;
 use crate::test::pattern::arena_alloc::ArenaTest;
 use crate::test::pattern::arena_alloc::GrowableArenas;

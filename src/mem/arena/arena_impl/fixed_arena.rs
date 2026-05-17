@@ -2,9 +2,9 @@ use crate::alloc_types::BTreeMap;
 use crate::mem::Arena;
 use crate::mem::ArenaItem;
 use crate::mem::ArenaResult;
+use crate::mem::Index;
 use crate::mem::arena::arena_impl::helpers::IndexableMap;
 use crate::mem::arena::arena_impl::helpers::IndexableMapArena;
-use crate::structures::index::Index;
 
 #[derive(Debug)]
 pub struct FixedArena<T: ArenaItem>(IndexableMapArena<T, BTreeMapAdapter<T>>);

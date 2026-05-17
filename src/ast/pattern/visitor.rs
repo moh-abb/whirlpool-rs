@@ -3,8 +3,8 @@ use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::note::NoteUnit;
 use crate::mem::Arena;
-use crate::structures::index::Index;
-use crate::structures::multiple::Multiple;
+use crate::mem::Index;
+use crate::mem::Multiple;
 
 pub trait PatternVisitor {
     type Output;

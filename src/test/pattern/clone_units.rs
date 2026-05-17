@@ -11,9 +11,9 @@ use crate::ast::pattern::drop::DropAdapter;
 use crate::ast::pattern::equality::PatternOrdAdapter;
 use crate::ast::pattern::note::Letter;
 use crate::ast::pattern::note::NoteUnit;
-use crate::structures::chain::Chain;
-use crate::structures::index::Index;
-use crate::structures::multiple::Multiple;
+use crate::mem::Chain;
+use crate::mem::Index;
+use crate::mem::Multiple;
 use crate::test::pattern::mock::PatternArenaMockers;
 
 type Slot<T> = Lazy<RwLock<Option<T>>>;

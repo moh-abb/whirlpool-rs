@@ -2,8 +2,8 @@ use core::marker::PhantomData;
 
 use crate::mem::Arena;
 use crate::mem::ArenaItem;
-use crate::structures::chain::Chain;
-use crate::structures::index::Index;
+use crate::mem::Chain;
+use crate::mem::Index;
 
 type StartEnd<Item> = Option<(Index<Chain<Item>>, Index<Chain<Item>>)>;
 

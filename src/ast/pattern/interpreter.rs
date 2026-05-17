@@ -14,10 +14,10 @@ use crate::ast::time::CycleTime;
 use crate::ast::time::CycleTimeInterval;
 use crate::ast::time::props::ElemProps;
 use crate::mem::Arena;
+use crate::mem::Index;
+use crate::mem::Multiple;
 use crate::player::PatternPlayer;
 use crate::player::unit::SoundUnit;
-use crate::structures::index::Index;
-use crate::structures::multiple::Multiple;
 
 mod private {
     pub trait Sealed {}

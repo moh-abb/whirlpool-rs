@@ -10,9 +10,9 @@ use crate::ast::pattern::visitor::PatternVisitor;
 use crate::ast::pattern::visitor::visit_pattern;
 use crate::mem::Arena;
 use crate::mem::ArenaItem;
-use crate::structures::chain::Chain;
-use crate::structures::index::Index;
-use crate::structures::multiple::Multiple;
+use crate::mem::Chain;
+use crate::mem::Index;
+use crate::mem::Multiple;
 
 trait ChainFoldRightStrategy {
     const CHAINS_FOLD_RIGHT: bool;

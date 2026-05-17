@@ -1,6 +1,6 @@
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::structures::index::Index;
+use crate::mem::Index;
 use crate::test::interpreter::FullInterpreterSetup;
 use crate::test::interpreter::arbitrary::strategy::ArbitrarySequenceStrategy;
 use crate::test::interpreter::sequence::NoteSequence;

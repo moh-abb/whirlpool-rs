@@ -1,5 +1,5 @@
 use crate::mem::ArenaResult;
-use crate::structures::index::Index;
+use crate::mem::Index;
 
 pub mod arena_impl;
 pub mod error;

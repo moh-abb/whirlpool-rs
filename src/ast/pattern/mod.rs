@@ -1,8 +1,8 @@
 use core::cmp::Ordering;
 
 use crate::ast::time::CycleTime;
-use crate::structures::index::Index;
-use crate::structures::multiple::Multiple;
+use crate::mem::Index;
+use crate::mem::Multiple;
 
 pub mod arenas;
 pub mod clone;

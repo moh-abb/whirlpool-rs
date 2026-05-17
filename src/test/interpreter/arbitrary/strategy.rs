@@ -2,7 +2,7 @@ use proptest::prelude::Strategy;
 
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::structures::index::Index;
+use crate::mem::Index;
 use crate::test::interpreter::arbitrary::expectations::arb_interval_offset_and_multiplier;
 use crate::test::interpreter::arbitrary::expectations::pattern_expectations;
 use crate::test::interpreter::sequence::NoteSequence;

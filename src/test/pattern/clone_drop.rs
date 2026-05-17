@@ -7,7 +7,7 @@ use crate::ast::pattern::drop::DropAdapter;
 use crate::ast::pattern::drop::PatternDropAdapter;
 use crate::ast::pattern::equality::PatternOrdAdapter;
 use crate::ast::pattern::format_display::PatternDisplayAdapter;
-use crate::structures::index::Index;
+use crate::mem::Index;
 use crate::test::pattern::arena_alloc::AnyPatternStrategy;
 use crate::test::pattern::arena_alloc::ArenaTest;
 use crate::test::pattern::arena_alloc::GrowableArenas;

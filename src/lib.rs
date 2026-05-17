@@ -13,5 +13,4 @@ pub mod alloc_types;
 pub mod ast;
 pub mod mem;
 pub mod player;
-pub mod structures;
 pub mod test;

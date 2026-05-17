@@ -5,10 +5,10 @@ use crate::ast::pattern::note::Letter;
 use crate::ast::pattern::note::NoteUnit;
 use crate::ast::time::CycleTime;
 use crate::mem::Arena;
+use crate::mem::Chain;
 use crate::mem::FixedArena;
-use crate::structures::chain::Chain;
-use crate::structures::index::Index;
-use crate::structures::multiple::Multiple;
+use crate::mem::Index;
+use crate::mem::Multiple;
 
 #[derive(Debug, Default)]
 struct FixedArenas {

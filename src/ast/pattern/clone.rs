@@ -13,9 +13,9 @@ use crate::ast::pattern::visitor::visit_pattern;
 use crate::mem::Arena;
 use crate::mem::ArenaItem;
 use crate::mem::ArenaResult;
-use crate::structures::index::INVALID_INDEX_VALUE;
-use crate::structures::index::Index;
-use crate::structures::multiple::Multiple;
+use crate::mem::INVALID_INDEX_VALUE;
+use crate::mem::Index;
+use crate::mem::Multiple;
 
 pub struct CloneVisitor<'a, Arenas> {
     arenas: &'a Arenas,

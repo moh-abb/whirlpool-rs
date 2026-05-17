@@ -3,7 +3,7 @@ use core::fmt::Debug;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::mem::Arena;
-use crate::structures::chain::Chain;
+use crate::mem::Chain;
 
 pub trait PatternArenas: Debug {
     fn get_pattern_arena(&self) -> &impl Arena<Pattern>;

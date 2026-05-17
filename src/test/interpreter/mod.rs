@@ -9,9 +9,9 @@ use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::interpreter::Interpreter;
 use crate::ast::pattern::note::NoteUnit;
 use crate::ast::time::CycleTime;
+use crate::mem::Index;
 use crate::player::MockPatternPlayer;
 use crate::player::unit::SoundUnit;
-use crate::structures::index::Index;
 use crate::test::interpreter::logging::LoggingPlayer;
 
 mod arbitrary;

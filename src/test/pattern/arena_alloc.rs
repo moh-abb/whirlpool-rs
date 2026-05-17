@@ -5,9 +5,9 @@ use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::mem::Arena;
+use crate::mem::Chain;
 use crate::mem::GrowableArena;
-use crate::structures::chain::Chain;
-use crate::structures::index::Index;
+use crate::mem::Index;
 use crate::test::pattern::arbitrary::arenas_to::ArenasTo;
 use crate::test::pattern::arbitrary::pattern::arb_large_pattern;
 

@@ -1,4 +1,5 @@
 pub mod arena;
+pub mod structures;
 
 /// Common re-exports
 pub use arena::Arena;
@@ -10,3 +11,7 @@ pub use arena::arena_impl::mock_arena::ArenaMocker;
 pub use arena::arena_impl::scapegoat_arena::ScapegoatArena;
 pub use arena::error::ArenaError;
 pub use arena::error::ArenaResult;
+pub use structures::chain::Chain;
+pub use structures::index::INVALID_INDEX_VALUE;
+pub use structures::index::Index;
+pub use structures::multiple::Multiple;
