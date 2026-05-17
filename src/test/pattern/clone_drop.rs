@@ -1,6 +1,6 @@
 use core::mem;
 
-use crate::ast::pattern::Pattern;
+use crate::ast::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::clone::PatternCloneDropAdapter;
 use crate::ast::pattern::drop::DropAdapter;

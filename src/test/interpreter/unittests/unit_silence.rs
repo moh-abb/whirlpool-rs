@@ -1,6 +1,6 @@
-use crate::ast::pattern::note::Frequency;
-use crate::ast::pattern::note::NoteUnit;
-use crate::ast::time::CycleTime;
+use crate::ast::CycleTime;
+use crate::ast::NoteFrequency;
+use crate::ast::NoteUnit;
 use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::test_expectations;
 use crate::test::interpreter::unittests::examples::one_cycle_silence;
@@ -8,7 +8,7 @@ use crate::test::interpreter::unittests::examples::one_cycle_unit;
 
 #[test]
 fn can_play_unit_for_one_cycle() {
-    let note_unit = NoteUnit::Frequency(Frequency(440));
+    let note_unit = NoteUnit::Frequency(NoteFrequency(440));
     // Test:
     // - Updating to one cycle will lead to exactly one invocation of
     // scheduling the note unit.

@@ -6,13 +6,13 @@ use core::num::NonZeroU16;
 use proptest::prelude::Strategy;
 use proptest::test_runner::Reason;
 
-use crate::ast::pattern::Pattern;
-use crate::ast::pattern::TimedStep;
+use crate::ast::CycleInterval;
+use crate::ast::CycleTime;
+use crate::ast::ElemProps;
+use crate::ast::Pattern;
+use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::interpreter::test_play_multiple;
-use crate::ast::time::CycleTime;
-use crate::ast::time::CycleTimeInterval;
-use crate::ast::time::props::ElemProps;
 use crate::mem::Arena;
 use crate::mem::ArenaResult;
 use crate::mem::Index;
@@ -24,14 +24,14 @@ use crate::test::pattern::arbitrary::time::arb_cycle_time;
 use crate::test::pattern::arbitrary::time::arb_positive_cycle_time;
 
 fn multiple_expectations<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
-    interval: CycleTimeInterval,
+    interval: CycleInterval,
     total: ElemProps<impl Fn() -> Iter>,
     is_fast: bool,
     offset: CycleTime,
     multiplier: CycleTime,
     mut get_elem_expectations: impl FnMut(
         &T,
-        CycleTimeInterval,
+        CycleInterval,
         CycleTime,
         CycleTime,
     ) -> NoteSequence,
@@ -84,7 +84,7 @@ fn timed_step_iter<'a>(
 pub fn pattern_expectations(
     pattern: Index<Pattern>,
     arenas: &impl PatternArenas,
-    interval: CycleTimeInterval,
+    interval: CycleInterval,
     offset: CycleTime,
     multiplier: CycleTime,
 ) -> ArenaResult<NoteSequence> {
@@ -267,7 +267,7 @@ const MAX_DURATION: CycleTime = CycleTime::from_int(40);
 
 /// Returns an arbitrary end time, offset and multiplier.
 pub fn arb_interval_offset_and_multiplier()
--> impl Strategy<Value = (CycleTimeInterval, CycleTime, CycleTime)> {
+-> impl Strategy<Value = (CycleInterval, CycleTime, CycleTime)> {
     let arb_start_time = arb_positive_cycle_time::<NonZeroU16>().prop_filter(
         Reason::from("Start time should be at most {MAX_START_TIME:?}"),
         |time| time <= &MAX_START_TIME,
@@ -278,7 +278,7 @@ pub fn arb_interval_offset_and_multiplier()
     );
     let arb_interval =
         (arb_start_time, arb_duration).prop_map(|(start, duration)| {
-            CycleTimeInterval::new(start, start + duration)
+            CycleInterval::new(start, start + duration)
         });
     let arb_multiplier = arb_positive_cycle_time::<NonZeroU8>();
     (arb_interval, arb_cycle_time(), arb_multiplier)

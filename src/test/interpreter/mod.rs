@@ -4,11 +4,11 @@ use core::fmt::Debug;
 
 use mockall::predicate;
 
-use crate::ast::pattern::Pattern;
+use crate::ast::CycleTime;
+use crate::ast::NoteUnit;
+use crate::ast::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::interpreter::Interpreter;
-use crate::ast::pattern::note::NoteUnit;
-use crate::ast::time::CycleTime;
 use crate::mem::Index;
 use crate::player::MockPatternPlayer;
 use crate::player::unit::SoundUnit;

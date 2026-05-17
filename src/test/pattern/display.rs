@@ -1,4 +1,4 @@
-use crate::ast::pattern::Pattern;
+use crate::ast::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::format_display::PatternDisplayAdapter;
 use crate::ast::pattern::string_display::PatternDisplayVisitorL;

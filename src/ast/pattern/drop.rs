@@ -1,9 +1,9 @@
 use core::mem;
 
-use crate::ast::pattern::Pattern;
-use crate::ast::pattern::TimedStep;
+use crate::ast::NoteUnit;
+use crate::ast::Pattern;
+use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::ast::pattern::note::NoteUnit;
 use crate::ast::pattern::visitor::PatternVisitor;
 use crate::ast::pattern::visitor::visit_pattern;
 use crate::mem::Arena;

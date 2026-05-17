@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 
-use crate::ast::pattern::Pattern;
-use crate::ast::pattern::TimedStep;
+use crate::ast::Pattern;
+use crate::ast::TimedStep;
 use crate::mem::Arena;
 use crate::mem::Chain;
 

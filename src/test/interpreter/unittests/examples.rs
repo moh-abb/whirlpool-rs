@@ -1,9 +1,9 @@
-use crate::ast::pattern::Pattern;
-use crate::ast::pattern::TimedStep;
+use crate::ast::CycleTime;
+use crate::ast::NoteLetter;
+use crate::ast::NoteUnit;
+use crate::ast::Pattern;
+use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::ast::pattern::note::Letter;
-use crate::ast::pattern::note::NoteUnit;
-use crate::ast::time::CycleTime;
 use crate::mem::Arena;
 use crate::mem::Chain;
 use crate::mem::FixedArena;
@@ -63,7 +63,7 @@ pub fn binary_tree_depth_two(
     // [ node ]  [ node ]
     // ↓  ↓    ↓  ↓
     // A   B     C   D
-    let note_unit = |letter: Letter| NoteUnit::Letter(letter);
+    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
     let left_child_multiple =
         Multiple::new_nonempty(2, Index::new(0xC0), Index::new(0xC1));
     let right_child_multiple =
@@ -73,10 +73,10 @@ pub fn binary_tree_depth_two(
     let head_index = Index::new(6);
     let arenas = FixedArenas {
         pattern_arena: FixedArena::new([
-            (Index::new(0), Pattern::Note(note_unit(Letter::A))),
-            (Index::new(1), Pattern::Note(note_unit(Letter::B))),
-            (Index::new(2), Pattern::Note(note_unit(Letter::C))),
-            (Index::new(3), Pattern::Note(note_unit(Letter::D))),
+            (Index::new(0), Pattern::Note(note_unit(NoteLetter::A))),
+            (Index::new(1), Pattern::Note(note_unit(NoteLetter::B))),
+            (Index::new(2), Pattern::Note(note_unit(NoteLetter::C))),
+            (Index::new(3), Pattern::Note(note_unit(NoteLetter::D))),
             (Index::new(4), left_child(left_child_multiple)),
             (Index::new(5), right_child(right_child_multiple)),
             (head_index.clone(), root(root_multiple)),
@@ -121,7 +121,7 @@ pub fn half_binary_tree_depth_two(
     // [ child ]    C
     // ↓  ↓
     // A   B
-    let note_unit = |letter: Letter| NoteUnit::Letter(letter);
+    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
     let left_tree =
         child(Multiple::new_nonempty(2, Index::new(0xC0), Index::new(0xC1)));
     let tree =
@@ -129,10 +129,10 @@ pub fn half_binary_tree_depth_two(
     let head_index = Index::new(6);
     let arenas = FixedArenas {
         pattern_arena: FixedArena::new([
-            (Index::new(0), Pattern::Note(note_unit(Letter::A))),
-            (Index::new(1), Pattern::Note(note_unit(Letter::B))),
+            (Index::new(0), Pattern::Note(note_unit(NoteLetter::A))),
+            (Index::new(1), Pattern::Note(note_unit(NoteLetter::B))),
             (Index::new(4), left_tree),
-            (Index::new(5), Pattern::Note(note_unit(Letter::C))),
+            (Index::new(5), Pattern::Note(note_unit(NoteLetter::C))),
             (head_index.clone(), tree),
         ]),
         pattern_chain_arena: FixedArena::new([
@@ -164,15 +164,15 @@ pub fn multiple_of_three_units(
     // [ root ]
     // ↓ ↓ ↓
     // A  B  C
-    let note_unit = |letter: Letter| NoteUnit::Letter(letter);
+    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
     let overall_pattern =
         root(Multiple::new_nonempty(3, Index::new(0xC0), Index::new(0xC2)));
     let head_index = Index::new(3);
     let arenas = FixedArenas {
         pattern_arena: FixedArena::new([
-            (Index::new(0), Pattern::Note(note_unit(Letter::A))),
-            (Index::new(1), Pattern::Note(note_unit(Letter::B))),
-            (Index::new(2), Pattern::Note(note_unit(Letter::C))),
+            (Index::new(0), Pattern::Note(note_unit(NoteLetter::A))),
+            (Index::new(1), Pattern::Note(note_unit(NoteLetter::B))),
+            (Index::new(2), Pattern::Note(note_unit(NoteLetter::C))),
             (head_index.clone(), overall_pattern),
         ]),
         pattern_chain_arena: FixedArena::new([
@@ -204,15 +204,15 @@ pub fn multiple_of_unit_then_silence_then_unit(
     // [ root ]
     // ↓ ↓ ↓
     // A  ~  C
-    let note_unit = |letter: Letter| NoteUnit::Letter(letter);
+    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
     let overall_pattern =
         root(Multiple::new_nonempty(3, Index::new(0xC0), Index::new(0xC2)));
     let head_index = Index::new(3);
     let arenas = FixedArenas {
         pattern_arena: FixedArena::new([
-            (Index::new(0), Pattern::Note(note_unit(Letter::A))),
+            (Index::new(0), Pattern::Note(note_unit(NoteLetter::A))),
             (Index::new(1), Pattern::Silence),
-            (Index::new(2), Pattern::Note(note_unit(Letter::C))),
+            (Index::new(2), Pattern::Note(note_unit(NoteLetter::C))),
             (head_index.clone(), overall_pattern),
         ]),
         pattern_chain_arena: FixedArena::new([
@@ -245,16 +245,16 @@ pub fn multiple_of_four_timed_steps(
     // [  root  ]
     // ↓  ↓  ↓  ↓
     // A  B  C  D
-    let note_unit = |letter: Letter| NoteUnit::Letter(letter);
+    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
     let overall_pattern =
         root(Multiple::new_nonempty(4, Index::new(0xD0), Index::new(0xD3)));
     let head_index = Index::new(4);
     let arenas = FixedArenas {
         pattern_arena: FixedArena::new([
-            (Index::new(0), Pattern::Note(note_unit(Letter::A))),
-            (Index::new(1), Pattern::Note(note_unit(Letter::B))),
-            (Index::new(2), Pattern::Note(note_unit(Letter::C))),
-            (Index::new(3), Pattern::Note(note_unit(Letter::D))),
+            (Index::new(0), Pattern::Note(note_unit(NoteLetter::A))),
+            (Index::new(1), Pattern::Note(note_unit(NoteLetter::B))),
+            (Index::new(2), Pattern::Note(note_unit(NoteLetter::C))),
+            (Index::new(3), Pattern::Note(note_unit(NoteLetter::D))),
             (head_index.clone(), overall_pattern),
         ]),
         timed_step_arena: FixedArena::new([
@@ -309,7 +309,7 @@ pub fn half_binary_tree_depth_two_with_timed_steps(
     // child_elem_lengths
     // ↓  ↓
     // A@0 B@1
-    let note_unit = |letter: Letter| NoteUnit::Letter(letter);
+    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
     let left_tree =
         child(Multiple::new_nonempty(2, Index::new(0xC2), Index::new(0xC3)));
     let tree =
@@ -317,10 +317,10 @@ pub fn half_binary_tree_depth_two_with_timed_steps(
     let head_index = Index::new(6);
     let arenas = FixedArenas {
         pattern_arena: FixedArena::new([
-            (Index::new(0), Pattern::Note(note_unit(Letter::A))),
-            (Index::new(1), Pattern::Note(note_unit(Letter::B))),
+            (Index::new(0), Pattern::Note(note_unit(NoteLetter::A))),
+            (Index::new(1), Pattern::Note(note_unit(NoteLetter::B))),
             (Index::new(4), left_tree),
-            (Index::new(5), Pattern::Note(note_unit(Letter::C))),
+            (Index::new(5), Pattern::Note(note_unit(NoteLetter::C))),
             (head_index.clone(), tree),
         ]),
         pattern_chain_arena: FixedArena::default(),

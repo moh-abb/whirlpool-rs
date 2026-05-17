@@ -12,7 +12,7 @@ use core::ops::Rem;
 use core::ops::Sub;
 use core::ops::SubAssign;
 
-use crate::ast::time::CycleTime;
+use crate::ast::CycleTime;
 
 macro_rules! impl_unary_op {
     ($tr:ty, $f1: ident, $f2: ident) => {

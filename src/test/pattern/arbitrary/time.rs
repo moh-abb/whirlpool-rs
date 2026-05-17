@@ -7,7 +7,7 @@ use proptest::prelude::any;
 use proptest::prop_oneof;
 use proptest::test_runner::Reason;
 
-use crate::ast::time::CycleTime;
+use crate::ast::CycleTime;
 
 #[allow(unused)]
 pub fn arb_positive_cycle_time<NumSource: Arbitrary + Into<NonZeroU16>>()

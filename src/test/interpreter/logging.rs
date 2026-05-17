@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use crate::ast::time::CycleTime;
+use crate::ast::CycleTime;
 use crate::player::PatternPlayer;
 use crate::player::unit::SoundUnit;
 

@@ -1,6 +1,6 @@
 use proptest::prelude::Strategy;
 
-use crate::ast::pattern::Pattern;
+use crate::ast::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::mem::Index;
 use crate::test::interpreter::arbitrary::expectations::arb_interval_offset_and_multiplier;

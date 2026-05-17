@@ -1,6 +1,6 @@
 use core::cmp::Ordering;
 
-use crate::ast::time::CycleTime;
+use crate::ast::CycleTime;
 use crate::mem::Index;
 use crate::mem::Multiple;
 

@@ -1,5 +1,6 @@
-use crate::ast::pattern::Pattern;
-use crate::ast::pattern::TimedStep;
+use crate::ast::NoteUnit;
+use crate::ast::Pattern;
+use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::drop::DropAdapter;
 use crate::ast::pattern::drop::MultiplePatternDropAdapter;
@@ -7,7 +8,6 @@ use crate::ast::pattern::drop::MultipleTimedStepDropAdapter;
 use crate::ast::pattern::drop::PatternDropAdapter;
 use crate::ast::pattern::drop::TimedStepDropAdapter;
 use crate::ast::pattern::drop::multiple_cons;
-use crate::ast::pattern::note::NoteUnit;
 use crate::ast::pattern::visitor::PatternVisitor;
 use crate::ast::pattern::visitor::visit_pattern;
 use crate::mem::Arena;

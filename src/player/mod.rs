@@ -1,4 +1,4 @@
-use crate::ast::time::CycleTime;
+use crate::ast::CycleTime;
 use crate::player::unit::SoundUnit;
 
 pub mod unit;

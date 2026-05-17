@@ -4,15 +4,15 @@ use core::iter;
 use core::marker::PhantomData;
 use core::ops::DerefMut;
 
-use crate::ast::pattern::Pattern;
-use crate::ast::pattern::TimedStep;
+use crate::ast::CycleInterval;
+use crate::ast::CycleTime;
+use crate::ast::ElemProps;
+use crate::ast::NoteUnit;
+use crate::ast::Pattern;
+use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::ast::pattern::note::NoteUnit;
 use crate::ast::pattern::visitor::PatternVisitor;
 use crate::ast::pattern::visitor::visit_pattern;
-use crate::ast::time::CycleTime;
-use crate::ast::time::CycleTimeInterval;
-use crate::ast::time::props::ElemProps;
 use crate::mem::Arena;
 use crate::mem::Index;
 use crate::mem::Multiple;
@@ -160,7 +160,7 @@ struct InterpreterVisitor<'a, Arenas, Player> {
 #[derive(Debug)]
 struct PlayElemArgs<'a, T> {
     elem: &'a T,
-    interval: CycleTimeInterval,
+    interval: CycleInterval,
     offset: CycleTime,
     multiplier: CycleTime,
 }
@@ -203,7 +203,7 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
         }
 
         let interval =
-            CycleTimeInterval::new(self.start, self.start + self.duration);
+            CycleInterval::new(self.start, self.start + self.duration);
         let make_sim_elem = |elem: Index<Pattern>| ElemProps {
             elem,
             sim_duration: CycleTime::ONE,
@@ -281,7 +281,7 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
         }
 
         let interval =
-            CycleTimeInterval::new(self.start, self.start + self.duration);
+            CycleInterval::new(self.start, self.start + self.duration);
 
         let multiple_length = CycleTime::from_int(i32::from(multiple.length()));
         // TODO: Store the total length to reduce repeated calculation
@@ -334,7 +334,7 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
         }
 
         let interval =
-            CycleTimeInterval::new(self.start, self.start + self.duration);
+            CycleInterval::new(self.start, self.start + self.duration);
 
         // TODO: Store the total length to reduce repeated calculation
         let total_cycle_length = self
@@ -377,7 +377,7 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
             })
         };
         play_multiple(
-            CycleTimeInterval::new(self.start, self.start + self.duration),
+            CycleInterval::new(self.start, self.start + self.duration),
             ElemProps {
                 elem: get_elements,
                 sim_duration: CycleTime::ONE,
@@ -412,10 +412,10 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
 // For example, if x1 = [2, 4), x2 = [0, 8), y2 = [2, 6), then y1 = [3, 4).
 #[inline]
 fn lerp_interval(
-    x1: CycleTimeInterval,
-    x2: CycleTimeInterval,
-    y2: CycleTimeInterval,
-) -> Option<CycleTimeInterval> {
+    x1: CycleInterval,
+    x2: CycleInterval,
+    y2: CycleInterval,
+) -> Option<CycleInterval> {
     // Let  alpha     = (x1.start - x2.start) / (x2.end - x2.start)
     //      1 - alpha = (x2.end - x1.start) / (x2.end - x2.start)
     //      beta      = (x1.end - x2.start) / (x2.end - x2.start)
@@ -456,15 +456,15 @@ fn lerp_interval(
     if start >= end {
         return None;
     }
-    Some(CycleTimeInterval::new(start, end))
+    Some(CycleInterval::new(start, end))
 }
 
 #[inline]
 fn play_intersection<T: Debug>(
     elem: &T,
-    rep_interval: CycleTimeInterval,
-    rep_intersection: CycleTimeInterval,
-    sim_interval: CycleTimeInterval,
+    rep_interval: CycleInterval,
+    rep_intersection: CycleInterval,
+    sim_interval: CycleInterval,
     elem_offset: CycleTime,
     elem_multiplier: CycleTime,
     play_elem: &mut impl FnMut(PlayElemArgs<'_, T>),
@@ -499,7 +499,7 @@ fn play_intersection<T: Debug>(
 }
 
 fn play_elements<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
-    interval: CycleTimeInterval,
+    interval: CycleInterval,
     total: ElemProps<Iter>,
     offset: CycleTime,
     total_multiplier: CycleTime,
@@ -560,7 +560,7 @@ fn play_elements<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
     for cur in total.elem {
         // INV: played_start == P(i - 1)
         // elem_interval = [P(i - 1), P(i))
-        let elem_interval = CycleTimeInterval::new(
+        let elem_interval = CycleInterval::new(
             played_start,
             played_start + cur.played_duration,
         );
@@ -603,10 +603,8 @@ fn play_elements<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
             );
 
             // rep_interval = [rep_start, rep_start + p_i)
-            let rep_interval = CycleTimeInterval::new(
-                rep_start,
-                rep_start + cur.played_duration,
-            );
+            let rep_interval =
+                CycleInterval::new(rep_start, rep_start + cur.played_duration);
             // Calculation detailed above.
             let rep_offset = (rep_start + offset) * multiplier_scale
                 - rep * cur.sim_duration;
@@ -615,10 +613,8 @@ fn play_elements<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
             if let Some(rep_intersection) = opt_rep_intersection {
                 // sim_interval == [r*s_i, (r+1)*s_i)
                 let sim_start = rep * cur.sim_duration;
-                let sim_interval = CycleTimeInterval::new(
-                    sim_start,
-                    sim_start + cur.sim_duration,
-                );
+                let sim_interval =
+                    CycleInterval::new(sim_start, sim_start + cur.sim_duration);
 
                 play_intersection(
                     &cur.elem,
@@ -640,7 +636,7 @@ fn play_elements<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
 
 #[inline]
 fn play_slow_multiple<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
-    interval: CycleTimeInterval,
+    interval: CycleInterval,
     total: ElemProps<Iter>,
     offset: CycleTime,
     multiplier: CycleTime,
@@ -651,14 +647,14 @@ fn play_slow_multiple<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
 
 #[inline]
 fn play_fast_multiple<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
-    interval: CycleTimeInterval,
+    interval: CycleInterval,
     total: ElemProps<Iter>,
     offset: CycleTime,
     multiplier: CycleTime,
     play_elem: impl FnMut(PlayElemArgs<'_, T>),
 ) {
     // Scale up the interval, multiplier and offset by the simulated length.
-    let scaled_interval = CycleTimeInterval::new(
+    let scaled_interval = CycleInterval::new(
         interval.start() * total.sim_duration,
         interval.end() * total.sim_duration,
     );
@@ -675,7 +671,7 @@ fn play_fast_multiple<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
 
 #[inline]
 fn play_multiple<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
-    interval: CycleTimeInterval,
+    interval: CycleInterval,
     total: ElemProps<impl Fn() -> Iter>,
     is_fast: bool,
     offset: CycleTime,
@@ -707,12 +703,12 @@ fn play_multiple<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
 
 #[cfg(test)]
 pub fn test_play_multiple<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
-    interval: CycleTimeInterval,
+    interval: CycleInterval,
     total: ElemProps<impl Fn() -> Iter>,
     is_fast: bool,
     offset: CycleTime,
     multiplier: CycleTime,
-    mut play_elem: impl FnMut(&T, CycleTimeInterval, CycleTime, CycleTime),
+    mut play_elem: impl FnMut(&T, CycleInterval, CycleTime, CycleTime),
 ) {
     play_multiple(interval, total, is_fast, offset, multiplier, |args| {
         play_elem(args.elem, args.interval, args.offset, args.multiplier)

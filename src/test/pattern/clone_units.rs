@@ -5,12 +5,12 @@ use spin::Lazy;
 use spin::Mutex;
 use spin::rwlock::RwLock;
 
-use crate::ast::pattern::Pattern;
+use crate::ast::NoteLetter;
+use crate::ast::NoteUnit;
+use crate::ast::Pattern;
 use crate::ast::pattern::clone::PatternCloneDropAdapter;
 use crate::ast::pattern::drop::DropAdapter;
 use crate::ast::pattern::equality::PatternOrdAdapter;
-use crate::ast::pattern::note::Letter;
-use crate::ast::pattern::note::NoteUnit;
 use crate::mem::Chain;
 use crate::mem::Index;
 use crate::mem::Multiple;
@@ -117,7 +117,7 @@ fn can_clone_empty_time_cat() {
 
 #[test]
 fn can_clone_letter_a() {
-    let pattern = Pattern::Note(NoteUnit::Letter(Letter::A));
+    let pattern = Pattern::Note(NoteUnit::Letter(NoteLetter::A));
     test_clone_with_no_subpatterns(pattern)
 }
 
@@ -150,9 +150,9 @@ fn test_clone_with_three_subpatterns(
         )),
     );
     let make_letter = |letter| Pattern::Note(NoteUnit::Letter(letter));
-    let letter_a = || make_letter(Letter::A);
-    let letter_b = || make_letter(Letter::B);
-    let letter_c = || make_letter(Letter::C);
+    let letter_a = || make_letter(NoteLetter::A);
+    let letter_b = || make_letter(NoteLetter::B);
+    let letter_c = || make_letter(NoteLetter::C);
     fill_slot(&PATTERN_SLOTS[1], letter_a());
     fill_slot(&PATTERN_SLOTS[2], letter_b());
     fill_slot(&PATTERN_SLOTS[3], letter_c());

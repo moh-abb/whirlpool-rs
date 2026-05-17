@@ -1,6 +1,6 @@
-use crate::ast::pattern::Pattern;
+use crate::ast::NoteUnit;
+use crate::ast::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::ast::pattern::note::NoteUnit;
 use crate::mem::Arena;
 use crate::mem::Index;
 use crate::test::pattern::arbitrary::arenas_to::ArenasTo;

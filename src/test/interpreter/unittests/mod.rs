@@ -1,4 +1,4 @@
-use crate::ast::time::CycleTime;
+use crate::ast::CycleTime;
 
 mod cat;
 mod examples;

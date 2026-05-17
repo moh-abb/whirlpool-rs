@@ -131,12 +131,12 @@ impl CycleTime {
 
 #[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct CycleTimeInterval {
+pub struct CycleInterval {
     start: CycleTime,
     end: CycleTime,
 }
 
-impl CycleTimeInterval {
+impl CycleInterval {
     pub fn new(start: CycleTime, end: CycleTime) -> Self {
         debug_assert!(start <= end);
         Self { start, end }
