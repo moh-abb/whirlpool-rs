@@ -1,11 +1,8 @@
-use core::mem;
+use core::iter::once;
 
-use crate::ast::NoteUnit;
 use crate::ast::Pattern;
 use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::ast::pattern::visitor::PatternVisitor;
-use crate::ast::pattern::visitor::visit_pattern;
 use crate::mem::Arena;
 use crate::mem::ArenaItem;
 use crate::mem::ArenaResult;
@@ -13,8 +10,9 @@ use crate::mem::Chain;
 use crate::mem::INVALID_INDEX_VALUE;
 use crate::mem::Index;
 use crate::mem::Multiple;
+use crate::mem::drop::drop_in_arenas;
+use crate::mem::drop::refs::DropRefs;
 
-#[derive(Debug)]
 pub struct PatternDropAdapter<'a, Arenas: PatternArenas>(
     Option<Index<Pattern>>,
     &'a Arenas,
@@ -92,7 +90,7 @@ impl<'a, Arenas: PatternArenas> DropAdapter<'a, Multiple<TimedStep>, Arenas>
 impl<'a, Arenas: PatternArenas> Drop for PatternDropAdapter<'a, Arenas> {
     fn drop(&mut self) {
         if let Some(index) = self.0.take() {
-            drop_pattern(index, self.1)
+            debug_unwrap(drop_in_arenas(DropRef::Pattern(index), self.1))
         }
     }
 }
@@ -106,7 +104,7 @@ impl<'a, Arenas: PatternArenas> Drop
                 multiple,
                 self.1.get_pattern_chain_arena(),
                 self.1,
-                drop_pattern,
+                DropRef::Pattern,
             );
         }
     }
@@ -138,26 +136,10 @@ pub fn multiple_cons<
     Ok(MultipleAdapter::new(multiple, arenas))
 }
 
-fn drop_pattern(pattern_index: Index<Pattern>, arenas: &impl PatternArenas) {
-    visit_pattern(&PatternDropVisitor { arenas }, pattern_index)
-}
-
-fn drop_timed_step(
-    timed_step_index: Index<TimedStep>,
-    arenas: &impl PatternArenas,
-) {
-    let timed_step = arenas
-        .get_timed_step_arena()
-        .take(timed_step_index)
-        .unwrap();
-    let TimedStep(_time_unit, pattern_index) = timed_step;
-    drop_pattern(pattern_index, arenas);
-}
-
 impl<'a, Arenas: PatternArenas> Drop for TimedStepDropAdapter<'a, Arenas> {
     fn drop(&mut self) {
         if let Some(index) = self.0.take() {
-            drop_timed_step(index, self.1);
+            debug_unwrap(drop_in_arenas(DropRef::TimedStep(index), self.1))
         }
     }
 }
@@ -171,83 +153,157 @@ impl<'a, Arenas: PatternArenas> Drop
                 index,
                 self.1.get_timed_step_chain_arena(),
                 self.1,
-                drop_timed_step,
-            );
+                DropRef::TimedStep,
+            )
         }
+    }
+}
+
+fn debug_unwrap(result: ArenaResult<()>) {
+    if cfg!(debug_assertions) {
+        result.unwrap()
     }
 }
 
 /// Helper function to drop a [Multiple].
 fn multiple_drop<Item: ArenaItem, Arenas: PatternArenas>(
-    mut multiple: Multiple<Item>,
+    multiple: Multiple<Item>,
     chain_arena: &impl Arena<Chain<Item>>,
     arenas: &Arenas,
-    drop_item: impl Fn(Index<Item>, &Arenas),
+    make_drop_ref: impl Fn(Index<Item>) -> DropRef,
 ) {
-    if multiple.is_empty() {
-        return;
-    }
-    while let Some(end_index) = multiple.pop_back(chain_arena) {
-        let taken_end = chain_arena.take(end_index).unwrap();
-        let Chain(index, _end_prev, _end_next) = taken_end;
-        debug_assert!(_end_prev.is_none());
-        debug_assert!(_end_next.is_none());
-        drop_item(index, arenas)
+    let drop_result = multiple
+        .iter(chain_arena)
+        .try_for_each(|item| drop_in_arenas(make_drop_ref(item), arenas));
+    debug_unwrap(drop_result)
+}
+
+/// Module to avoid leaking type `DropRef`.
+mod private {
+    use crate::ast::Pattern;
+    use crate::ast::TimedStep;
+    use crate::mem::Chain;
+    use crate::mem::Index;
+
+    /// The references that will recursively need to be dropped when a
+    /// `Pattern` is dropped.
+    pub enum DropRef {
+        Pattern(Index<Pattern>),
+        PatternChain(Index<Chain<Pattern>>),
+        TimedStep(Index<TimedStep>),
+        TimedStepChain(Index<Chain<TimedStep>>),
     }
 }
 
-struct PatternDropVisitor<'a, Arenas: PatternArenas> {
-    arenas: &'a Arenas,
+use private::DropRef;
+
+/// Helper function to combine multiple iterators of different types.
+fn combine_iters<T>(
+    opt_iter1: Option<impl IntoIterator<Item = T>>,
+    opt_iter2: Option<impl IntoIterator<Item = T>>,
+    opt_iter3: Option<impl IntoIterator<Item = T>>,
+    opt_iter4: Option<impl IntoIterator<Item = T>>,
+) -> impl Iterator<Item = T> {
+    opt_iter1
+        .into_iter()
+        .flatten()
+        .chain(opt_iter2.into_iter().flatten())
+        .chain(opt_iter3.into_iter().flatten())
+        .chain(opt_iter4.into_iter().flatten())
 }
 
-impl<'a, Arenas: PatternArenas> PatternVisitor
-    for PatternDropVisitor<'a, Arenas>
-{
-    type Output = ();
-    type PatternOutput = ();
+fn get_drop_refs<'a, T: ArenaItem>(
+    multiple: Multiple<T>,
+    arena: &'a impl Arena<Chain<T>>,
+    make_ref: impl Fn(Index<Chain<T>>) -> DropRef + 'a,
+) -> impl Iterator<Item = ArenaResult<DropRef>> + 'a {
+    multiple
+        .iter_with_chain(arena)
+        .map(move |result| result.map(&make_ref))
+}
 
-    fn get_arenas(&self) -> &impl PatternArenas {
-        self.arenas
+fn process_drop_ref<'a>(
+    reference: DropRef,
+    arenas: &'a impl PatternArenas,
+) -> ArenaResult<impl Iterator<Item = ArenaResult<DropRef>> + 'a> {
+    let pattern_index_to_iter = |pattern_index: Index<Pattern>| {
+        once(pattern_index)
+            .map(DropRef::Pattern)
+            .map(Ok)
+    };
+    let timed_step_index_to_iter = |pattern_index: Index<TimedStep>| {
+        once(pattern_index)
+            .map(DropRef::TimedStep)
+            .map(Ok)
+    };
+
+    let pattern_drop_refs = |pattern: Pattern| match pattern {
+        Pattern::Cat(multiple)
+        | Pattern::Seq(multiple)
+        | Pattern::Stack(multiple) => {
+            let iter = get_drop_refs(
+                multiple,
+                arenas.get_pattern_chain_arena(),
+                DropRef::PatternChain,
+            );
+            combine_iters(Some(iter), None, None, None)
+        }
+        Pattern::TimeCat(multiple) | Pattern::Arrange(multiple) => {
+            let iter = get_drop_refs(
+                multiple,
+                arenas.get_timed_step_chain_arena(),
+                DropRef::TimedStepChain,
+            );
+            combine_iters(None, Some(iter), None, None)
+        }
+        Pattern::Note(_) | Pattern::Silence => {
+            combine_iters(None, None, None, None)
+        }
+    };
+
+    match reference {
+        DropRef::Pattern(index) => {
+            let pattern = arenas.get_pattern_arena().take(index)?;
+            Ok(pattern_drop_refs(pattern))
+        }
+        DropRef::TimedStep(index) => {
+            let TimedStep(_, pattern_index) = arenas
+                .get_timed_step_arena()
+                .take(index)?;
+            let iter = pattern_index_to_iter(pattern_index);
+            Ok(combine_iters(None, None, Some(iter), None))
+        }
+        DropRef::PatternChain(index) => {
+            let pattern_index = arenas
+                .get_pattern_chain_arena()
+                .take(index)?
+                .0;
+            let iter = pattern_index_to_iter(pattern_index);
+            Ok(combine_iters(None, None, Some(iter), None))
+        }
+        DropRef::TimedStepChain(index) => {
+            let timed_step_index = arenas
+                .get_timed_step_chain_arena()
+                .take(index)?
+                .0;
+            let iter = timed_step_index_to_iter(timed_step_index);
+            Ok(combine_iters(None, None, None, Some(iter)))
+        }
+    }
+}
+
+impl<Arenas: PatternArenas> DropRefs<Arenas> for DropRef {
+    type Reference = DropRef;
+
+    fn start_ref(drop_ref: DropRef) -> Self::Reference {
+        drop_ref
     }
 
-    fn map_pattern(
-        &self,
-        pattern_index: Index<Pattern>,
-        _: Self::PatternOutput,
-    ) -> Self::Output {
-        self.arenas
-            .get_pattern_arena()
-            .take(pattern_index)
-            .unwrap();
+    fn process_ref<'a>(
+        reference: Self::Reference,
+        arenas: &'a Arenas,
+    ) -> ArenaResult<impl Iterator<Item = ArenaResult<Self::Reference>> + 'a>
+    {
+        process_drop_ref(reference, arenas)
     }
-
-    fn map_cat(&self, multiple: Multiple<Pattern>) -> Self::PatternOutput {
-        mem::drop(MultiplePatternDropAdapter::new(multiple, self.arenas));
-    }
-
-    fn map_seq(&self, multiple: Multiple<Pattern>) -> Self::PatternOutput {
-        mem::drop(MultiplePatternDropAdapter::new(multiple, self.arenas));
-    }
-
-    fn map_stack(&self, multiple: Multiple<Pattern>) -> Self::PatternOutput {
-        mem::drop(MultiplePatternDropAdapter::new(multiple, self.arenas));
-    }
-
-    fn map_time_cat(
-        &self,
-        multiple: Multiple<TimedStep>,
-    ) -> Self::PatternOutput {
-        mem::drop(MultipleTimedStepDropAdapter::new(multiple, self.arenas));
-    }
-
-    fn map_arrange(
-        &self,
-        multiple: Multiple<TimedStep>,
-    ) -> Self::PatternOutput {
-        mem::drop(MultipleTimedStepDropAdapter::new(multiple, self.arenas));
-    }
-
-    fn map_note_unit(&self, _: NoteUnit) -> Self::PatternOutput {}
-
-    fn map_silence(&self) -> Self::PatternOutput {}
 }

@@ -1,5 +1,6 @@
 pub mod alloc_types;
 pub mod arena;
+pub mod drop;
 pub mod structures;
 
 // Common re-exports
