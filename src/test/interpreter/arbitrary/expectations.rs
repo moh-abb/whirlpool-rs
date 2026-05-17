@@ -7,8 +7,6 @@ use proptest::prelude::Strategy;
 use proptest::test_runner::Reason;
 
 use crate::alloc_types::Vec;
-use crate::arena::Arena;
-use crate::arena::error::ArenaResult;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
@@ -16,6 +14,8 @@ use crate::ast::pattern::interpreter::test_play_multiple;
 use crate::ast::time::CycleTime;
 use crate::ast::time::CycleTimeInterval;
 use crate::ast::time::props::ElemProps;
+use crate::mem::arena::Arena;
+use crate::mem::arena::error::ArenaResult;
 use crate::structures::index::Index;
 use crate::structures::multiple::Multiple;
 use crate::test::interpreter::ScheduledExpectation;

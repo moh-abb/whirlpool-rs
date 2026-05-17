@@ -1,8 +1,8 @@
 use core::fmt::Debug;
 
 use crate::alloc_types::Rc;
-use crate::arena::error::ArenaResult;
 use crate::ast::pattern::arenas::PatternArenas;
+use crate::mem::arena::error::ArenaResult;
 
 /// Traits representing functions with static lifetimes, that take a tuple of
 /// `dyn Arena<_>` and produce an [ArenaResult].

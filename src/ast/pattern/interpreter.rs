@@ -4,7 +4,6 @@ use core::iter;
 use core::marker::PhantomData;
 use core::ops::DerefMut;
 
-use crate::arena::Arena;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
@@ -14,6 +13,7 @@ use crate::ast::pattern::visitor::visit_pattern;
 use crate::ast::time::CycleTime;
 use crate::ast::time::CycleTimeInterval;
 use crate::ast::time::props::ElemProps;
+use crate::mem::arena::Arena;
 use crate::player::PatternPlayer;
 use crate::player::unit::SoundUnit;
 use crate::structures::index::Index;

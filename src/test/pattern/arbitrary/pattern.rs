@@ -5,7 +5,6 @@ use proptest::prelude::Strategy;
 use proptest::prelude::prop;
 use proptest::prop_oneof;
 
-use crate::arena::Arena;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
@@ -17,6 +16,7 @@ use crate::ast::pattern::drop::PatternDropAdapter;
 use crate::ast::pattern::drop::TimedStepDropAdapter;
 use crate::ast::pattern::drop::multiple_cons;
 use crate::ast::time::CycleTime;
+use crate::mem::arena::Arena;
 use crate::structures::index::INVALID_INDEX_VALUE;
 use crate::structures::index::Index;
 use crate::structures::multiple::Multiple;

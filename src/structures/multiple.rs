@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 
-use crate::arena::Arena;
-use crate::arena::ArenaItem;
+use crate::mem::arena::Arena;
+use crate::mem::arena::ArenaItem;
 use crate::structures::chain::Chain;
 use crate::structures::index::Index;
 

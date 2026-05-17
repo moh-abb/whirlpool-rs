@@ -1,4 +1,4 @@
-use crate::arena::error::ArenaResult;
+use crate::mem::arena::error::ArenaResult;
 use crate::structures::index::Index;
 
 pub mod arena_impl;

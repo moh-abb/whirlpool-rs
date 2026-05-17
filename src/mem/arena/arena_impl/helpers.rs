@@ -2,10 +2,10 @@ use core::cell::RefCell;
 use core::marker::PhantomData;
 use core::ops::DerefMut;
 
-use crate::arena::Arena;
-use crate::arena::ArenaItem;
-use crate::arena::error::ArenaError;
-use crate::arena::error::ArenaResult;
+use crate::mem::arena::Arena;
+use crate::mem::arena::ArenaItem;
+use crate::mem::arena::error::ArenaError;
+use crate::mem::arena::error::ArenaResult;
 use crate::structures::index::Index;
 
 pub trait IndexableMap<T> {

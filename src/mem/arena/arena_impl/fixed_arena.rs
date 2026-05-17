@@ -1,9 +1,9 @@
 use crate::alloc_types::BTreeMap;
-use crate::arena::Arena;
-use crate::arena::ArenaItem;
-use crate::arena::arena_impl::helpers::IndexableMap;
-use crate::arena::arena_impl::helpers::IndexableMapArena;
-use crate::arena::error::ArenaResult;
+use crate::mem::arena::Arena;
+use crate::mem::arena::ArenaItem;
+use crate::mem::arena::arena_impl::helpers::IndexableMap;
+use crate::mem::arena::arena_impl::helpers::IndexableMapArena;
+use crate::mem::arena::error::ArenaResult;
 use crate::structures::index::Index;
 
 #[derive(Debug)]

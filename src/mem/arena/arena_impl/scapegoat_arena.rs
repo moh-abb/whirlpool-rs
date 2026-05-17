@@ -1,32 +1,35 @@
-use crate::alloc_types::Vec;
-use crate::arena::Arena;
-use crate::arena::ArenaItem;
-use crate::arena::arena_impl::helpers::IndexableMap;
-use crate::arena::arena_impl::helpers::IndexableMapArena;
-use crate::arena::error::ArenaError;
-use crate::arena::error::ArenaResult;
+use scapegoat::SgMap;
+
+use crate::mem::arena::Arena;
+use crate::mem::arena::ArenaItem;
+use crate::mem::arena::arena_impl::helpers::IndexableMap;
+use crate::mem::arena::arena_impl::helpers::IndexableMapArena;
+use crate::mem::arena::error::ArenaResult;
 use crate::structures::index::Index;
 
+/// An [Arena] that uses [scapegoat]'s backing structures for allocating
+/// structures without dynamic allocation.
 #[derive(Debug)]
-pub struct GrowableArena<T: ArenaItem>(IndexableMapArena<T, GAMap<T>>);
+pub struct ScapegoatArena<T: ArenaItem, const N: usize>(
+    IndexableMapArena<T, SgInnerMap<T, N>>,
+);
 
 #[derive(Debug)]
-struct GAMap<T>(Vec<Option<T>>);
+struct SgInnerMap<T: ArenaItem, const N: usize>(
+    SgMap<Option<Index<T>>, Option<T>, N>,
+);
 
-impl<T> IndexableMap<T> for GAMap<T> {
+impl<T: ArenaItem, const N: usize> IndexableMap<T> for SgInnerMap<T, N> {
     fn size(&self) -> usize {
-        self.0
-            .iter()
-            .filter_map(Option::as_ref)
-            .count()
+        self.0.len()
     }
 
     fn get_slot(&self, index: Index<T>) -> Option<&Option<T>> {
-        self.0.get(usize::from(index))
+        self.0.get(&Some(index))
     }
 
     fn get_mut_slot(&mut self, index: Index<T>) -> Option<&mut Option<T>> {
-        self.0.get_mut(usize::from(index))
+        self.0.get_mut(&Some(index))
     }
 
     fn clear(&mut self) {
@@ -34,18 +37,18 @@ impl<T> IndexableMap<T> for GAMap<T> {
     }
 }
 
-impl<T: ArenaItem> Default for GrowableArena<T> {
+impl<T: ArenaItem, const N: usize> Default for ScapegoatArena<T, N> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: ArenaItem> GrowableArena<T> {
+impl<T: ArenaItem, const N: usize> ScapegoatArena<T, N> {
     #[allow(unused)]
     pub fn new() -> Self {
         // Note that we are allowed to make an arena larger than u16::MAX slots
         // (but we will never be able to allocate into the excess portion).
-        Self(IndexableMapArena::new(GAMap(Vec::new())))
+        Self(IndexableMapArena::new(SgInnerMap(SgMap::new())))
     }
 
     #[allow(unused)]
@@ -58,22 +61,12 @@ impl<T: ArenaItem> GrowableArena<T> {
     }
 }
 
-impl<T: ArenaItem> Arena<T> for GrowableArena<T> {
+impl<T: ArenaItem, const N: usize> Arena<T> for ScapegoatArena<T, N> {
     fn size(&self) -> usize {
         self.0.size()
     }
 
     fn alloc(&self, value: T) -> ArenaResult<Index<T>> {
-        // We need to extend the inner `Vec` with one extra slot, provided we
-        // have not already exceeded the limit.
-        self.0
-            .with_inner_mut(|next_index, map| {
-                if *next_index == u16::MAX {
-                    return Err(ArenaError::LimitReached);
-                }
-                map.0.push(None);
-                Ok(())
-            })?;
         self.0.alloc(value)
     }
 
