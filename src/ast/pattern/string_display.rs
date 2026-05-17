@@ -1,8 +1,6 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
-use crate::alloc_types::String;
-use crate::alloc_types::format;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
@@ -13,6 +11,8 @@ use crate::mem::ArenaItem;
 use crate::mem::Chain;
 use crate::mem::Index;
 use crate::mem::Multiple;
+use crate::mem::String;
+use crate::mem::format;
 
 trait ChainFoldRightStrategy {
     const CHAINS_FOLD_RIGHT: bool;

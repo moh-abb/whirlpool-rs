@@ -1,9 +1,9 @@
-use crate::alloc_types::Vec;
 use crate::mem::Arena;
 use crate::mem::ArenaError;
 use crate::mem::ArenaItem;
 use crate::mem::ArenaResult;
 use crate::mem::Index;
+use crate::mem::Vec;
 use crate::mem::arena::arena_impl::helpers::IndexableMap;
 use crate::mem::arena::arena_impl::helpers::IndexableMapArena;
 

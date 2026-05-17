@@ -1,7 +1,10 @@
+pub mod alloc_types;
 pub mod arena;
 pub mod structures;
 
-/// Common re-exports
+// Common re-exports
+
+pub use alloc_types::*;
 pub use arena::Arena;
 pub use arena::ArenaItem;
 pub use arena::arena_impl::fixed_arena::FixedArena;

@@ -5,11 +5,10 @@
 #![allow(clippy::let_and_return, rustdoc::private_intra_doc_links)]
 #![deny(clippy::undocumented_unsafe_blocks, dead_code, unused)]
 
-/// Used by [alloc_types].
+/// Used by [crate::mem::alloc_types].
 #[allow(unused_extern_crates)]
 extern crate alloc;
 
-pub mod alloc_types;
 pub mod ast;
 pub mod mem;
 pub mod player;

@@ -1,6 +1,6 @@
-use crate::alloc_types::Vec;
 use crate::ast::time::CycleTime;
 use crate::ast::time::CycleTimeInterval;
+use crate::mem::Vec;
 use crate::test::interpreter::ScheduledExpectation;
 
 #[allow(unused)]

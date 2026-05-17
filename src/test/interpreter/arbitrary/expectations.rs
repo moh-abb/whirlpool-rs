@@ -6,7 +6,6 @@ use core::num::NonZeroU16;
 use proptest::prelude::Strategy;
 use proptest::test_runner::Reason;
 
-use crate::alloc_types::Vec;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
@@ -18,6 +17,7 @@ use crate::mem::Arena;
 use crate::mem::ArenaResult;
 use crate::mem::Index;
 use crate::mem::Multiple;
+use crate::mem::Vec;
 use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::sequence::NoteSequence;
 use crate::test::pattern::arbitrary::time::arb_cycle_time;

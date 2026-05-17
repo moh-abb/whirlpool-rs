@@ -4,7 +4,7 @@ use core::marker::PhantomData;
 type IndexInner = u16;
 pub const INVALID_INDEX_VALUE: u16 = u16::MAX;
 
-/// An index type used to access an [super::Arena].
+/// An index type used to access an [crate::mem::Arena].
 /// Because implicit copying can lead to hidden sharing of indices, which
 /// violates the model of items in arenas having only one owner, this type is
 /// not [Copy].
