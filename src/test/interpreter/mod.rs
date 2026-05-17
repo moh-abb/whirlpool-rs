@@ -113,26 +113,6 @@ fn test_expectations_with_interpreter_setup_and_start_time<
     expected_schedule_actions: Expectations,
     test_setup: impl TestSetupStrategy,
 ) {
-    {
-        let mut mock_player = MockPatternPlayer::new();
-        mock_player
-            .expect_schedule_note_unit()
-            .times(..)
-            .with(predicate::always(), predicate::always())
-            .return_const(());
-        let mut logging_player = LoggingPlayer::new(&mut mock_player);
-        logging_player.set_logging(true);
-        let last_time = expected_schedule_actions
-            .clone()
-            .into_iter()
-            .map(|x| x.borrow().0)
-            .last()
-            .unwrap();
-        let mut interpreter =
-            Interpreter::new(head_index.clone(), arenas, &mut logging_player);
-        interpreter.update_time(last_time);
-    }
-
     let mut mock_player = MockPatternPlayer::new();
     let logging_player = RefCell::new(LoggingPlayer::new(&mut mock_player));
     let with_mock_player = |f: &dyn Fn(&mut MockPatternPlayer)| {
@@ -158,7 +138,7 @@ fn test_expectations_with_interpreter_setup_and_start_time<
     // Enable printing log messages, if desired.
     logging_player
         .borrow_mut()
-        .set_logging(true);
+        .set_logging(false);
     let expect_note_unit = |expectation: ScheduledExpectation| {
         let ScheduledExpectation { start_time, duration, note_unit } =
             expectation;
