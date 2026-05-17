@@ -288,7 +288,7 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
         let total_cycle_length = self
             .timed_step_iter(&multiple)
             .map(|TimedStep(dur, _)| dur)
-            .fold(CycleTime::ZERO, CycleTime::add);
+            .sum();
         // If we have a [TimeCat], then we simulate over each one cycle in the
         // [Multiple] and then scale each element individually by its
         // proportion of the total; e.g. TimeCat([1, "A"], [2, "B"], [3, "C"])
@@ -309,7 +309,8 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
         // Due to fixed point rounding errors, recalculate the total length
         // after calculating the scaled length of each element.
         let played_duration = get_elements()
-            .fold(CycleTime::ZERO, |acc, x| acc + x.played_duration);
+            .map(|elem| elem.played_duration)
+            .sum();
         play_multiple(
             interval,
             ElemProps {
@@ -339,7 +340,7 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
         let total_cycle_length = self
             .timed_step_iter(&multiple)
             .map(|TimedStep(dur, _)| dur)
-            .fold(CycleTime::ZERO, CycleTime::add);
+            .sum();
         let make_sim_elem = |TimedStep(elem_length, pattern)| ElemProps {
             elem: pattern,
             sim_duration: elem_length,
@@ -684,11 +685,11 @@ fn play_multiple<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
     if cfg!(debug_assertions) {
         let calculated_sim_duration = (total.elem)()
             .map(|multiple_elem| multiple_elem.sim_duration)
-            .fold(CycleTime::ZERO, CycleTime::add);
+            .sum::<CycleTime>();
 
         let calculated_played_duration = (total.elem)()
             .map(|multiple_elem| multiple_elem.played_duration)
-            .fold(CycleTime::ZERO, CycleTime::add);
+            .sum::<CycleTime>();
 
         debug_assert_eq!(calculated_sim_duration, total.sim_duration);
         debug_assert_eq!(calculated_played_duration, total.played_duration);
