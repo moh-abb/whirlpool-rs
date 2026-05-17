@@ -5,7 +5,7 @@ use crate::ast::pattern::note::Letter;
 use crate::ast::pattern::note::NoteUnit;
 use crate::ast::time::CycleTime;
 use crate::mem::Arena;
-use crate::mem::arena::arena_impl::fixed_arena::FixedArena;
+use crate::mem::FixedArena;
 use crate::structures::chain::Chain;
 use crate::structures::index::Index;
 use crate::structures::multiple::Multiple;
