@@ -1,5 +1,6 @@
 #![deny(unconditional_recursion)]
 
+use core::iter::Sum;
 use core::ops::Add;
 use core::ops::AddAssign;
 use core::ops::Div;
@@ -55,3 +56,9 @@ impl_op_assign!(AddAssign, add_assign, add);
 impl_op_assign!(SubAssign, sub_assign, sub);
 impl_op_assign!(MulAssign, mul_assign, mul);
 impl_op_assign!(DivAssign, div_assign, div);
+
+impl Sum<CycleTime> for CycleTime {
+    fn sum<I: Iterator<Item = CycleTime>>(iter: I) -> Self {
+        iter.fold(CycleTime::ZERO, CycleTime::add)
+    }
+}
