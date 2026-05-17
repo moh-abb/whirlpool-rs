@@ -4,6 +4,7 @@ mod cat;
 mod examples;
 mod seq;
 mod stack;
+mod timedstep;
 mod unit_silence;
 
 // A complex (approximation of pi) offset cycle time to test played units.
