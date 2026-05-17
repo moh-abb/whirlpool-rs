@@ -1,6 +1,5 @@
 use core::fmt::Debug;
 use core::iter::once;
-use core::iter::repeat;
 use core::num::NonZeroU8;
 use core::num::NonZeroU16;
 
@@ -16,16 +15,17 @@ use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::interpreter::test_play_multiple;
 use crate::ast::time::CycleTime;
 use crate::ast::time::CycleTimeInterval;
+use crate::ast::time::props::ElemProps;
 use crate::structures::index::Index;
+use crate::structures::multiple::Multiple;
 use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::sequence::NoteSequence;
 use crate::test::pattern::arbitrary::time::arb_cycle_time;
 use crate::test::pattern::arbitrary::time::arb_positive_cycle_time;
 
-fn multiple_expectations<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
+fn multiple_expectations<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
     interval: CycleTimeInterval,
-    length: CycleTime,
-    elements: impl Fn() -> Iter,
+    total: ElemProps<impl Fn() -> Iter>,
     is_fast: bool,
     offset: CycleTime,
     multiplier: CycleTime,
@@ -36,6 +36,9 @@ fn multiple_expectations<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
         CycleTime,
     ) -> NoteSequence,
 ) -> NoteSequence {
+    assert_ne!(total.sim_duration, CycleTime::ZERO);
+    assert_ne!(total.played_duration, CycleTime::ZERO);
+
     let mut result_sequence =
         NoteSequence { interval, offset, multiplier, expected: Vec::new() };
     let append_sequence =
@@ -55,14 +58,27 @@ fn multiple_expectations<T: Debug, Iter: Iterator<Item = (CycleTime, T)>>(
         };
     test_play_multiple(
         interval,
-        length,
-        elements,
+        total,
         is_fast,
         offset,
         multiplier,
         append_sequence,
     );
     result_sequence
+}
+
+fn timed_step_iter<'a>(
+    multiple: &'a Multiple<TimedStep>,
+    arenas: &'a impl PatternArenas,
+) -> impl Iterator<Item = TimedStep> + 'a {
+    multiple
+        .iter(arenas.get_timed_step_chain_arena())
+        .filter_map(|timed_step| {
+            arenas
+                .get_timed_step_arena()
+                .inspect(timed_step, Clone::clone)
+                .ok()
+        })
 }
 
 pub fn pattern_expectations(
@@ -75,15 +91,25 @@ pub fn pattern_expectations(
     let cloned_pattern = arenas
         .get_pattern_arena()
         .inspect(pattern, Clone::clone)?;
-    let result = match cloned_pattern.clone() {
+
+    let result = match &cloned_pattern {
         Pattern::Cat(multiple) | Pattern::Seq(multiple) => {
+            let length = CycleTime::from_int(i32::from(multiple.length()));
             let is_fast = matches!(cloned_pattern, Pattern::Seq(_));
             multiple_expectations(
                 interval,
-                CycleTime::from_int(i32::from(multiple.length())),
-                || {
-                    repeat(CycleTime::ONE)
-                        .zip(multiple.iter(arenas.get_pattern_chain_arena()))
+                ElemProps {
+                    elem: || {
+                        multiple
+                            .iter(arenas.get_pattern_chain_arena())
+                            .map(|elem| ElemProps {
+                                elem,
+                                sim_duration: CycleTime::ONE,
+                                played_duration: CycleTime::ONE,
+                            })
+                    },
+                    sim_duration: length,
+                    played_duration: length,
                 },
                 is_fast,
                 offset,
@@ -114,28 +140,70 @@ pub fn pattern_expectations(
                 x
             })
             .unwrap(),
-        Pattern::TimeCat(multiple) | Pattern::Arrange(multiple) => {
-            let is_fast = matches!(cloned_pattern, Pattern::TimeCat(_));
-            let elems_with_durations = || {
-                multiple
-                    .iter(arenas.get_timed_step_chain_arena())
-                    .filter_map(|timed_step| {
-                        arenas
-                            .get_timed_step_arena()
-                            .inspect(timed_step, Clone::clone)
-                            .map(|TimedStep(unit, pattern)| (unit, pattern))
-                            .ok()
-                    })
+        Pattern::TimeCat(multiple) => {
+            let total_cycle_length = timed_step_iter(&multiple, arenas)
+                .map(|TimedStep(played_dur, _)| played_dur)
+                .sum();
+            let sim_duration =
+                CycleTime::from_int(i32::from(multiple.length()));
+            let elems_with_props = || {
+                timed_step_iter(&multiple, arenas).map(
+                    |TimedStep(proportion, elem)| ElemProps {
+                        elem,
+                        sim_duration: CycleTime::ONE,
+                        played_duration: (proportion * sim_duration)
+                            / total_cycle_length,
+                    },
+                )
             };
-            let length = elems_with_durations()
-                .map(|(dur, _)| dur)
-                .fold(CycleTime::ZERO, CycleTime::add);
-            assert_ne!(length, CycleTime::ZERO);
+            // Recalculate the played duration due to rounding errors.
+            let played_duration = elems_with_props()
+                .map(|props| props.played_duration)
+                .sum();
+
+            assert_ne!(played_duration, CycleTime::ZERO);
             multiple_expectations(
                 interval,
-                length,
-                elems_with_durations,
-                is_fast,
+                ElemProps {
+                    elem: elems_with_props,
+                    sim_duration,
+                    played_duration,
+                },
+                true,
+                offset,
+                multiplier,
+                |elem, sim_interval, sim_offset, sim_multiplier| {
+                    pattern_expectations(
+                        elem.clone(),
+                        arenas,
+                        sim_interval,
+                        sim_offset,
+                        sim_multiplier,
+                    )
+                    .unwrap()
+                },
+            )
+        }
+        Pattern::Arrange(multiple) => {
+            let played_duration = timed_step_iter(&multiple, arenas)
+                .map(|TimedStep(played_dur, _)| played_dur)
+                .sum();
+            multiple_expectations(
+                interval,
+                ElemProps {
+                    elem: || {
+                        timed_step_iter(&multiple, arenas).map(
+                            |TimedStep(played_duration, elem)| ElemProps {
+                                elem,
+                                sim_duration: played_duration,
+                                played_duration,
+                            },
+                        )
+                    },
+                    sim_duration: played_duration,
+                    played_duration,
+                },
+                false,
                 offset,
                 multiplier,
                 |elem, sim_interval, sim_offset, sim_multiplier| {
@@ -152,8 +220,17 @@ pub fn pattern_expectations(
         }
         Pattern::Note(note_unit) => multiple_expectations(
             interval,
-            CycleTime::ONE,
-            || once((CycleTime::ONE, note_unit)),
+            ElemProps {
+                elem: || {
+                    once(ElemProps {
+                        elem: note_unit,
+                        sim_duration: CycleTime::ONE,
+                        played_duration: CycleTime::ONE,
+                    })
+                },
+                sim_duration: CycleTime::ONE,
+                played_duration: CycleTime::ONE,
+            },
             false,
             offset,
             multiplier,
@@ -165,7 +242,7 @@ pub fn pattern_expectations(
                             start_time: (sim_interval.start() + sim_offset)
                                 / sim_multiplier,
                             duration: sim_multiplier.recip(),
-                            note_unit,
+                            note_unit: note_unit.clone(),
                         }]
                     } else {
                         Vec::new()
