@@ -1,6 +1,7 @@
 use fixed::FixedI32;
 use fixed::types::extra::U12;
 
+pub mod props;
 mod traits;
 
 type Inner = FixedI32<U12>;
