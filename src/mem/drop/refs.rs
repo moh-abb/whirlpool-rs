@@ -3,7 +3,7 @@ use crate::mem::ArenaResult;
 pub trait DropRefs<Arenas>: Sized {
     type Reference;
 
-    fn start_ref(start_index: Self) -> Self::Reference;
+    fn start_ref(start: Self) -> Self::Reference;
 
     fn process_ref<'a>(
         reference: Self::Reference,
