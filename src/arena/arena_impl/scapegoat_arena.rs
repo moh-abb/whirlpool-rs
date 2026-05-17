@@ -5,7 +5,7 @@ use crate::arena::ArenaItem;
 use crate::arena::arena_impl::helpers::IndexableMap;
 use crate::arena::arena_impl::helpers::IndexableMapArena;
 use crate::arena::error::ArenaResult;
-use crate::arena::index::Index;
+use crate::structures::index::Index;
 
 /// An [Arena] that uses [scapegoat]'s backing structures for allocating
 /// structures without dynamic allocation.
@@ -34,6 +34,12 @@ impl<T: ArenaItem, const N: usize> IndexableMap<T> for SgInnerMap<T, N> {
 
     fn clear(&mut self) {
         self.0.clear()
+    }
+}
+
+impl<T: ArenaItem, const N: usize> Default for ScapegoatArena<T, N> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

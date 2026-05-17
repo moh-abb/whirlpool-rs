@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+fixed = "1.29.0"
+mockall = "0.14.0"
 no_alloc = "0.1.0"
 proptest = "1.8.0"
 proptest-derive = "0.6.0"
@@ -16,4 +18,4 @@ version = "0.11.1"
 features = ["pratt"]
 
 [features]
-std = ["chumsky/std"]
+std = ["chumsky/std", "fixed/std"]

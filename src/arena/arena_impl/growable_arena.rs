@@ -5,7 +5,7 @@ use crate::arena::arena_impl::helpers::IndexableMap;
 use crate::arena::arena_impl::helpers::IndexableMapArena;
 use crate::arena::error::ArenaError;
 use crate::arena::error::ArenaResult;
-use crate::arena::index::Index;
+use crate::structures::index::Index;
 
 #[derive(Debug)]
 pub struct GrowableArena<T: ArenaItem>(IndexableMapArena<T, GAMap<T>>);
@@ -31,6 +31,12 @@ impl<T> IndexableMap<T> for GAMap<T> {
 
     fn clear(&mut self) {
         self.0.clear()
+    }
+}
+
+impl<T: ArenaItem> Default for GrowableArena<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

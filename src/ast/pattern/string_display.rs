@@ -5,11 +5,14 @@ use crate::alloc_types::String;
 use crate::alloc_types::format;
 use crate::arena::Arena;
 use crate::arena::ArenaItem;
-use crate::arena::chain::Chain;
-use crate::arena::index::Index;
+use crate::ast::pattern::Pattern;
+use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::visitor::PatternVisitor;
 use crate::ast::pattern::visitor::visit_pattern;
+use crate::structures::chain::Chain;
+use crate::structures::index::Index;
+use crate::structures::multiple::Multiple;
 
 trait ChainFoldRightStrategy {
     const CHAINS_FOLD_RIGHT: bool;
@@ -64,10 +67,7 @@ impl<'a, Arenas: PatternArenas> PatternDisplayVisitorL<'a, Arenas> {
     }
 }
 
-fn fold_display_output<
-    Item: ArenaItem + Debug,
-    FoldStrategy: ChainFoldRightStrategy,
->(
+fn fold_display_output<FoldStrategy: ChainFoldRightStrategy>(
     chain_output: String,
     displayed_item: String,
 ) -> String {
@@ -81,18 +81,75 @@ fn fold_display_output<
     }
 }
 
+fn print_multiple<
+    Item: ArenaItem + Debug,
+    FoldStrategy: ChainFoldRightStrategy,
+>(
+    multiple: Multiple<Item>,
+    chain_arena: &impl Arena<Chain<Item>>,
+    mut print_item: impl FnMut(Index<Item>) -> String,
+) -> String {
+    let chain_fold = if FoldStrategy::CHAINS_FOLD_RIGHT {
+        Multiple::fold_right
+    } else {
+        Multiple::fold_left
+    };
+    chain_fold(&multiple, chain_arena, String::new(), |acc, x| {
+        fold_display_output::<FoldStrategy>(acc, print_item(x))
+    })
+}
+
+fn print_multiple_pattern<
+    Arenas: PatternArenas,
+    FoldStrategy: ChainFoldRightStrategy,
+>(
+    multiple: Multiple<Pattern>,
+    arenas: &Arenas,
+) -> String {
+    print_multiple::<_, FoldStrategy>(
+        multiple,
+        arenas.get_pattern_chain_arena(),
+        |pattern| {
+            let visitor = PatternDisplayVisitor::<_, FoldStrategy> {
+                arenas,
+                phantom: PhantomData,
+            };
+            visit_pattern(&visitor, pattern)
+        },
+    )
+}
+
+fn print_multiple_timed_step<
+    Arenas: PatternArenas,
+    FoldStrategy: ChainFoldRightStrategy,
+>(
+    multiple: Multiple<TimedStep>,
+    arenas: &Arenas,
+) -> String {
+    print_multiple::<_, FoldStrategy>(
+        multiple,
+        arenas.get_timed_step_chain_arena(),
+        |timed_step| {
+            let cloned_timed_step = arenas
+                .get_timed_step_arena()
+                .inspect(timed_step, Clone::clone)
+                .unwrap();
+            let TimedStep(time_unit, pattern) = cloned_timed_step;
+            let visitor = PatternDisplayVisitor::<_, FoldStrategy> {
+                arenas,
+                phantom: PhantomData,
+            };
+            let displayed_pattern = visit_pattern(&visitor, pattern);
+            format!("[{time_unit:?}, {displayed_pattern}]")
+        },
+    )
+}
+
 impl<'a, Arenas: PatternArenas, FoldStrategy: ChainFoldRightStrategy>
     PatternVisitor for PatternDisplayVisitor<'a, Arenas, FoldStrategy>
 {
     type Output = String;
     type PatternOutput = String;
-    type PatternChainEntry = ();
-    type PatternChainOutput = String;
-    type TimedStepOutput = String;
-    type TimedStepChainEntry = ();
-    type TimedStepChainOutput = String;
-
-    const CHAINS_FOLD_RIGHT: bool = FoldStrategy::CHAINS_FOLD_RIGHT;
 
     fn get_arenas(&self) -> &impl PatternArenas {
         self.arenas
@@ -106,40 +163,49 @@ impl<'a, Arenas: PatternArenas, FoldStrategy: ChainFoldRightStrategy>
         pattern_output
     }
 
-    fn exit_cat(
+    fn map_cat(
         &self,
-        _chain_index: Index<Chain<super::Pattern>>,
-        _pattern_chain_entry: Self::PatternChainEntry,
-        pattern_chain_output: Self::PatternChainOutput,
+        multiple: Multiple<super::Pattern>,
     ) -> Self::PatternOutput {
-        format!("Cat({pattern_chain_output})")
+        let displayed_multiple =
+            print_multiple_pattern::<_, FoldStrategy>(multiple, self.arenas);
+        format!("Cat({displayed_multiple})")
     }
 
-    fn exit_seq(
+    fn map_seq(
         &self,
-        _chain_index: Index<Chain<super::Pattern>>,
-        _pattern_chain_entry: Self::PatternChainEntry,
-        pattern_chain_output: Self::PatternChainOutput,
+        multiple: Multiple<super::Pattern>,
     ) -> Self::PatternOutput {
-        format!("Seq({pattern_chain_output})")
+        let displayed_multiple =
+            print_multiple_pattern::<_, FoldStrategy>(multiple, self.arenas);
+        format!("Seq({displayed_multiple})")
     }
 
-    fn exit_stack(
+    fn map_stack(
         &self,
-        _chain_index: Index<Chain<super::Pattern>>,
-        _pattern_chain_entry: Self::PatternChainEntry,
-        pattern_chain_output: Self::PatternChainOutput,
+        multiple: Multiple<super::Pattern>,
     ) -> Self::PatternOutput {
-        format!("Stack({pattern_chain_output})")
+        let displayed_multiple =
+            print_multiple_pattern::<_, FoldStrategy>(multiple, self.arenas);
+        format!("Stack({displayed_multiple})")
     }
 
-    fn exit_time_cat(
+    fn map_time_cat(
         &self,
-        _chain_index: Index<Chain<super::TimedStep>>,
-        _pattern_chain_entry: Self::PatternChainEntry,
-        timed_step_chain_output: Self::TimedStepChainOutput,
+        multiple: Multiple<super::TimedStep>,
     ) -> Self::PatternOutput {
-        format!("TimeCat({timed_step_chain_output})")
+        let displayed_multiple =
+            print_multiple_timed_step::<_, FoldStrategy>(multiple, self.arenas);
+        format!("TimeCat({displayed_multiple})")
+    }
+
+    fn map_arrange(
+        &self,
+        multiple: Multiple<TimedStep>,
+    ) -> Self::PatternOutput {
+        let displayed_multiple =
+            print_multiple_timed_step::<_, FoldStrategy>(multiple, self.arenas);
+        format!("Arrange({displayed_multiple})")
     }
 
     fn map_note_unit(
@@ -151,66 +217,5 @@ impl<'a, Arenas: PatternArenas, FoldStrategy: ChainFoldRightStrategy>
 
     fn map_silence(&self) -> Self::PatternOutput {
         String::from("Silence")
-    }
-
-    fn new_pattern_chain_output(&self) -> Self::PatternChainOutput {
-        String::new()
-    }
-
-    fn fold_pattern_chain_output(
-        &self,
-        chain_output: Self::PatternChainOutput,
-        _tail_index: Index<Chain<super::Pattern>>,
-        pattern_index: Index<super::Pattern>,
-    ) -> Self::PatternChainOutput {
-        fold_display_output::<super::Pattern, FoldStrategy>(
-            chain_output,
-            visit_pattern(self, pattern_index),
-        )
-    }
-
-    fn new_timed_step_chain_output(&self) -> Self::TimedStepChainOutput {
-        String::new()
-    }
-
-    fn fold_timed_step_chain_output(
-        &self,
-        chain_output: Self::TimedStepChainOutput,
-        _tail_index: Index<Chain<super::TimedStep>>,
-        timed_step_index: Index<super::TimedStep>,
-    ) -> Self::TimedStepChainOutput {
-        let displayed_timed_step = self
-            .arenas
-            .get_timed_step_arena()
-            .inspect(timed_step_index, |timed_step| format!("{timed_step:?}"))
-            .unwrap();
-        fold_display_output::<super::Pattern, FoldStrategy>(
-            chain_output,
-            displayed_timed_step,
-        )
-    }
-
-    fn enter_cat(
-        &self,
-        _chain_index: Index<Chain<super::Pattern>>,
-    ) -> Self::PatternChainEntry {
-    }
-
-    fn enter_seq(
-        &self,
-        _chain_index: Index<Chain<super::Pattern>>,
-    ) -> Self::PatternChainEntry {
-    }
-
-    fn enter_stack(
-        &self,
-        _chain_index: Index<Chain<super::Pattern>>,
-    ) -> Self::PatternChainEntry {
-    }
-
-    fn enter_time_cat(
-        &self,
-        _chain_index: Index<Chain<super::TimedStep>>,
-    ) -> Self::PatternChainEntry {
     }
 }

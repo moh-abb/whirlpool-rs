@@ -6,7 +6,7 @@ use crate::arena::Arena;
 use crate::arena::ArenaItem;
 use crate::arena::error::ArenaError;
 use crate::arena::error::ArenaResult;
-use crate::arena::index::Index;
+use crate::structures::index::Index;
 
 pub trait IndexableMap<T> {
     /// Returns the number of full slots in the current map.
@@ -41,7 +41,6 @@ struct IMInner<T, M> {
 
 impl<T, M: IndexableMap<T>> IndexableMapArena<T, M> {
     /// Creates an arena with the given [IndexableMap] backing field.
-    #[allow(unused)]
     pub fn new(map: M) -> Self {
         Self(RefCell::new(IMInner { next_index: 0, map, phantom: PhantomData }))
     }

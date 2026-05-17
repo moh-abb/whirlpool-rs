@@ -1,36 +1,30 @@
 use core::cmp::Ordering;
 
-#[cfg(test)]
-use proptest_derive::Arbitrary;
-
-use crate::arena::chain::Chain;
-use crate::arena::index::Index;
+use crate::ast::time::CycleTime;
+use crate::structures::index::Index;
+use crate::structures::multiple::Multiple;
 
 pub mod arenas;
 pub mod clone;
 pub mod drop;
 pub mod equality;
 pub mod format_display;
+pub mod interpreter;
 pub mod note;
 #[cfg(test)]
 pub mod string_display;
 mod visitor;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(test, derive(Arbitrary))]
-pub struct TimeUnit(pub u32);
-
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct TimedStep(pub TimeUnit, pub Index<Pattern>);
+pub struct TimedStep(pub CycleTime, pub Index<Pattern>);
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Pattern {
-    Cat(Index<Chain<Self>>),
-    Seq(Index<Chain<Self>>),
-    Stack(Index<Chain<Self>>),
-    TimeCat(Index<Chain<TimedStep>>),
+    Cat(Multiple<Self>),
+    Seq(Multiple<Self>),
+    Stack(Multiple<Self>),
+    TimeCat(Multiple<TimedStep>),
+    Arrange(Multiple<TimedStep>),
     Note(note::NoteUnit),
     Silence,
 }
@@ -41,8 +35,9 @@ const fn pattern_discriminant(pattern: &Pattern) -> u8 {
         Pattern::Seq(_) => 2,
         Pattern::Stack(_) => 3,
         Pattern::TimeCat(_) => 4,
-        Pattern::Note(_) => 5,
-        Pattern::Silence => 6,
+        Pattern::Arrange(_) => 5,
+        Pattern::Note(_) => 6,
+        Pattern::Silence => 7,
     }
 }
 

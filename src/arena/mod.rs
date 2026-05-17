@@ -1,10 +1,8 @@
-pub mod arena_impl;
-pub mod chain;
-pub mod error;
-pub mod index;
+use crate::arena::error::ArenaResult;
+use crate::structures::index::Index;
 
-use error::ArenaResult;
-use index::Index;
+pub mod arena_impl;
+pub mod error;
 
 pub trait ArenaItem: Ord + 'static {}
 impl<T> ArenaItem for T where T: Ord + 'static {}
@@ -12,7 +10,6 @@ impl<T> ArenaItem for T where T: Ord + 'static {}
 /// A trait to represent a simple arena, where items can be inserted, appended
 /// (allocated), deleted (taken), and queried for occupied status based on an
 /// [Index].
-#[allow(dead_code)]
 pub trait Arena<T: ArenaItem> {
     fn size(&self) -> usize;
 
