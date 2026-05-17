@@ -19,6 +19,10 @@ mod logging;
 mod sequence;
 mod unittests;
 
+/// Minimum threshold for which a played element's start time is considered
+/// equal to the expected start time.
+const EPSILON: CycleTime = CycleTime::from_int_recip(4096);
+
 /// A triple of an expected scheduled start time, duration, and note unit.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct ScheduledExpectation {
@@ -109,6 +113,26 @@ fn test_expectations_with_interpreter_setup_and_start_time<
     expected_schedule_actions: Expectations,
     test_setup: impl TestSetupStrategy,
 ) {
+    {
+        let mut mock_player = MockPatternPlayer::new();
+        mock_player
+            .expect_schedule_note_unit()
+            .times(..)
+            .with(predicate::always(), predicate::always())
+            .return_const(());
+        let mut logging_player = LoggingPlayer::new(&mut mock_player);
+        logging_player.set_logging(true);
+        let last_time = expected_schedule_actions
+            .clone()
+            .into_iter()
+            .map(|x| x.borrow().0)
+            .last()
+            .unwrap();
+        let mut interpreter =
+            Interpreter::new(head_index.clone(), arenas, &mut logging_player);
+        interpreter.update_time(last_time);
+    }
+
     let mut mock_player = MockPatternPlayer::new();
     let logging_player = RefCell::new(LoggingPlayer::new(&mut mock_player));
     let with_mock_player = |f: &dyn Fn(&mut MockPatternPlayer)| {
@@ -134,18 +158,22 @@ fn test_expectations_with_interpreter_setup_and_start_time<
     // Enable printing log messages, if desired.
     logging_player
         .borrow_mut()
-        .set_logging(false);
+        .set_logging(true);
     let expect_note_unit = |expectation: ScheduledExpectation| {
         let ScheduledExpectation { start_time, duration, note_unit } =
             expectation;
         let sound_unit = SoundUnit::new(note_unit, duration);
         let add_expectation = |borrowed_player: &mut MockPatternPlayer| {
+            let abs_diff = |x: CycleTime, y: CycleTime| {
+                if x <= y { y - x } else { x - y }
+            };
+            let approx_eq_start_time =
+                predicate::function(move |time: &CycleTime| {
+                    abs_diff(start_time, *time) <= EPSILON
+                });
             borrowed_player
                 .expect_schedule_note_unit()
-                .with(
-                    predicate::eq(sound_unit.clone()),
-                    predicate::eq(start_time),
-                )
+                .with(predicate::eq(sound_unit.clone()), approx_eq_start_time)
                 .once()
                 .return_const(());
         };
