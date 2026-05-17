@@ -6,9 +6,9 @@ use core::ops::DerefMut;
 use spin::RwLockReadGuard;
 use spin::RwLockWriteGuard;
 
-use crate::mem::arena::Arena;
-use crate::mem::arena::ArenaItem;
-use crate::mem::arena::error::ArenaResult;
+use crate::mem::Arena;
+use crate::mem::ArenaItem;
+use crate::mem::ArenaResult;
 use crate::structures::index::Index;
 
 #[mockall::automock(

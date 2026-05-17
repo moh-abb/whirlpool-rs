@@ -6,7 +6,7 @@ use proptest::prop_oneof;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::note::NoteUnit;
-use crate::mem::arena::Arena;
+use crate::mem::Arena;
 use crate::structures::index::Index;
 use crate::test::pattern::arbitrary::arenas_to::ArenasTo;
 use crate::test::pattern::arbitrary::unit::arb_pattern_note_unit;

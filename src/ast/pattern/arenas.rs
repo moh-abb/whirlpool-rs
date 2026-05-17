@@ -2,7 +2,7 @@ use core::fmt::Debug;
 
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::TimedStep;
-use crate::mem::arena::Arena;
+use crate::mem::Arena;
 use crate::structures::chain::Chain;
 
 pub trait PatternArenas: Debug {
