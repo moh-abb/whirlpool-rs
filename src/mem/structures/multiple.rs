@@ -2,6 +2,7 @@ use core::marker::PhantomData;
 
 use crate::mem::Arena;
 use crate::mem::ArenaItem;
+use crate::mem::ArenaResult;
 use crate::mem::Chain;
 use crate::mem::Index;
 
@@ -121,12 +122,27 @@ impl<Item: ArenaItem> Multiple<Item> {
         Some(end)
     }
 
+    fn iter_base<'a, CA: Arena<Chain<Item>>>(
+        &self,
+        arena: &'a CA,
+    ) -> IterBase<'a, Item, CA> {
+        IterBase { start_end: self.start_end(), arena, phantom: PhantomData }
+    }
+
     #[allow(unused)]
     pub fn iter<'a, CA: Arena<Chain<Item>>>(
-        &'a self,
+        &self,
         arena: &'a CA,
     ) -> Iter<'a, Item, CA> {
-        Iter { start_end: self.start_end(), arena, phantom: PhantomData }
+        Iter { inner: self.iter_base(arena) }
+    }
+
+    #[allow(unused)]
+    pub fn iter_with_chain<'a, CA: Arena<Chain<Item>>>(
+        &self,
+        arena: &'a CA,
+    ) -> IterWithChain<'a, Item, CA> {
+        IterWithChain { inner: self.iter_base(arena) }
     }
 
     #[allow(unused)]
@@ -187,12 +203,94 @@ impl<Item: ArenaItem> Multiple<Item> {
     }
 }
 
+/// An iterator for which the elements consist of the pairs
+/// `(Index<Item>, Index<Chain<Item>>)`.
 #[allow(unused)]
 #[derive(Debug, Clone)]
-pub struct Iter<'a, Item: ArenaItem, ChainArena: Arena<Chain<Item>>> {
+struct IterBase<'a, Item: ArenaItem, ChainArena: Arena<Chain<Item>>> {
     start_end: StartEnd<Item>,
     arena: &'a ChainArena,
     phantom: PhantomData<Item>,
+}
+
+impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> Iterator
+    for IterBase<'a, T, ChainArena>
+{
+    type Item = ArenaResult<(Index<T>, Index<Chain<T>>)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (start, end) = self.start_end.clone()?;
+        let cloned_start = match self
+            .arena
+            .inspect(start.clone(), Clone::clone)
+        {
+            Ok(cloned) => cloned,
+            Err(err) => return Some(Err(err)),
+        };
+        let Chain(index, _prev, next) = cloned_start;
+        let new_start_end = next
+            .zip(Some(end.clone()))
+            .filter(|_| start != end);
+        self.start_end = new_start_end;
+        Some(Ok((index, start)))
+    }
+}
+
+impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> DoubleEndedIterator
+    for IterBase<'a, T, ChainArena>
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let (start, end) = self.start_end.clone()?;
+        let cloned_end = match self
+            .arena
+            .inspect(end.clone(), Clone::clone)
+        {
+            Ok(cloned) => cloned,
+            Err(err) => return Some(Err(err)),
+        };
+        let Chain(index, prev, _next) = cloned_end;
+        let new_start_end = Some(start.clone())
+            .zip(prev)
+            .filter(|_| start != end);
+        self.start_end = new_start_end;
+        Some(Ok((index, end)))
+    }
+}
+
+/// An iterator for which the elements consist of `Index<Chain<Item>>`.
+#[allow(unused)]
+#[derive(Debug, Clone)]
+pub struct IterWithChain<'a, Item: ArenaItem, ChainArena: Arena<Chain<Item>>> {
+    inner: IterBase<'a, Item, ChainArena>,
+}
+
+impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> Iterator
+    for IterWithChain<'a, T, ChainArena>
+{
+    type Item = ArenaResult<Index<Chain<T>>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner
+            .next()
+            .map(|inner| inner.map(|i| i.1))
+    }
+}
+
+impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> DoubleEndedIterator
+    for IterWithChain<'a, T, ChainArena>
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner
+            .next_back()
+            .map(|inner| inner.map(|i| i.1))
+    }
+}
+
+/// An iterator for which the elements consist of `Index<Item>`.
+#[allow(unused)]
+#[derive(Debug, Clone)]
+pub struct Iter<'a, Item: ArenaItem, ChainArena: Arena<Chain<Item>>> {
+    inner: IterBase<'a, Item, ChainArena>,
 }
 
 impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> Iterator
@@ -201,17 +299,9 @@ impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> Iterator
     type Item = Index<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (start, end) = self.start_end.clone()?;
-        let cloned_start = self
-            .arena
-            .inspect(start.clone(), Clone::clone)
-            .unwrap();
-        let Chain(index, _prev, next) = cloned_start;
-        let new_start_end = next
-            .zip(Some(end.clone()))
-            .filter(|_| start != end);
-        self.start_end = new_start_end;
-        Some(index)
+        self.inner
+            .next()
+            .map(|inner| inner.unwrap().0)
     }
 }
 
@@ -219,16 +309,8 @@ impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> DoubleEndedIterator
     for Iter<'a, T, ChainArena>
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        let (start, end) = self.start_end.clone()?;
-        let cloned_end = self
-            .arena
-            .inspect(end.clone(), Clone::clone)
-            .unwrap();
-        let Chain(index, prev, _next) = cloned_end;
-        let new_start_end = Some(start.clone())
-            .zip(prev)
-            .filter(|_| start != end);
-        self.start_end = new_start_end;
-        Some(index)
+        self.inner
+            .next_back()
+            .map(|inner| inner.unwrap().0)
     }
 }
