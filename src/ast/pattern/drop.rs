@@ -293,16 +293,16 @@ fn process_drop_ref<'a>(
 }
 
 impl<Arenas: PatternArenas> DropRefs<Arenas> for DropRef {
-    type Reference = DropRef;
+    type DropRefType = DropRef;
 
-    fn start_ref(drop_ref: DropRef) -> Self::Reference {
+    fn start_ref(drop_ref: DropRef) -> Self::DropRefType {
         drop_ref
     }
 
     fn process_ref<'a>(
-        reference: Self::Reference,
+        reference: Self::DropRefType,
         arenas: &'a Arenas,
-    ) -> ArenaResult<impl Iterator<Item = ArenaResult<Self::Reference>> + 'a>
+    ) -> ArenaResult<impl Iterator<Item = ArenaResult<Self::DropRefType>> + 'a>
     {
         process_drop_ref(reference, arenas)
     }
