@@ -119,16 +119,6 @@ impl<T: ArenaItem, M: IndexableMap<T>> Arena<T> for IndexableMapArena<T, M> {
             .ok_or(ArenaError::ExpectedFullSlot)
     }
 
-    fn has_slot(&self, index: Index<T>) -> ArenaResult<bool> {
-        self.with_slot(index, Option::is_some)
-    }
-
-    fn insert(&self, index: Index<T>, value: T) -> ArenaResult<()> {
-        self.with_mut_slot(index, |slot| {
-            let _ = slot.insert(value);
-        })
-    }
-
     fn inspect<U>(
         &self,
         index: Index<T>,

@@ -17,10 +17,6 @@ pub trait Arena<T: ArenaItem> {
 
     fn take(&self, index: Index<T>) -> ArenaResult<T>;
 
-    fn has_slot(&self, index: Index<T>) -> ArenaResult<bool>;
-
-    fn insert(&self, index: Index<T>, value: T) -> ArenaResult<()>;
-
     fn inspect<U>(
         &self,
         index: Index<T>,

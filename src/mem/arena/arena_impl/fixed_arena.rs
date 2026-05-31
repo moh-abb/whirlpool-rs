@@ -65,14 +65,6 @@ impl<T: ArenaItem> Arena<T> for FixedArena<T> {
         unreachable!("Should not call [Arena::take] on FixedArena")
     }
 
-    fn has_slot(&self, index: Index<T>) -> ArenaResult<bool> {
-        self.0.has_slot(index)
-    }
-
-    fn insert(&self, _: Index<T>, _: T) -> ArenaResult<()> {
-        unreachable!("Should not call [Arena::insert] on FixedArena")
-    }
-
     fn inspect<U>(
         &self,
         index: Index<T>,

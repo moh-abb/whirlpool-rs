@@ -81,14 +81,6 @@ impl<T: ArenaItem> Arena<T> for GrowableArena<T> {
         self.0.take(index)
     }
 
-    fn has_slot(&self, index: Index<T>) -> ArenaResult<bool> {
-        self.0.has_slot(index)
-    }
-
-    fn insert(&self, index: Index<T>, value: T) -> ArenaResult<()> {
-        self.0.insert(index, value)
-    }
-
     fn inspect<U>(
         &self,
         index: Index<T>,

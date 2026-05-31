@@ -69,19 +69,6 @@ impl<T: ArenaItem + Clone> Arena<T> for ArenaMocker<T> {
         Ok(slot.take().unwrap())
     }
 
-    fn has_slot(&self, index: Index<T>) -> ArenaResult<bool> {
-        let inner = self.0.borrow();
-        let slot = inner.deref().get_slot(index)?;
-        Ok(slot.is_some())
-    }
-
-    fn insert(&self, index: Index<T>, value: T) -> ArenaResult<()> {
-        let mut inner = self.0.borrow_mut();
-        let mut slot = inner.get_mut_slot(index)?;
-        let _ = slot.insert(value);
-        Ok(())
-    }
-
     fn inspect<U>(
         &self,
         index: Index<T>,
