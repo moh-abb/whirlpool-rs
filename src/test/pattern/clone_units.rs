@@ -9,7 +9,7 @@ use crate::ast::NoteLetter;
 use crate::ast::NoteUnit;
 use crate::ast::Pattern;
 use crate::ast::pattern::clone::PatternCloneDropAdapter;
-use crate::ast::pattern::equality::PatternOrdAdapter;
+use crate::ast::pattern::cmp::PatternOrdAdapter;
 use crate::mem::Chain;
 use crate::mem::Index;
 use crate::mem::Multiple;

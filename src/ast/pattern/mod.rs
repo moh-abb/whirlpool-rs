@@ -6,8 +6,8 @@ use crate::mem::Multiple;
 
 pub mod arenas;
 pub mod clone;
+pub mod cmp;
 pub mod drop;
-pub mod equality;
 pub mod format_display;
 pub mod interpreter;
 pub mod note;

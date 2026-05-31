@@ -1,6 +1,7 @@
 pub mod alloc_types;
 pub mod arena;
 pub mod clone;
+pub mod cmp;
 pub mod drop;
 pub mod structures;
 

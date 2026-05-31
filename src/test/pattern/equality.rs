@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use crate::ast::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::ast::pattern::equality::PatternOrdAdapter;
+use crate::ast::pattern::cmp::PatternOrdAdapter;
 use crate::ast::pattern::format_display::PatternDisplayAdapter;
 use crate::mem::Index;
 use crate::test::pattern::arena_alloc::AnyPatternStrategy;

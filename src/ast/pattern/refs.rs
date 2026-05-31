@@ -45,6 +45,11 @@ pub enum PatternCloneRef {
     },
 }
 
+pub enum PatternOrdRef {
+    Pattern(Index<Pattern>),
+    TimedStep(Index<TimedStep>),
+}
+
 /// Helper function to combine multiple iterators of different types.
 pub fn combine_iters<T>(
     opt_iter1: Option<impl IntoIterator<Item = T>>,
