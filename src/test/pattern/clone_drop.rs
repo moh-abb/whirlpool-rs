@@ -3,7 +3,6 @@ use core::mem;
 use crate::ast::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::clone::PatternCloneDropAdapter;
-use crate::ast::pattern::drop::DropAdapter;
 use crate::ast::pattern::drop::PatternDropAdapter;
 use crate::ast::pattern::equality::PatternOrdAdapter;
 use crate::ast::pattern::format_display::PatternDisplayAdapter;
@@ -23,7 +22,17 @@ impl ArenaTest<Index<Pattern>> for DoNothing {
 struct DropPattern;
 impl ArenaTest<Index<Pattern>> for DropPattern {
     fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>) {
-        mem::drop(PatternDropAdapter::new(pattern, arenas))
+        mem::drop(PatternDropAdapter(Some(pattern), arenas))
+    }
+}
+
+struct DropPatternAndCheckArenasEmpty;
+impl ArenaTest<Index<Pattern>> for DropPatternAndCheckArenasEmpty {
+    fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>) {
+        let arena_sizes = get_arena_sizes(arenas);
+        assert_ne!(arena_sizes(), [0; _]);
+        mem::drop(PatternDropAdapter(Some(pattern), arenas));
+        assert_eq!(arena_sizes(), [0; _]);
     }
 }
 
@@ -91,14 +100,14 @@ impl ArenaTest<Index<Pattern>> for CloneAndDropAndCheckSizesEqual {
             "Cloning twice should increase the number of elements by the same amount"
         );
         let pattern_3_adapter =
-            PatternDropAdapter::new(pattern_3.clone(), arenas);
+            PatternDropAdapter(Some(pattern_3.clone()), arenas);
         mem::drop(pattern_3_adapter);
         let sizes_4 = arena_sizes();
         assert_eq!(
             sizes_4, sizes_2,
             "Cloning then dropping should preserve the number of elements"
         );
-        mem::drop(PatternDropAdapter::new(pattern_2, arenas));
+        mem::drop(PatternDropAdapter(Some(pattern_2), arenas));
         let sizes_5 = arena_sizes();
         assert_eq!(
             sizes_5, sizes,
@@ -131,6 +140,26 @@ fn can_allocate_then_deallocate_once() {
 #[test]
 fn can_allocate_then_deallocate_multiple() {
     with_reused_arenas::<_, DropPattern, GrowableArenas, AnyPatternStrategy>()
+}
+
+#[test]
+fn can_allocate_then_deallocate_completely_once() {
+    with_regenerated_arenas::<
+        _,
+        DropPatternAndCheckArenasEmpty,
+        GrowableArenas,
+        AnyPatternStrategy,
+    >()
+}
+
+#[test]
+fn can_allocate_then_deallocate_completely_multiple() {
+    with_reused_arenas::<
+        _,
+        DropPatternAndCheckArenasEmpty,
+        GrowableArenas,
+        AnyPatternStrategy,
+    >()
 }
 
 #[test]

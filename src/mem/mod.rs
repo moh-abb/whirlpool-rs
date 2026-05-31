@@ -1,5 +1,6 @@
 pub mod alloc_types;
 pub mod arena;
+pub mod clone;
 pub mod drop;
 pub mod structures;
 
@@ -19,3 +20,10 @@ pub use structures::chain::Chain;
 pub use structures::index::INVALID_INDEX_VALUE;
 pub use structures::index::Index;
 pub use structures::multiple::Multiple;
+
+/// Asserts a unit [ArenaResult] is [Ok] when debug assertions are enabled.
+pub fn debug_unwrap(result: ArenaResult<()>) {
+    if cfg!(debug_assertions) {
+        result.unwrap()
+    }
+}

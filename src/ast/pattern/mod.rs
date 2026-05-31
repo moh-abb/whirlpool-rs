@@ -11,6 +11,7 @@ pub mod equality;
 pub mod format_display;
 pub mod interpreter;
 pub mod note;
+mod refs;
 #[cfg(test)]
 pub mod string_display;
 mod visitor;
