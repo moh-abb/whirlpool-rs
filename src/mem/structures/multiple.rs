@@ -49,7 +49,9 @@ impl<Item: ArenaItem> Multiple<Item> {
     ) {
         // The element should not be connected to anything.
         let elem_is_singleton = arena
-            .map(elem_index.clone(), |e| e.1.is_none() && e.2.is_none())
+            .map(elem_index.clone(), |e| {
+                e.clone().pop_prev().is_none() && e.clone().pop_next().is_none()
+            })
             .unwrap();
         debug_assert!(elem_is_singleton);
         let new_start_end = if self.is_empty() {
@@ -60,14 +62,10 @@ impl<Item: ArenaItem> Multiple<Item> {
             let (start, end) = self.start_end.clone().unwrap();
             let new_start = elem_index.clone();
             let link_start_to_new_start = |start_elem: &mut Chain<Item>| {
-                let Chain(_index, prev, _next) = start_elem;
-                debug_assert!(prev.is_none());
-                prev.replace(new_start.clone());
+                start_elem.set_prev(new_start.clone());
             };
             let link_new_start_to_start = |new_start_elem: &mut Chain<Item>| {
-                let Chain(_index, _prev, next) = new_start_elem;
-                debug_assert!(next.is_none());
-                next.replace(start.clone());
+                new_start_elem.set_next(start.clone());
             };
             arena
                 .map_mut(start.clone(), link_start_to_new_start)
@@ -89,7 +87,9 @@ impl<Item: ArenaItem> Multiple<Item> {
     ) {
         // The element should not be connected to anything.
         let elem_is_singleton = arena
-            .map(elem_index.clone(), |e| e.1.is_none() && e.2.is_none())
+            .map(elem_index.clone(), |e| {
+                e.clone().pop_prev().is_none() && e.clone().pop_next().is_none()
+            })
             .unwrap();
         debug_assert!(elem_is_singleton);
         let new_start_end = if self.is_empty() {
@@ -100,14 +100,10 @@ impl<Item: ArenaItem> Multiple<Item> {
             let (start, end) = self.start_end.clone().unwrap();
             let new_end = elem_index.clone();
             let link_end_to_new_end = |end_elem: &mut Chain<Item>| {
-                let Chain(_index, _prev, next) = end_elem;
-                debug_assert!(next.is_none());
-                next.replace(new_end.clone());
+                end_elem.set_next(new_end.clone());
             };
             let link_new_end_to_end = |new_end_elem: &mut Chain<Item>| {
-                let Chain(_index, prev, _next) = new_end_elem;
-                debug_assert!(prev.is_none());
-                prev.replace(end.clone());
+                new_end_elem.set_prev(end.clone());
             };
             arena
                 .map_mut(end.clone(), link_end_to_new_end)
@@ -132,21 +128,20 @@ impl<Item: ArenaItem> Multiple<Item> {
         };
         let end_prev = arena
             .map_mut(end.clone(), |end_elem| {
-                let Chain(_end_index, end_prev, _end_next) = end_elem;
-                debug_assert!(_end_next.is_none());
+                let end_next = end_elem.pop_next();
                 // Unlink the end element from the element before it.
-                end_prev.take()
+                debug_assert!(end_next.is_none());
+                end_elem.pop_prev()
             })
             .unwrap();
         let new_start_end = if let Some(prev) = end_prev {
             // The list was originally longer than a singleton.
             let unlink_end = |prev_elem: &mut Chain<Item>| {
-                let Chain(_prev_index, _prev_prev, prev_next) = prev_elem;
+                let prev_next = prev_elem.pop_next();
                 debug_assert_eq!(
-                    prev_next.clone().map(usize::from),
+                    prev_next.map(usize::from),
                     Some(usize::from(end.clone()))
                 );
-                prev_next.take();
             };
             arena
                 .map_mut(prev.clone(), unlink_end)
@@ -224,11 +219,10 @@ impl<Item: ArenaItem> Multiple<Item> {
             Some((start, end)) => {
                 let mut from_left = start.clone();
                 (0..manually_counted_length - 1).for_each(|_| {
-                    let chain = arena
+                    let mut cloned_chain = arena
                         .map(from_left.clone(), Clone::clone)
                         .unwrap();
-                    let Chain(_index, _prev, next) = chain;
-                    from_left = next.unwrap();
+                    from_left = cloned_chain.pop_next().unwrap();
                 });
                 assert_eq!(
                     usize::from(from_left.clone()),
@@ -236,11 +230,10 @@ impl<Item: ArenaItem> Multiple<Item> {
                 );
                 let mut from_right = end.clone();
                 (0..manually_counted_length - 1).for_each(|_| {
-                    let chain = arena
+                    let mut cloned_chain = arena
                         .map(from_right.clone(), Clone::clone)
                         .unwrap();
-                    let Chain(_index, prev, _next) = chain;
-                    from_right = prev.unwrap();
+                    from_right = cloned_chain.pop_prev().unwrap();
                 });
                 assert_eq!(
                     usize::from(from_right.clone()),
@@ -268,19 +261,19 @@ impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> Iterator
 
     fn next(&mut self) -> Option<Self::Item> {
         let (start, end) = self.start_end.clone()?;
-        let cloned_start = match self
+        let mut cloned_start = match self
             .arena
             .map(start.clone(), Clone::clone)
         {
             Ok(cloned) => cloned,
             Err(err) => return Some(Err(err)),
         };
-        let Chain(index, _prev, next) = cloned_start;
-        let new_start_end = next
+        let new_start_end = cloned_start
+            .pop_next()
             .zip(Some(end.clone()))
             .filter(|_| start != end);
         self.start_end = new_start_end;
-        Some(Ok((index, start)))
+        Some(Ok((cloned_start.get_index(), start)))
     }
 }
 
@@ -289,19 +282,18 @@ impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> DoubleEndedIterator
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         let (start, end) = self.start_end.clone()?;
-        let cloned_end = match self
+        let mut cloned_end = match self
             .arena
             .map(end.clone(), Clone::clone)
         {
             Ok(cloned) => cloned,
             Err(err) => return Some(Err(err)),
         };
-        let Chain(index, prev, _next) = cloned_end;
         let new_start_end = Some(start.clone())
-            .zip(prev)
+            .zip(cloned_end.pop_prev())
             .filter(|_| start != end);
         self.start_end = new_start_end;
-        Some(Ok((index, end)))
+        Some(Ok((cloned_end.get_index(), end)))
     }
 }
 

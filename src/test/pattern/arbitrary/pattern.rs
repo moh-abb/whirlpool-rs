@@ -56,7 +56,7 @@ fn pattern_to_time_cat<Arenas: PatternArenas + 'static>(
                         Some(timed_step_index.clone()),
                         arenas,
                     );
-                    let timed_step_chain = Chain(timed_step_index, None, None);
+                    let timed_step_chain = Chain::new(timed_step_index);
                     let chain_index = chain_arena.push(timed_step_chain)?;
                     timed_step_adapter.0.take();
 
@@ -92,7 +92,7 @@ fn pattern_to_multiple_pattern<Arenas: PatternArenas + 'static>(
 
                 // Append to the Multiple<Pattern>.
                 let chain_index =
-                    chain_arena.push(Chain(pattern_index, None, None))?;
+                    chain_arena.push(Chain::new(pattern_index))?;
                 item_adapter.0.take();
 
                 let multiple = multiple_adapter.0.as_mut().unwrap();

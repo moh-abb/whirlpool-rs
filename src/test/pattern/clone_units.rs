@@ -155,10 +155,12 @@ fn test_clone_with_three_subpatterns(
     fill_slot(&PATTERN_SLOTS[1], letter_a());
     fill_slot(&PATTERN_SLOTS[2], letter_b());
     fill_slot(&PATTERN_SLOTS[3], letter_c());
-    let a_chain = Chain(Index::new(1), None, Some(Index::new(1)));
-    let b_chain =
-        Chain(Index::new(2), Some(Index::new(0)), Some(Index::new(2)));
-    let c_chain = Chain(Index::new(3), Some(Index::new(1)), None);
+    let mut a_chain = Chain::new(Index::new(1));
+    a_chain.set_next(Index::new(1));
+    let mut b_chain = Chain::new(Index::new(2));
+    b_chain.set_next(Index::new(2));
+    let mut c_chain = Chain::new(Index::new(3));
+    c_chain.set_prev(Index::new(1));
     fill_slot(&PATTERN_CHAIN_SLOTS[0], a_chain);
     fill_slot(&PATTERN_CHAIN_SLOTS[1], b_chain);
     fill_slot(&PATTERN_CHAIN_SLOTS[2], c_chain);

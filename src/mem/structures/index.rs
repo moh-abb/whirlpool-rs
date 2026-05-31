@@ -2,7 +2,7 @@ use core::fmt::Debug;
 use core::marker::PhantomData;
 
 type IndexInner = u16;
-pub const INVALID_INDEX_VALUE: u16 = u16::MAX;
+const INVALID_INDEX_VALUE: u16 = u16::MAX;
 
 /// An index type used to access an [crate::mem::Arena].
 /// Because implicit copying can lead to hidden sharing of indices, which
@@ -19,8 +19,7 @@ impl<T: Debug> Debug for Index<T> {
 
 impl<T> Clone for Index<T> {
     fn clone(&self) -> Self {
-        let Self(inner, _) = self;
-        Index(*inner, PhantomData)
+        self.const_clone()
     }
 }
 
@@ -28,6 +27,15 @@ impl<T> Index<T> {
     #[inline(always)]
     pub const fn new(index: IndexInner) -> Self {
         Self(index, PhantomData)
+    }
+
+    pub const fn new_invalid() -> Self {
+        Self::new(INVALID_INDEX_VALUE)
+    }
+
+    pub const fn const_clone(&self) -> Self {
+        let Self(inner, _) = self;
+        Index(*inner, PhantomData)
     }
 }
 

@@ -152,19 +152,19 @@ impl<Arenas: PatternArenas> DropRefs<Arenas> for Index<Pattern> {
                 let iter = pattern_index_to_iter(pattern_index);
                 Ok(combine_iters(None, Some(combine_iters(Some(iter), None))))
             }
-            PatternDropRef::PatternChain(index) => {
+            PatternDropRef::PatternChain(chain_index) => {
                 let pattern_index = arenas
                     .get_pattern_chain_arena()
-                    .take(index)?
-                    .0;
+                    .take(chain_index)?
+                    .get_index();
                 let iter = pattern_index_to_iter(pattern_index);
                 Ok(combine_iters(None, Some(combine_iters(Some(iter), None))))
             }
-            PatternDropRef::TimedStepChain(index) => {
+            PatternDropRef::TimedStepChain(chain_index) => {
                 let timed_step_index = arenas
                     .get_timed_step_chain_arena()
-                    .take(index)?
-                    .0;
+                    .take(chain_index)?
+                    .get_index();
                 let iter = timed_step_index_to_iter(timed_step_index);
                 Ok(combine_iters(None, Some(combine_iters(None, Some(iter)))))
             }

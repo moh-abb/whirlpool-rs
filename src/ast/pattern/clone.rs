@@ -11,7 +11,6 @@ use crate::ast::pattern::refs::pattern_refs;
 use crate::mem::Arena;
 use crate::mem::ArenaResult;
 use crate::mem::Chain;
-use crate::mem::INVALID_INDEX_VALUE;
 use crate::mem::Index;
 use crate::mem::Multiple;
 use crate::mem::clone::clone_in_arenas;
@@ -193,12 +192,12 @@ impl<Arenas: PatternArenas> CloneRefs<Arenas> for Index<Pattern> {
                 // Set the chain to point to the allocated pattern.
                 arenas
                     .get_pattern_chain_arena()
-                    .map_mut(parent, |Chain(index, _, _)| {
+                    .map_mut(parent, |chain| {
                         debug_assert_eq!(
-                            *index,
-                            Index::new(INVALID_INDEX_VALUE)
+                            chain.get_index(),
+                            Index::new_invalid()
                         );
-                        *index = alloc_pattern.clone();
+                        chain.set_index(alloc_pattern.clone());
                     })?;
                 let iter =
                     Some(pattern_clone_refs(cloned_pattern, alloc_pattern));
@@ -213,10 +212,7 @@ impl<Arenas: PatternArenas> CloneRefs<Arenas> for Index<Pattern> {
                 arenas.get_timed_step_arena().map_mut(
                     parent,
                     |TimedStep(_duration, index)| {
-                        debug_assert_eq!(
-                            *index,
-                            Index::new(INVALID_INDEX_VALUE)
-                        );
+                        debug_assert_eq!(*index, Index::new_invalid());
                         *index = alloc_pattern.clone();
                     },
                 )?;
@@ -228,18 +224,18 @@ impl<Arenas: PatternArenas> CloneRefs<Arenas> for Index<Pattern> {
                 let TimedStep(duration, child_pattern) =
                     timed_step_arena.map(index.clone(), Clone::clone)?;
                 let cloned_timed_step =
-                    TimedStep(duration, Index::new(INVALID_INDEX_VALUE));
+                    TimedStep(duration, Index::new_invalid());
                 let alloc_timed_step =
                     timed_step_arena.push(cloned_timed_step.clone())?;
                 // Set the chain to point to the allocated pattern.
                 arenas
                     .get_timed_step_chain_arena()
-                    .map_mut(parent, |Chain(index, _, _)| {
+                    .map_mut(parent, |chain| {
                         debug_assert_eq!(
-                            *index,
-                            Index::new(INVALID_INDEX_VALUE)
+                            chain.get_index(),
+                            Index::new_invalid()
                         );
-                        *index = alloc_timed_step.clone();
+                        chain.set_index(alloc_timed_step.clone());
                     })?;
                 let iter = once(Ok(PatternCloneRef::PatternChildOfTimedStep {
                     index: child_pattern,
@@ -250,11 +246,9 @@ impl<Arenas: PatternArenas> CloneRefs<Arenas> for Index<Pattern> {
             }
             PatternCloneRef::PatternChain { index, parent } => {
                 let chain_arena = arenas.get_pattern_chain_arena();
-                let child = chain_arena
-                    .map(index, |Chain(child, _, _)| child.clone())?;
+                let child = chain_arena.map(index, Chain::get_index)?;
                 // Allocate a new chain with an invalid index.
-                let invalid_chain =
-                    Chain(Index::new(INVALID_INDEX_VALUE), None, None);
+                let invalid_chain = Chain::new_invalid();
                 let chain_index = chain_arena.push(invalid_chain)?;
                 // Append the pattern chain to the parent.
                 append_pattern_chain(parent, chain_index.clone())?;
@@ -267,11 +261,9 @@ impl<Arenas: PatternArenas> CloneRefs<Arenas> for Index<Pattern> {
             }
             PatternCloneRef::TimedStepChain { index, parent } => {
                 let chain_arena = arenas.get_timed_step_chain_arena();
-                let child = chain_arena
-                    .map(index, |Chain(child, _, _)| child.clone())?;
+                let child = chain_arena.map(index, Chain::get_index)?;
                 // Allocate a new chain with an invalid index.
-                let invalid_chain =
-                    Chain(Index::new(INVALID_INDEX_VALUE), None, None);
+                let invalid_chain = Chain::new_invalid();
                 let chain_index = chain_arena.push(invalid_chain)?;
                 // Append the pattern chain to the parent.
                 append_timed_step_chain(parent, chain_index.clone())?;

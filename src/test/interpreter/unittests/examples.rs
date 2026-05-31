@@ -53,6 +53,27 @@ pub fn one_cycle_silence() -> (impl PatternArenas, Index<Pattern>) {
     one_cycle_with(Pattern::Silence)
 }
 
+const fn make_chain_array<const N: usize, T>(
+    elem_indices: [Index<T>; N],
+    chain_indices: [Index<Chain<T>>; N],
+) -> [(Index<Chain<T>>, Chain<T>); N] {
+    let mut result =
+        [const { (Index::new_invalid(), Chain::new_invalid()) }; N];
+    let mut i = 0;
+    while i < N {
+        let mut cur_chain = Chain::new(elem_indices[i].const_clone());
+        if i > 0 {
+            cur_chain.set_prev(chain_indices[i - 1].const_clone());
+        }
+        if i + 1 < N {
+            cur_chain.set_next(chain_indices[i + 1].const_clone());
+        }
+        result[i] = (chain_indices[i].const_clone(), cur_chain);
+        i += 1;
+    }
+    result
+}
+
 pub fn binary_tree_depth_two(
     root: fn(Multiple<Pattern>) -> Pattern,
     left_child: fn(Multiple<Pattern>) -> Pattern,
@@ -81,32 +102,24 @@ pub fn binary_tree_depth_two(
             (Index::new(5), right_child(right_child_multiple)),
             (head_index.clone(), root(root_multiple)),
         ]),
-        pattern_chain_arena: FixedArena::new([
-            (
-                Index::new(0xC0),
-                Chain(Index::new(0), None, Some(Index::new(0xC1))),
-            ),
-            (
-                Index::new(0xC1),
-                Chain(Index::new(1), Some(Index::new(0xC0)), None),
-            ),
-            (
-                Index::new(0xC2),
-                Chain(Index::new(2), None, Some(Index::new(0xC3))),
-            ),
-            (
-                Index::new(0xC3),
-                Chain(Index::new(3), Some(Index::new(0xC2)), None),
-            ),
-            (
-                Index::new(0xC4),
-                Chain(Index::new(4), None, Some(Index::new(0xC5))),
-            ),
-            (
-                Index::new(0xC5),
-                Chain(Index::new(5), Some(Index::new(0xC4)), None),
-            ),
-        ]),
+        pattern_chain_arena: FixedArena::new(
+            [
+                make_chain_array(
+                    [0, 1].map(Index::new),
+                    [0xC0, 0xC1].map(Index::new),
+                ),
+                make_chain_array(
+                    [2, 3].map(Index::new),
+                    [0xC2, 0xC3].map(Index::new),
+                ),
+                make_chain_array(
+                    [4, 5].map(Index::new),
+                    [0xC4, 0xC5].map(Index::new),
+                ),
+            ]
+            .into_iter()
+            .flatten(),
+        ),
         ..Default::default()
     };
     (arenas, head_index)
@@ -135,24 +148,20 @@ pub fn half_binary_tree_depth_two(
             (Index::new(5), Pattern::Note(note_unit(NoteLetter::C))),
             (head_index.clone(), tree),
         ]),
-        pattern_chain_arena: FixedArena::new([
-            (
-                Index::new(0xC0),
-                Chain(Index::new(0), None, Some(Index::new(0xC1))),
-            ),
-            (
-                Index::new(0xC1),
-                Chain(Index::new(1), Some(Index::new(0xC0)), None),
-            ),
-            (
-                Index::new(0xC2),
-                Chain(Index::new(4), None, Some(Index::new(0xC3))),
-            ),
-            (
-                Index::new(0xC3),
-                Chain(Index::new(5), Some(Index::new(0xC2)), None),
-            ),
-        ]),
+        pattern_chain_arena: FixedArena::new(
+            [
+                make_chain_array(
+                    [0, 1].map(Index::new),
+                    [0xC0, 0xC1].map(Index::new),
+                ),
+                make_chain_array(
+                    [4, 5].map(Index::new),
+                    [0xC2, 0xC3].map(Index::new),
+                ),
+            ]
+            .into_iter()
+            .flatten(),
+        ),
         ..Default::default()
     };
     (arenas, head_index)
@@ -175,24 +184,10 @@ pub fn multiple_of_three_units(
             (Index::new(2), Pattern::Note(note_unit(NoteLetter::C))),
             (head_index.clone(), overall_pattern),
         ]),
-        pattern_chain_arena: FixedArena::new([
-            (
-                Index::new(0xC0),
-                Chain(Index::new(0), None, Some(Index::new(0xC1))),
-            ),
-            (
-                Index::new(0xC1),
-                Chain(
-                    Index::new(1),
-                    Some(Index::new(0xC0)),
-                    Some(Index::new(0xC2)),
-                ),
-            ),
-            (
-                Index::new(0xC2),
-                Chain(Index::new(2), Some(Index::new(0xC1)), None),
-            ),
-        ]),
+        pattern_chain_arena: FixedArena::new(make_chain_array(
+            [0, 1, 2].map(Index::new),
+            [0xC0, 0xC1, 0xC2].map(Index::new),
+        )),
         ..Default::default()
     };
     (arenas, head_index)
@@ -215,24 +210,10 @@ pub fn multiple_of_unit_then_silence_then_unit(
             (Index::new(2), Pattern::Note(note_unit(NoteLetter::C))),
             (head_index.clone(), overall_pattern),
         ]),
-        pattern_chain_arena: FixedArena::new([
-            (
-                Index::new(0xC0),
-                Chain(Index::new(0), None, Some(Index::new(0xC1))),
-            ),
-            (
-                Index::new(0xC1),
-                Chain(
-                    Index::new(1),
-                    Some(Index::new(0xC0)),
-                    Some(Index::new(0xC2)),
-                ),
-            ),
-            (
-                Index::new(0xC2),
-                Chain(Index::new(2), Some(Index::new(0xC1)), None),
-            ),
-        ]),
+        pattern_chain_arena: FixedArena::new(make_chain_array(
+            [0, 1, 2].map(Index::new),
+            [0xC0, 0xC1, 0xC2].map(Index::new),
+        )),
         ..Default::default()
     };
     (arenas, head_index)
@@ -263,32 +244,10 @@ pub fn multiple_of_four_timed_steps(
             (Index::new(0xA2), TimedStep(elem_lengths[2], Index::new(2))),
             (Index::new(0xA3), TimedStep(elem_lengths[3], Index::new(3))),
         ]),
-        timed_step_chain_arena: FixedArena::new([
-            (
-                Index::new(0xD0),
-                Chain(Index::new(0xA0), None, Some(Index::new(0xD1))),
-            ),
-            (
-                Index::new(0xD1),
-                Chain(
-                    Index::new(0xA1),
-                    Some(Index::new(0xD0)),
-                    Some(Index::new(0xD2)),
-                ),
-            ),
-            (
-                Index::new(0xD2),
-                Chain(
-                    Index::new(0xA2),
-                    Some(Index::new(0xD1)),
-                    Some(Index::new(0xD3)),
-                ),
-            ),
-            (
-                Index::new(0xD3),
-                Chain(Index::new(0xA3), Some(Index::new(0xD2)), None),
-            ),
-        ]),
+        timed_step_chain_arena: FixedArena::new(make_chain_array(
+            [0xA0, 0xA1, 0xA2, 0xA3].map(Index::new),
+            [0xD0, 0xD1, 0xD2, 0xD3].map(Index::new),
+        )),
         ..Default::default()
     };
     (arenas, head_index)
@@ -330,24 +289,20 @@ pub fn half_binary_tree_depth_two_with_timed_steps(
             (Index::new(0xD2), TimedStep(child_elem_lengths[0], Index::new(0))),
             (Index::new(0xD3), TimedStep(child_elem_lengths[1], Index::new(1))),
         ]),
-        timed_step_chain_arena: FixedArena::new([
-            (
-                Index::new(0xC0),
-                Chain(Index::new(0xD0), None, Some(Index::new(0xC1))),
-            ),
-            (
-                Index::new(0xC1),
-                Chain(Index::new(0xD1), Some(Index::new(0xC0)), None),
-            ),
-            (
-                Index::new(0xC2),
-                Chain(Index::new(0xD2), None, Some(Index::new(0xC3))),
-            ),
-            (
-                Index::new(0xC3),
-                Chain(Index::new(0xD3), Some(Index::new(0xC2)), None),
-            ),
-        ]),
+        timed_step_chain_arena: FixedArena::new(
+            [
+                make_chain_array(
+                    [0xD0, 0xD1].map(Index::new),
+                    [0xC0, 0xC1].map(Index::new),
+                ),
+                make_chain_array(
+                    [0xD2, 0xD3].map(Index::new),
+                    [0xC2, 0xC3].map(Index::new),
+                ),
+            ]
+            .into_iter()
+            .flatten(),
+        ),
     };
     (arenas, head_index)
 }
