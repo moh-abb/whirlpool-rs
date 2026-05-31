@@ -10,9 +10,9 @@ use crate::ast::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::interpreter::Interpreter;
 use crate::mem::Index;
-use crate::player::MockPatternPlayer;
-use crate::player::unit::SoundUnit;
-use crate::test::interpreter::logging::LoggingPlayer;
+use crate::synth::scheduler::MockUnitScheduler;
+use crate::synth::unit::SoundUnit;
+use crate::test::interpreter::logging::LoggingScheduler;
 
 mod arbitrary;
 mod logging;
@@ -55,9 +55,9 @@ fn test_expectations<
 }
 
 pub trait TestSetupStrategy {
-    fn setup_interpreter<Arenas, Player, BorrowAdapter>(
+    fn setup_interpreter<Arenas, Scheduler, BorrowAdapter>(
         self,
-        interpreter: &mut Interpreter<Arenas, Player, BorrowAdapter>,
+        interpreter: &mut Interpreter<Arenas, Scheduler, BorrowAdapter>,
     );
 }
 
@@ -66,9 +66,9 @@ pub struct FullInterpreterSetup {
     pub multiplier: CycleTime,
 }
 impl TestSetupStrategy for FullInterpreterSetup {
-    fn setup_interpreter<Arenas, Player, BorrowAdapter>(
+    fn setup_interpreter<Arenas, Scheduler, BorrowAdapter>(
         self,
-        interpreter: &mut Interpreter<Arenas, Player, BorrowAdapter>,
+        interpreter: &mut Interpreter<Arenas, Scheduler, BorrowAdapter>,
     ) {
         interpreter.set_multiplier(self.multiplier);
         interpreter.set_offset(self.offset);
@@ -77,9 +77,9 @@ impl TestSetupStrategy for FullInterpreterSetup {
 
 struct EmptyInterpreterSetup;
 impl TestSetupStrategy for EmptyInterpreterSetup {
-    fn setup_interpreter<Arenas, Player, BorrowAdapter>(
+    fn setup_interpreter<Arenas, Scheduler, BorrowAdapter>(
         self,
-        _: &mut Interpreter<Arenas, Player, BorrowAdapter>,
+        _: &mut Interpreter<Arenas, Scheduler, BorrowAdapter>,
     ) {
         // Does nothing.
     }
@@ -113,37 +113,38 @@ fn test_expectations_with_interpreter_setup_and_start_time<
     expected_schedule_actions: Expectations,
     test_setup: impl TestSetupStrategy,
 ) {
-    let mut mock_player = MockPatternPlayer::new();
-    let logging_player = RefCell::new(LoggingPlayer::new(&mut mock_player));
-    let with_mock_player = |f: &dyn Fn(&mut MockPatternPlayer)| {
-        let mut borrowed_logger = logging_player.borrow_mut();
-        let borrowed_player = borrowed_logger.get_mut_player();
-        f(borrowed_player)
+    let mut mock_scheduler = MockUnitScheduler::new();
+    let logging_scheduler =
+        RefCell::new(LoggingScheduler::new(&mut mock_scheduler));
+    let with_mock_scheduler = |f: &dyn Fn(&mut MockUnitScheduler)| {
+        let mut borrowed_logger = logging_scheduler.borrow_mut();
+        let borrowed_scheduler = borrowed_logger.get_mut_scheduler();
+        f(borrowed_scheduler)
     };
 
     let mut interpreter =
-        Interpreter::new_with_refcell(head_index, arenas, &logging_player);
+        Interpreter::new_with_refcell(head_index, arenas, &logging_scheduler);
     test_setup.setup_interpreter(&mut interpreter);
 
     // Advance the interpreter to the start position.
     // First, ignore all possible played notes before the start position.
-    logging_player
+    logging_scheduler
         .borrow_mut()
         .set_inner_enabled(false);
     interpreter.update_time(start_time);
-    logging_player
+    logging_scheduler
         .borrow_mut()
         .set_inner_enabled(true);
 
     // Enable printing log messages, if desired.
-    logging_player
+    logging_scheduler
         .borrow_mut()
         .set_logging(false);
     let expect_note_unit = |expectation: ScheduledExpectation| {
         let ScheduledExpectation { start_time, duration, note_unit } =
             expectation;
         let sound_unit = SoundUnit::new(note_unit, duration);
-        let add_expectation = |borrowed_player: &mut MockPatternPlayer| {
+        let add_expectation = |borrowed_scheduler: &mut MockUnitScheduler| {
             let abs_diff = |x: CycleTime, y: CycleTime| {
                 if x <= y { y - x } else { x - y }
             };
@@ -151,13 +152,13 @@ fn test_expectations_with_interpreter_setup_and_start_time<
                 predicate::function(move |time: &CycleTime| {
                     abs_diff(start_time, *time) <= EPSILON
                 });
-            borrowed_player
-                .expect_schedule_note_unit()
+            borrowed_scheduler
+                .expect_add()
                 .with(predicate::eq(sound_unit.clone()), approx_eq_start_time)
                 .once()
                 .return_const(());
         };
-        with_mock_player(&add_expectation)
+        with_mock_scheduler(&add_expectation)
     };
 
     for borrow_scheduled_actions in expected_schedule_actions {
@@ -167,6 +168,6 @@ fn test_expectations_with_interpreter_setup_and_start_time<
             .into_iter()
             .for_each(|e| expect_note_unit(e.borrow().clone()));
         interpreter.update_time(*next_cycle_time);
-        with_mock_player(&|player| player.checkpoint());
+        with_mock_scheduler(&|player| player.checkpoint());
     }
 }

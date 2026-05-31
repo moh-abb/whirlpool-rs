@@ -16,8 +16,8 @@ use crate::ast::pattern::visitor::visit_pattern;
 use crate::mem::Arena;
 use crate::mem::Index;
 use crate::mem::Multiple;
-use crate::player::PatternPlayer;
-use crate::player::unit::SoundUnit;
+use crate::synth::scheduler::UnitScheduler;
+use crate::synth::unit::SoundUnit;
 
 mod private {
     pub trait Sealed {}
@@ -45,29 +45,29 @@ impl<T> InterpreterBorrowAdapter<T> for &mut T {
 /// plays units (traversing the [Pattern]'s tree) when new units are
 /// encountered.
 #[allow(unused)]
-pub struct Interpreter<'a, Arenas, Player, B> {
+pub struct Interpreter<'a, Arenas, Scheduler, B> {
     pattern: Index<Pattern>,
     arenas: &'a Arenas,
     borrow_adapter: B,
     position: CycleTime,
     base_multiplier: CycleTime,
     base_offset: CycleTime,
-    phantom: PhantomData<Player>,
+    phantom: PhantomData<Scheduler>,
 }
 
-impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
-    Interpreter<'a, Arenas, Player, &'a mut Player>
+impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler>
+    Interpreter<'a, Arenas, Scheduler, &'a mut Scheduler>
 {
     #[allow(unused)]
     pub fn new(
         pattern: Index<Pattern>,
         arenas: &'a Arenas,
-        player: &'a mut Player,
+        scheduler: &'a mut Scheduler,
     ) -> Self {
         Self {
             pattern,
             arenas,
-            borrow_adapter: player,
+            borrow_adapter: scheduler,
             position: CycleTime::ZERO,
             base_multiplier: CycleTime::ONE,
             base_offset: CycleTime::ZERO,
@@ -76,19 +76,19 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
     }
 }
 
-impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
-    Interpreter<'a, Arenas, Player, &'a RefCell<Player>>
+impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler>
+    Interpreter<'a, Arenas, Scheduler, &'a RefCell<Scheduler>>
 {
     #[allow(unused)]
     pub fn new_with_refcell(
         pattern: Index<Pattern>,
         arenas: &'a Arenas,
-        player: &'a RefCell<Player>,
+        scheduler: &'a RefCell<Scheduler>,
     ) -> Self {
         Self {
             pattern,
             arenas,
-            borrow_adapter: player,
+            borrow_adapter: scheduler,
             position: CycleTime::ZERO,
             base_multiplier: CycleTime::ONE,
             base_offset: CycleTime::ZERO,
@@ -97,7 +97,7 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
     }
 }
 
-impl<'a, Arenas, Player, Borrow> Interpreter<'a, Arenas, Player, Borrow> {
+impl<'a, Arenas, S, Borrow> Interpreter<'a, Arenas, S, Borrow> {
     #[cfg(test)]
     #[allow(unused)]
     pub fn set_multiplier(&mut self, multiplier: CycleTime) {
@@ -114,15 +114,15 @@ impl<'a, Arenas, Player, Borrow> Interpreter<'a, Arenas, Player, Borrow> {
 impl<
     'a,
     Arenas: PatternArenas,
-    Player: PatternPlayer,
-    Borrow: InterpreterBorrowAdapter<Player>,
-> Interpreter<'a, Arenas, Player, Borrow>
+    S: UnitScheduler,
+    Borrow: InterpreterBorrowAdapter<S>,
+> Interpreter<'a, Arenas, S, Borrow>
 {
     #[allow(unused)]
     pub fn update_time(&mut self, next_position: CycleTime) {
         // The time should be monotonically increasing.
         assert!(next_position >= self.position);
-        let mut borrowed_player = self.borrow_adapter.borrow_mut();
+        let mut borrowed_scheduler = self.borrow_adapter.borrow_mut();
         let visitor = InterpreterVisitor {
             arenas: self.arenas,
             start: self.position,
@@ -130,7 +130,7 @@ impl<
             offset: self.base_offset,
             multiplier: self.base_multiplier,
             inner: RefCell::new(VisitorInner {
-                player: borrowed_player.deref_mut(),
+                scheduler: borrowed_scheduler.deref_mut(),
             }),
         };
         visit_pattern(&visitor, self.pattern.clone());
@@ -146,13 +146,13 @@ impl<
 ///   units faster.
 /// - `offset` is used to add an offset to the start time of units played.
 /// - `inner` contains the `Player` from which units will be scheduled.
-struct InterpreterVisitor<'a, Arenas, Player> {
+struct InterpreterVisitor<'a, Arenas, Scheduler> {
     arenas: &'a Arenas,
     start: CycleTime,
     duration: CycleTime,
     offset: CycleTime,
     multiplier: CycleTime,
-    inner: RefCell<VisitorInner<'a, Player>>,
+    inner: RefCell<VisitorInner<'a, Scheduler>>,
 }
 
 /// Represents the arguments that are passed into the `play_elem` function in
@@ -165,8 +165,8 @@ struct PlayElemArgs<'a, T> {
     multiplier: CycleTime,
 }
 
-impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
-    InterpreterVisitor<'a, Arenas, Player>
+impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler>
+    InterpreterVisitor<'a, Arenas, Scheduler>
 {
     fn play_elem_func(&self) -> impl FnMut(PlayElemArgs<'_, Index<Pattern>>) {
         |args| {
@@ -177,7 +177,9 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
                 duration: args.interval.end() - args.interval.start(),
                 offset: args.offset,
                 multiplier: args.multiplier,
-                inner: RefCell::new(VisitorInner { player: inner_mut.player }),
+                inner: RefCell::new(VisitorInner {
+                    scheduler: inner_mut.scheduler,
+                }),
             };
             visit_pattern(&visitor, args.elem.clone())
         }
@@ -230,12 +232,12 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
     }
 }
 
-struct VisitorInner<'a, Player> {
-    player: &'a mut Player,
+struct VisitorInner<'a, Scheduler> {
+    scheduler: &'a mut Scheduler,
 }
 
-impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
-    for InterpreterVisitor<'a, Arenas, Player>
+impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
+    for InterpreterVisitor<'a, Arenas, Scheduler>
 {
     type Output = ();
     type PatternOutput = ();
@@ -396,8 +398,8 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer> PatternVisitor
                 let scaled_start = (start + args.offset) / args.multiplier;
                 self.inner
                     .borrow_mut()
-                    .player
-                    .schedule_note_unit(args.elem.clone(), scaled_start);
+                    .scheduler
+                    .add(args.elem.clone(), scaled_start);
             },
         );
     }

@@ -11,5 +11,5 @@ extern crate alloc;
 
 pub mod ast;
 pub mod mem;
-pub mod player;
+pub mod synth;
 pub mod test;
