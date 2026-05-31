@@ -3,9 +3,10 @@ use crate::ast::CycleTime;
 mod cat;
 mod examples;
 mod seq;
+mod silence;
 mod stack;
 mod timedstep;
-mod unit_silence;
+mod unit;
 
 // A complex (approximation of pi) offset cycle time to test played units.
 const NONZERO_OFFSET: CycleTime =
