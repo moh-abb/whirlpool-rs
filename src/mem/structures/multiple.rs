@@ -42,6 +42,46 @@ impl<Item: ArenaItem> Multiple<Item> {
         self.length == 0
     }
 
+    pub fn push_front(
+        &mut self,
+        arena: &impl Arena<Chain<Item>>,
+        elem_index: Index<Chain<Item>>,
+    ) {
+        // The element should not be connected to anything.
+        let elem_is_singleton = arena
+            .inspect(elem_index.clone(), |e| e.1.is_none() && e.2.is_none())
+            .unwrap();
+        debug_assert!(elem_is_singleton);
+        let new_start_end = if self.is_empty() {
+            // The list is empty; update the chain to a singleton.
+            (elem_index.clone(), elem_index.clone())
+        } else {
+            // The list is not empty; push to the end.
+            let (start, end) = self.start_end.clone().unwrap();
+            let new_start = elem_index.clone();
+            let link_start_to_new_start = |start_elem: &mut Chain<Item>| {
+                let Chain(_index, prev, _next) = start_elem;
+                debug_assert!(prev.is_none());
+                prev.replace(new_start.clone());
+            };
+            let link_new_start_to_start = |new_start_elem: &mut Chain<Item>| {
+                let Chain(_index, _prev, next) = new_start_elem;
+                debug_assert!(next.is_none());
+                next.replace(start.clone());
+            };
+            arena
+                .inspect_mut(start.clone(), link_start_to_new_start)
+                .unwrap();
+            arena
+                .inspect_mut(new_start.clone(), link_new_start_to_start)
+                .unwrap();
+            (new_start, end)
+        };
+        // Update the start and end indices, and the length
+        self.length += 1;
+        let _ = self.start_end.insert(new_start_end);
+    }
+
     pub fn push_back(
         &mut self,
         arena: &impl Arena<Chain<Item>>,
