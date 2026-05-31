@@ -57,7 +57,7 @@ impl<T: ArenaItem> Arena<T> for FixedArena<T> {
         self.0.size()
     }
 
-    fn alloc(&self, _: T) -> ArenaResult<Index<T>> {
+    fn push(&self, _: T) -> ArenaResult<Index<T>> {
         unreachable!("Should not call [Arena::alloc] on FixedArena")
     }
 

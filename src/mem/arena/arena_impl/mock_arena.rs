@@ -59,7 +59,7 @@ impl<T: ArenaItem + Clone> Arena<T> for ArenaMocker<T> {
         self.0.borrow().size()
     }
 
-    fn alloc(&self, value: T) -> ArenaResult<Index<T>> {
+    fn push(&self, value: T) -> ArenaResult<Index<T>> {
         self.0.borrow_mut().alloc(value)
     }
 

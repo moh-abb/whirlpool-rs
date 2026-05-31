@@ -83,7 +83,7 @@ fn clone_pattern_with_empty_multiple(
         Pattern::Note(note_unit) => Pattern::Note(note_unit),
         Pattern::Silence => Pattern::Silence,
     };
-    pattern_arena.alloc(cloned_empty_pattern)
+    pattern_arena.push(cloned_empty_pattern)
 }
 
 impl<Arenas: PatternArenas> CloneRefs<Arenas> for Index<Pattern> {
@@ -229,7 +229,7 @@ impl<Arenas: PatternArenas> CloneRefs<Arenas> for Index<Pattern> {
                 let cloned_timed_step =
                     TimedStep(duration, Index::new(INVALID_INDEX_VALUE));
                 let alloc_timed_step =
-                    timed_step_arena.alloc(cloned_timed_step.clone())?;
+                    timed_step_arena.push(cloned_timed_step.clone())?;
                 // Set the chain to point to the allocated pattern.
                 arenas
                     .get_timed_step_chain_arena()
@@ -254,7 +254,7 @@ impl<Arenas: PatternArenas> CloneRefs<Arenas> for Index<Pattern> {
                 // Allocate a new chain with an invalid index.
                 let invalid_chain =
                     Chain(Index::new(INVALID_INDEX_VALUE), None, None);
-                let chain_index = chain_arena.alloc(invalid_chain)?;
+                let chain_index = chain_arena.push(invalid_chain)?;
                 // Append the pattern chain to the parent.
                 append_pattern_chain(parent, chain_index.clone())?;
                 let iter = once(Ok(PatternCloneRef::PatternChildOfPattern {
@@ -271,7 +271,7 @@ impl<Arenas: PatternArenas> CloneRefs<Arenas> for Index<Pattern> {
                 // Allocate a new chain with an invalid index.
                 let invalid_chain =
                     Chain(Index::new(INVALID_INDEX_VALUE), None, None);
-                let chain_index = chain_arena.alloc(invalid_chain)?;
+                let chain_index = chain_arena.push(invalid_chain)?;
                 // Append the pattern chain to the parent.
                 append_timed_step_chain(parent, chain_index.clone())?;
                 let iter = once(Ok(PatternCloneRef::TimedStep {

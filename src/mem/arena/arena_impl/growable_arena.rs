@@ -63,7 +63,7 @@ impl<T: ArenaItem> Arena<T> for GrowableArena<T> {
         self.0.size()
     }
 
-    fn alloc(&self, value: T) -> ArenaResult<Index<T>> {
+    fn push(&self, value: T) -> ArenaResult<Index<T>> {
         // We need to extend the inner `Vec` with one extra slot, provided we
         // have not already exceeded the limit.
         self.0
@@ -74,7 +74,7 @@ impl<T: ArenaItem> Arena<T> for GrowableArena<T> {
                 map.0.push(None);
                 Ok(())
             })?;
-        self.0.alloc(value)
+        self.0.push(value)
     }
 
     fn take(&self, index: Index<T>) -> ArenaResult<T> {

@@ -48,7 +48,7 @@ fn pattern_to_time_cat<Arenas: PatternArenas + 'static>(
                     let mut pattern_adapter =
                         PatternDropAdapter(Some(pattern_index.clone()), arenas);
                     let timed_step_index = timed_step_arena
-                        .alloc(TimedStep(*duration, pattern_index))?;
+                        .push(TimedStep(*duration, pattern_index))?;
                     pattern_adapter.0.take();
 
                     // Append to the Multiple<TimedStep>.
@@ -57,7 +57,7 @@ fn pattern_to_time_cat<Arenas: PatternArenas + 'static>(
                         arenas,
                     );
                     let timed_step_chain = Chain(timed_step_index, None, None);
-                    let chain_index = chain_arena.alloc(timed_step_chain)?;
+                    let chain_index = chain_arena.push(timed_step_chain)?;
                     timed_step_adapter.0.take();
 
                     let multiple = multiple_adapter.0.as_mut().unwrap();
@@ -69,7 +69,7 @@ fn pattern_to_time_cat<Arenas: PatternArenas + 'static>(
                 },
             )?;
         let multiple = multiple_adapter.0.clone().unwrap();
-        let result = pattern_arena.alloc(f(multiple))?;
+        let result = pattern_arena.push(f(multiple))?;
         multiple_adapter.0.take();
         Ok(result)
     })
@@ -92,7 +92,7 @@ fn pattern_to_multiple_pattern<Arenas: PatternArenas + 'static>(
 
                 // Append to the Multiple<Pattern>.
                 let chain_index =
-                    chain_arena.alloc(Chain(pattern_index, None, None))?;
+                    chain_arena.push(Chain(pattern_index, None, None))?;
                 item_adapter.0.take();
 
                 let multiple = multiple_adapter.0.as_mut().unwrap();
@@ -102,7 +102,7 @@ fn pattern_to_multiple_pattern<Arenas: PatternArenas + 'static>(
             },
         )?;
         let multiple = multiple_adapter.0.clone().unwrap();
-        let result = pattern_arena.alloc(f(multiple))?;
+        let result = pattern_arena.push(f(multiple))?;
         multiple_adapter.0.take();
         Ok(result)
     })

@@ -15,7 +15,7 @@ fn arb_silence<Arenas: PatternArenas>() -> ArenasTo<Arenas, Index<Pattern>> {
     ArenasTo::new(|arenas: &Arenas| {
         arenas
             .get_pattern_arena()
-            .alloc(Pattern::Silence)
+            .push(Pattern::Silence)
     })
 }
 

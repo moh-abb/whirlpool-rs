@@ -11,6 +11,6 @@ pub fn arb_pattern_note_unit<Arenas: PatternArenas>(
     ArenasTo::new(move |arenas: &Arenas| {
         arenas
             .get_pattern_arena()
-            .alloc(Pattern::Note(unit))
+            .push(Pattern::Note(unit))
     })
 }

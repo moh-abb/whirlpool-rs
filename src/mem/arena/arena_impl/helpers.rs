@@ -89,7 +89,7 @@ impl<T: ArenaItem, M: IndexableMap<T>> Arena<T> for IndexableMapArena<T, M> {
         inner.map.size()
     }
 
-    fn alloc(&self, value: T) -> ArenaResult<Index<T>> {
+    fn push(&self, value: T) -> ArenaResult<Index<T>> {
         // Stage 1. Check for the arena limit being reached.
         let inner_ref = self.0.borrow();
         let inner_next_index = inner_ref.next_index;

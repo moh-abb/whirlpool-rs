@@ -13,7 +13,7 @@ impl<T> ArenaItem for T where T: Ord + 'static {}
 pub trait Arena<T: ArenaItem> {
     fn size(&self) -> usize;
 
-    fn alloc(&self, value: T) -> ArenaResult<Index<T>>;
+    fn push(&self, value: T) -> ArenaResult<Index<T>>;
 
     fn take(&self, index: Index<T>) -> ArenaResult<T>;
 

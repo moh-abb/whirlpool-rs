@@ -66,8 +66,8 @@ impl<T: ArenaItem, const N: usize> Arena<T> for ScapegoatArena<T, N> {
         self.0.size()
     }
 
-    fn alloc(&self, value: T) -> ArenaResult<Index<T>> {
-        self.0.alloc(value)
+    fn push(&self, value: T) -> ArenaResult<Index<T>> {
+        self.0.push(value)
     }
 
     fn take(&self, index: Index<T>) -> ArenaResult<T> {
