@@ -170,11 +170,19 @@ impl<Item: ArenaItem> Multiple<Item> {
     }
 
     #[allow(unused)]
+    pub fn checked_iter<'a, CA: Arena<Chain<Item>>>(
+        &self,
+        arena: &'a CA,
+    ) -> IterChecked<'a, Item, CA> {
+        IterChecked { inner: self.iter_base(arena) }
+    }
+
+    #[allow(unused)]
     pub fn iter<'a, CA: Arena<Chain<Item>>>(
         &self,
         arena: &'a CA,
     ) -> Iter<'a, Item, CA> {
-        Iter { inner: self.iter_base(arena) }
+        Iter { inner: self.checked_iter(arena) }
     }
 
     #[allow(unused)]
@@ -330,7 +338,7 @@ impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> DoubleEndedIterator
 #[allow(unused)]
 #[derive(Debug, Clone)]
 pub struct Iter<'a, Item: ArenaItem, ChainArena: Arena<Chain<Item>>> {
-    inner: IterBase<'a, Item, ChainArena>,
+    inner: IterChecked<'a, Item, ChainArena>,
 }
 
 impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> Iterator
@@ -341,7 +349,7 @@ impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> Iterator
     fn next(&mut self) -> Option<Self::Item> {
         self.inner
             .next()
-            .map(|inner| inner.unwrap().0)
+            .map(ArenaResult::unwrap)
     }
 }
 
@@ -351,6 +359,35 @@ impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> DoubleEndedIterator
     fn next_back(&mut self) -> Option<Self::Item> {
         self.inner
             .next_back()
-            .map(|inner| inner.unwrap().0)
+            .map(ArenaResult::unwrap)
+    }
+}
+
+/// An iterator for which the elements consist of `ArenaResult<Index<Item>>`.
+#[allow(unused)]
+#[derive(Debug, Clone)]
+pub struct IterChecked<'a, Item: ArenaItem, ChainArena: Arena<Chain<Item>>> {
+    inner: IterBase<'a, Item, ChainArena>,
+}
+
+impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> Iterator
+    for IterChecked<'a, T, ChainArena>
+{
+    type Item = ArenaResult<Index<T>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner
+            .next()
+            .map(|inner| Ok(inner?.0))
+    }
+}
+
+impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> DoubleEndedIterator
+    for IterChecked<'a, T, ChainArena>
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner
+            .next_back()
+            .map(|inner| Ok(inner?.0))
     }
 }
