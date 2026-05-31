@@ -81,19 +81,19 @@ impl<T: ArenaItem> Arena<T> for GrowableArena<T> {
         self.0.take(index)
     }
 
-    fn inspect<U>(
+    fn map<U>(
         &self,
         index: Index<T>,
         func: impl FnOnce(&T) -> U,
     ) -> ArenaResult<U> {
-        self.0.inspect(index, func)
+        self.0.map(index, func)
     }
 
-    fn inspect_mut<U>(
+    fn map_mut<U>(
         &self,
         index: Index<T>,
         func: impl FnOnce(&mut T) -> U,
     ) -> ArenaResult<U> {
-        self.0.inspect_mut(index, func)
+        self.0.map_mut(index, func)
     }
 }

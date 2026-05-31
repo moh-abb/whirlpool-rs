@@ -192,7 +192,7 @@ impl<'a, Arenas: PatternArenas, Player: PatternPlayer>
             .filter_map(move |timed_step| {
                 self.arenas
                     .get_timed_step_arena()
-                    .inspect(timed_step, Clone::clone)
+                    .map(timed_step, Clone::clone)
                     .ok()
             })
     }

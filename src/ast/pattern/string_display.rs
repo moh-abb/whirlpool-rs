@@ -132,7 +132,7 @@ fn print_multiple_timed_step<
         |timed_step| {
             let cloned_timed_step = arenas
                 .get_timed_step_arena()
-                .inspect(timed_step, Clone::clone)
+                .map(timed_step, Clone::clone)
                 .unwrap();
             let TimedStep(time_unit, pattern) = cloned_timed_step;
             let visitor = PatternDisplayVisitor::<_, FoldStrategy> {

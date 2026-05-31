@@ -119,7 +119,7 @@ impl<T: ArenaItem, M: IndexableMap<T>> Arena<T> for IndexableMapArena<T, M> {
             .ok_or(ArenaError::ExpectedFullSlot)
     }
 
-    fn inspect<U>(
+    fn map<U>(
         &self,
         index: Index<T>,
         func: impl FnOnce(&T) -> U,
@@ -128,7 +128,7 @@ impl<T: ArenaItem, M: IndexableMap<T>> Arena<T> for IndexableMapArena<T, M> {
             .ok_or(ArenaError::ExpectedFullSlot)
     }
 
-    fn inspect_mut<U>(
+    fn map_mut<U>(
         &self,
         index: Index<T>,
         func: impl FnOnce(&mut T) -> U,

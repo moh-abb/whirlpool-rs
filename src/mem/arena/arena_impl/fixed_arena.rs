@@ -65,15 +65,15 @@ impl<T: ArenaItem> Arena<T> for FixedArena<T> {
         unreachable!("Should not call [Arena::take] on FixedArena")
     }
 
-    fn inspect<U>(
+    fn map<U>(
         &self,
         index: Index<T>,
         func: impl FnOnce(&T) -> U,
     ) -> ArenaResult<U> {
-        self.0.inspect(index, func)
+        self.0.map(index, func)
     }
 
-    fn inspect_mut<U>(
+    fn map_mut<U>(
         &self,
         _: Index<T>,
         _: impl FnOnce(&mut T) -> U,

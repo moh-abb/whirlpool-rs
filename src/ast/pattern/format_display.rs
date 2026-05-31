@@ -109,7 +109,7 @@ fn print_multiple_timed_step(
         |timed_step_index| {
             let cloned_timed_step = arenas
                 .get_timed_step_arena()
-                .inspect(timed_step_index, Clone::clone)
+                .map(timed_step_index, Clone::clone)
                 .unwrap();
             let TimedStep(time_unit, pattern_index) = cloned_timed_step;
             let print_pattern = |formatter: &mut Formatter<'_>| {

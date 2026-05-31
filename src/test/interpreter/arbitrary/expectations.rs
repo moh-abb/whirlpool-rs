@@ -76,7 +76,7 @@ fn timed_step_iter<'a>(
         .filter_map(|timed_step| {
             arenas
                 .get_timed_step_arena()
-                .inspect(timed_step, Clone::clone)
+                .map(timed_step, Clone::clone)
                 .ok()
         })
 }
@@ -90,7 +90,7 @@ pub fn pattern_expectations(
 ) -> ArenaResult<NoteSequence> {
     let cloned_pattern = arenas
         .get_pattern_arena()
-        .inspect(pattern, Clone::clone)?;
+        .map(pattern, Clone::clone)?;
 
     let result = match &cloned_pattern {
         Pattern::Cat(multiple) | Pattern::Seq(multiple) => {

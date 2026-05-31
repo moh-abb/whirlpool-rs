@@ -17,13 +17,13 @@ pub trait Arena<T: ArenaItem> {
 
     fn take(&self, index: Index<T>) -> ArenaResult<T>;
 
-    fn inspect<U>(
+    fn map<U>(
         &self,
         index: Index<T>,
         func: impl FnOnce(&T) -> U,
     ) -> ArenaResult<U>;
 
-    fn inspect_mut<U>(
+    fn map_mut<U>(
         &self,
         index: Index<T>,
         func: impl FnOnce(&mut T) -> U,

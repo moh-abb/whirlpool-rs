@@ -59,10 +59,10 @@ impl<ArenasX: PatternArenas, ArenasY: PatternArenas> OrdRefs<ArenasX, ArenasY>
         let process_patterns = |[index_x, index_y]: [Index<Pattern>; 2]| {
             let cloned_x = arenas_x
                 .get_pattern_arena()
-                .inspect(index_x, Clone::clone)?;
+                .map(index_x, Clone::clone)?;
             let cloned_y = arenas_y
                 .get_pattern_arena()
-                .inspect(index_y, Clone::clone)?;
+                .map(index_y, Clone::clone)?;
 
             let [discr_x, discr_y] =
                 [&cloned_x, &cloned_y].map(pattern_discriminant);
@@ -126,10 +126,10 @@ impl<ArenasX: PatternArenas, ArenasY: PatternArenas> OrdRefs<ArenasX, ArenasY>
             ) => {
                 let TimedStep(x_dur, x_pat) = arenas_x
                     .get_timed_step_arena()
-                    .inspect(index_x, Clone::clone)?;
+                    .map(index_x, Clone::clone)?;
                 let TimedStep(y_dur, y_pat) = arenas_y
                     .get_timed_step_arena()
-                    .inspect(index_y, Clone::clone)?;
+                    .map(index_y, Clone::clone)?;
 
                 if x_dur != y_dur {
                     return break_value(x_dur.cmp(&y_dur));

@@ -69,7 +69,7 @@ impl<T: ArenaItem + Clone> Arena<T> for ArenaMocker<T> {
         Ok(slot.take().unwrap())
     }
 
-    fn inspect<U>(
+    fn map<U>(
         &self,
         index: Index<T>,
         func: impl FnOnce(&T) -> U,
@@ -79,7 +79,7 @@ impl<T: ArenaItem + Clone> Arena<T> for ArenaMocker<T> {
         Ok(func(slot.as_ref().unwrap()))
     }
 
-    fn inspect_mut<U>(
+    fn map_mut<U>(
         &self,
         index: Index<T>,
         func: impl FnOnce(&mut T) -> U,

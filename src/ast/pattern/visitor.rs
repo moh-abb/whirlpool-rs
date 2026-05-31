@@ -43,7 +43,7 @@ fn get_cloned_pattern(
     visitor
         .get_arenas()
         .get_pattern_arena()
-        .inspect(pattern_index.clone(), Clone::clone)
+        .map(pattern_index.clone(), Clone::clone)
         .unwrap_or_else(panic_with_err)
 }
 

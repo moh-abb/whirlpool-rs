@@ -49,7 +49,7 @@ impl<Item: ArenaItem> Multiple<Item> {
     ) {
         // The element should not be connected to anything.
         let elem_is_singleton = arena
-            .inspect(elem_index.clone(), |e| e.1.is_none() && e.2.is_none())
+            .map(elem_index.clone(), |e| e.1.is_none() && e.2.is_none())
             .unwrap();
         debug_assert!(elem_is_singleton);
         let new_start_end = if self.is_empty() {
@@ -70,10 +70,10 @@ impl<Item: ArenaItem> Multiple<Item> {
                 next.replace(start.clone());
             };
             arena
-                .inspect_mut(start.clone(), link_start_to_new_start)
+                .map_mut(start.clone(), link_start_to_new_start)
                 .unwrap();
             arena
-                .inspect_mut(new_start.clone(), link_new_start_to_start)
+                .map_mut(new_start.clone(), link_new_start_to_start)
                 .unwrap();
             (new_start, end)
         };
@@ -89,7 +89,7 @@ impl<Item: ArenaItem> Multiple<Item> {
     ) {
         // The element should not be connected to anything.
         let elem_is_singleton = arena
-            .inspect(elem_index.clone(), |e| e.1.is_none() && e.2.is_none())
+            .map(elem_index.clone(), |e| e.1.is_none() && e.2.is_none())
             .unwrap();
         debug_assert!(elem_is_singleton);
         let new_start_end = if self.is_empty() {
@@ -110,10 +110,10 @@ impl<Item: ArenaItem> Multiple<Item> {
                 prev.replace(end.clone());
             };
             arena
-                .inspect_mut(end.clone(), link_end_to_new_end)
+                .map_mut(end.clone(), link_end_to_new_end)
                 .unwrap();
             arena
-                .inspect_mut(new_end.clone(), link_new_end_to_end)
+                .map_mut(new_end.clone(), link_new_end_to_end)
                 .unwrap();
             (start, new_end)
         };
@@ -131,7 +131,7 @@ impl<Item: ArenaItem> Multiple<Item> {
             return None;
         };
         let end_prev = arena
-            .inspect_mut(end.clone(), |end_elem| {
+            .map_mut(end.clone(), |end_elem| {
                 let Chain(_end_index, end_prev, _end_next) = end_elem;
                 debug_assert!(_end_next.is_none());
                 // Unlink the end element from the element before it.
@@ -149,7 +149,7 @@ impl<Item: ArenaItem> Multiple<Item> {
                 prev_next.take();
             };
             arena
-                .inspect_mut(prev.clone(), unlink_end)
+                .map_mut(prev.clone(), unlink_end)
                 .unwrap();
             Some((start, prev))
         } else {
@@ -225,7 +225,7 @@ impl<Item: ArenaItem> Multiple<Item> {
                 let mut from_left = start.clone();
                 (0..manually_counted_length - 1).for_each(|_| {
                     let chain = arena
-                        .inspect(from_left.clone(), Clone::clone)
+                        .map(from_left.clone(), Clone::clone)
                         .unwrap();
                     let Chain(_index, _prev, next) = chain;
                     from_left = next.unwrap();
@@ -237,7 +237,7 @@ impl<Item: ArenaItem> Multiple<Item> {
                 let mut from_right = end.clone();
                 (0..manually_counted_length - 1).for_each(|_| {
                     let chain = arena
-                        .inspect(from_right.clone(), Clone::clone)
+                        .map(from_right.clone(), Clone::clone)
                         .unwrap();
                     let Chain(_index, prev, _next) = chain;
                     from_right = prev.unwrap();
@@ -270,7 +270,7 @@ impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> Iterator
         let (start, end) = self.start_end.clone()?;
         let cloned_start = match self
             .arena
-            .inspect(start.clone(), Clone::clone)
+            .map(start.clone(), Clone::clone)
         {
             Ok(cloned) => cloned,
             Err(err) => return Some(Err(err)),
@@ -291,7 +291,7 @@ impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> DoubleEndedIterator
         let (start, end) = self.start_end.clone()?;
         let cloned_end = match self
             .arena
-            .inspect(end.clone(), Clone::clone)
+            .map(end.clone(), Clone::clone)
         {
             Ok(cloned) => cloned,
             Err(err) => return Some(Err(err)),
