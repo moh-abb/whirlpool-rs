@@ -58,21 +58,23 @@ fn print_multiple<Item: ArenaItem>(
 ) -> core::fmt::Result {
     let length = multiple.length();
     let mut i = 1;
-    multiple.fold_left(chain_arena, Ok(()), |output, index| {
-        // Check if we are the last value in the chain.
-        let not_at_end = i != length;
-        i += 1;
-        let separator = if not_at_end { ", " } else { "" };
-        // Print the separator, wherever applicable.
-        let write_separator = |()| {
-            formatter
-                .borrow_mut()
-                .write_str(separator)
-        };
-        output
-            .and_then(|()| display_item(index))
-            .and_then(write_separator)
-    })
+    multiple
+        .iter(chain_arena)
+        .fold(Ok(()), |output, index| {
+            // Check if we are the last value in the chain.
+            let not_at_end = i != length;
+            i += 1;
+            let separator = if not_at_end { ", " } else { "" };
+            // Print the separator, wherever applicable.
+            let write_separator = |()| {
+                formatter
+                    .borrow_mut()
+                    .write_str(separator)
+            };
+            output
+                .and_then(|()| display_item(index))
+                .and_then(write_separator)
+        })
 }
 
 fn print_multiple_pattern(

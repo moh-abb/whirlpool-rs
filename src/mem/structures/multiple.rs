@@ -187,61 +187,6 @@ impl<Item: ArenaItem> Multiple<Item> {
     ) -> IterWithChain<'a, Item, CA> {
         IterWithChain { inner: self.iter_base(arena) }
     }
-
-    #[allow(unused)]
-    pub fn fold_right<Acc>(
-        &self,
-        arena: &impl Arena<Chain<Item>>,
-        init: Acc,
-        fold: impl FnMut(Acc, Index<Item>) -> Acc,
-    ) -> Acc {
-        self.iter(arena).rfold(init, fold)
-    }
-
-    #[allow(unused)]
-    pub fn fold_left<Acc>(
-        &self,
-        arena: &impl Arena<Chain<Item>>,
-        init: Acc,
-        fold: impl FnMut(Acc, Index<Item>) -> Acc,
-    ) -> Acc {
-        self.iter(arena).fold(init, fold)
-    }
-
-    #[allow(unused)]
-    pub fn verify_length(&self, arena: &impl Arena<Chain<Item>>) {
-        let manually_counted_length =
-            self.fold_left(arena, 0, |sum, _| sum + 1);
-        assert_eq!(manually_counted_length, self.length);
-        // Chase the pointers to ensure consistency.
-        match self.start_end() {
-            None => assert!(self.is_empty()),
-            Some((start, end)) => {
-                let mut from_left = start.clone();
-                (0..manually_counted_length - 1).for_each(|_| {
-                    let mut cloned_chain = arena
-                        .map(from_left.clone(), Clone::clone)
-                        .unwrap();
-                    from_left = cloned_chain.pop_next().unwrap();
-                });
-                assert_eq!(
-                    usize::from(from_left.clone()),
-                    usize::from(end.clone())
-                );
-                let mut from_right = end.clone();
-                (0..manually_counted_length - 1).for_each(|_| {
-                    let mut cloned_chain = arena
-                        .map(from_right.clone(), Clone::clone)
-                        .unwrap();
-                    from_right = cloned_chain.pop_prev().unwrap();
-                });
-                assert_eq!(
-                    usize::from(from_right.clone()),
-                    usize::from(start.clone())
-                );
-            }
-        }
-    }
 }
 
 /// An iterator for which the elements consist of the pairs

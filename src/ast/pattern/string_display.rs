@@ -90,11 +90,11 @@ fn print_multiple<
     mut print_item: impl FnMut(Index<Item>) -> String,
 ) -> String {
     let chain_fold = if FoldStrategy::CHAINS_FOLD_RIGHT {
-        Multiple::fold_right
+        DoubleEndedIterator::rfold
     } else {
-        Multiple::fold_left
+        Iterator::fold
     };
-    chain_fold(&multiple, chain_arena, String::new(), |acc, x| {
+    chain_fold(multiple.iter(chain_arena), String::new(), |acc, x| {
         fold_display_output::<FoldStrategy>(acc, print_item(x))
     })
 }
