@@ -13,7 +13,7 @@ use crate::ast::pattern::cmp::PatternOrdAdapter;
 use crate::mem::Chain;
 use crate::mem::Index;
 use crate::mem::Multiple;
-use crate::test::pattern::mock::PatternArenaMockers;
+use crate::test::pattern::arenas::PatternArenaMockers;
 
 type Slot<T> = Lazy<RwLock<Option<T>>>;
 const fn empty_slot<T>() -> Slot<T> {
