@@ -44,7 +44,6 @@ impl<T> InterpreterBorrowAdapter<T> for &mut T {
 /// An interpreter of [Pattern]s, which keeps track of a current time and
 /// plays units (traversing the [Pattern]'s tree) when new units are
 /// encountered.
-#[allow(unused)]
 pub struct Interpreter<'a, Arenas, Scheduler, B> {
     pattern: Index<Pattern>,
     arenas: &'a Arenas,

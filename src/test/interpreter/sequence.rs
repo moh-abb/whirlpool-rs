@@ -3,7 +3,6 @@ use crate::ast::CycleTime;
 use crate::mem::Vec;
 use crate::test::interpreter::ScheduledExpectation;
 
-#[allow(unused)]
 #[derive(Debug)]
 pub struct NoteSequence {
     pub interval: CycleInterval,

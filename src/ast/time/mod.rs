@@ -129,7 +129,6 @@ impl CycleTime {
     }
 }
 
-#[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CycleInterval {
     start: CycleTime,

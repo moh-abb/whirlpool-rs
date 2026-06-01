@@ -15,7 +15,6 @@ pub struct Multiple<Item: ArenaItem> {
 }
 
 impl<Item: ArenaItem> Multiple<Item> {
-    #[allow(unused)]
     pub fn new_nonempty(
         length: u16,
         start: Index<Chain<Item>>,
@@ -24,7 +23,6 @@ impl<Item: ArenaItem> Multiple<Item> {
         Self { length, start_end: Some((start, end)) }
     }
 
-    #[allow(unused)]
     pub fn new_empty() -> Self {
         Self { length: 0, start_end: None }
     }
@@ -164,7 +162,6 @@ impl<Item: ArenaItem> Multiple<Item> {
         IterBase { start_end: self.start_end(), arena, phantom: PhantomData }
     }
 
-    #[allow(unused)]
     pub fn checked_iter<'a, CA: Arena<Chain<Item>>>(
         &self,
         arena: &'a CA,
@@ -172,7 +169,6 @@ impl<Item: ArenaItem> Multiple<Item> {
         IterChecked { inner: self.iter_base(arena) }
     }
 
-    #[allow(unused)]
     pub fn iter<'a, CA: Arena<Chain<Item>>>(
         &self,
         arena: &'a CA,
@@ -180,7 +176,6 @@ impl<Item: ArenaItem> Multiple<Item> {
         Iter { inner: self.checked_iter(arena) }
     }
 
-    #[allow(unused)]
     pub fn iter_with_chain<'a, CA: Arena<Chain<Item>>>(
         &self,
         arena: &'a CA,
@@ -191,7 +186,6 @@ impl<Item: ArenaItem> Multiple<Item> {
 
 /// An iterator for which the elements consist of the pairs
 /// `(Index<Item>, Index<Chain<Item>>)`.
-#[allow(unused)]
 #[derive(Debug, Clone)]
 struct IterBase<'a, Item: ArenaItem, ChainArena: Arena<Chain<Item>>> {
     start_end: StartEnd<Item>,
@@ -243,7 +237,6 @@ impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> DoubleEndedIterator
 }
 
 /// An iterator for which the elements consist of `Index<Chain<Item>>`.
-#[allow(unused)]
 #[derive(Debug, Clone)]
 pub struct IterWithChain<'a, Item: ArenaItem, ChainArena: Arena<Chain<Item>>> {
     inner: IterBase<'a, Item, ChainArena>,
@@ -272,7 +265,6 @@ impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> DoubleEndedIterator
 }
 
 /// An iterator for which the elements consist of `Index<Item>`.
-#[allow(unused)]
 #[derive(Debug, Clone)]
 pub struct Iter<'a, Item: ArenaItem, ChainArena: Arena<Chain<Item>>> {
     inner: IterChecked<'a, Item, ChainArena>,
@@ -301,7 +293,6 @@ impl<'a, T: ArenaItem, ChainArena: Arena<Chain<T>>> DoubleEndedIterator
 }
 
 /// An iterator for which the elements consist of `ArenaResult<Index<Item>>`.
-#[allow(unused)]
 #[derive(Debug, Clone)]
 pub struct IterChecked<'a, Item: ArenaItem, ChainArena: Arena<Chain<Item>>> {
     inner: IterBase<'a, Item, ChainArena>,

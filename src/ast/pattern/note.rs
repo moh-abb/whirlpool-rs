@@ -14,7 +14,6 @@ pub struct Note {
     pub octave: NonZeroU8,
 }
 
-#[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum NoteLetter {
@@ -36,7 +35,6 @@ pub enum NoteLetter {
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct NoteFrequency(pub u32);
 
-#[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum NoteUnit {

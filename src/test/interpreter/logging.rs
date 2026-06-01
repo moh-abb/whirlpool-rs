@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use crate::ast::CycleTime;
 use crate::synth::scheduler::UnitScheduler;
 use crate::synth::unit::SoundUnit;

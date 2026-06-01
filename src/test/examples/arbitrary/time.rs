@@ -9,7 +9,6 @@ use proptest::test_runner::Reason;
 
 use crate::ast::CycleTime;
 
-#[allow(unused)]
 pub fn arb_positive_cycle_time<NumSource: Arbitrary + Into<NonZeroU16>>()
 -> impl Strategy<Value = CycleTime> {
     (any::<NumSource>(), any::<NumSource>()).prop_filter_map(
@@ -24,7 +23,6 @@ pub fn arb_positive_cycle_time<NumSource: Arbitrary + Into<NonZeroU16>>()
     )
 }
 
-#[allow(unused)]
 pub fn arb_cycle_time() -> impl Strategy<Value = CycleTime> {
     prop_oneof![
         Just(CycleTime::ZERO),
