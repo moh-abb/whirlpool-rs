@@ -50,15 +50,6 @@ impl<T: ArenaItem, const N: usize> ScapegoatArena<T, N> {
         // (but we will never be able to allocate into the excess portion).
         Self(IndexableMapArena::new(SgInnerMap(SgMap::new())))
     }
-
-    #[allow(unused)]
-    pub fn reset(&self) {
-        self.0
-            .with_inner_mut(|next_index, map| {
-                *next_index = 0;
-                map.clear();
-            })
-    }
 }
 
 impl<T: ArenaItem, const N: usize> Arena<T> for ScapegoatArena<T, N> {
