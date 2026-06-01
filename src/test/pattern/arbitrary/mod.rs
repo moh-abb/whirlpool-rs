@@ -1,2 +1,2 @@
-pub mod strategy;
+mod strategy;
 mod test_run;

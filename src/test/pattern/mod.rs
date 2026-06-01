@@ -1,3 +1,3 @@
-pub mod arbitrary;
+mod arbitrary;
 pub mod arenas;
 mod unittests;
