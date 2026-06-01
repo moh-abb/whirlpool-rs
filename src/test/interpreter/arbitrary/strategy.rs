@@ -6,15 +6,16 @@ use crate::mem::Index;
 use crate::test::interpreter::arbitrary::expectations::arb_interval_offset_and_multiplier;
 use crate::test::interpreter::arbitrary::expectations::pattern_expectations;
 use crate::test::interpreter::sequence::NoteSequence;
+use crate::test::mem::arena_test::StrategyWithArena;
 use crate::test::mem::arenas_to::ArenasTo;
 use crate::test::pattern::arbitrary::pattern::arb_small_pattern;
-use crate::test::pattern::arena_alloc::StrategyWithArena;
 
 pub struct ArbitrarySequenceStrategy;
-impl StrategyWithArena<(Index<Pattern>, NoteSequence)>
+impl<Arenas: PatternArenas + 'static>
+    StrategyWithArena<(Index<Pattern>, NoteSequence), Arenas>
     for ArbitrarySequenceStrategy
 {
-    fn item_strategy<Arenas: PatternArenas + 'static>()
+    fn item_strategy()
     -> impl Strategy<Value = ArenasTo<Arenas, (Index<Pattern>, NoteSequence)>>
     {
         (arb_small_pattern(), arb_interval_offset_and_multiplier()).prop_map(

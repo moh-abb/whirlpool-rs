@@ -4,15 +4,17 @@ use crate::ast::pattern::format_display::PatternDisplayAdapter;
 use crate::ast::pattern::string_display::PatternDisplayVisitorL;
 use crate::ast::pattern::string_display::PatternDisplayVisitorR;
 use crate::mem::Index;
-use crate::test::pattern::arena_alloc::AnyPatternStrategy;
-use crate::test::pattern::arena_alloc::ArenaTest;
+use crate::test::mem::arena_test::ArenaTest;
+use crate::test::mem::arena_test::with_regenerated_arenas;
+use crate::test::mem::arena_test::with_reused_arenas;
+use crate::test::pattern::arbitrary::strategy::AnyPatternStrategy;
 use crate::test::pattern::arena_alloc::GrowableArenas;
-use crate::test::pattern::arena_alloc::with_regenerated_arenas;
-use crate::test::pattern::arena_alloc::with_reused_arenas;
 
 struct LeftAndRightDisplaysEqual;
-impl ArenaTest<Index<Pattern>> for LeftAndRightDisplaysEqual {
-    fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>) {
+impl<Arenas: PatternArenas> ArenaTest<Index<Pattern>, Arenas>
+    for LeftAndRightDisplaysEqual
+{
+    fn run(arenas: &Arenas, pattern: Index<Pattern>) {
         assert_eq!(
             PatternDisplayVisitorL::new(arenas).display(pattern.clone()),
             PatternDisplayVisitorR::new(arenas).display(pattern.clone()),
@@ -21,8 +23,10 @@ impl ArenaTest<Index<Pattern>> for LeftAndRightDisplaysEqual {
 }
 
 struct LeftDisplayEqualToFormatted;
-impl ArenaTest<Index<Pattern>> for LeftDisplayEqualToFormatted {
-    fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>) {
+impl<Arenas: PatternArenas> ArenaTest<Index<Pattern>, Arenas>
+    for LeftDisplayEqualToFormatted
+{
+    fn run(arenas: &Arenas, pattern: Index<Pattern>) {
         assert_eq!(
             format!("{}", PatternDisplayAdapter::new(pattern.clone(), arenas)),
             PatternDisplayVisitorL::new(arenas).display(pattern.clone()),
@@ -31,8 +35,10 @@ impl ArenaTest<Index<Pattern>> for LeftDisplayEqualToFormatted {
 }
 
 struct RightDisplayEqualToFormatted;
-impl ArenaTest<Index<Pattern>> for RightDisplayEqualToFormatted {
-    fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>) {
+impl<Arenas: PatternArenas> ArenaTest<Index<Pattern>, Arenas>
+    for RightDisplayEqualToFormatted
+{
+    fn run(arenas: &Arenas, pattern: Index<Pattern>) {
         assert_eq!(
             format!("{}", PatternDisplayAdapter::new(pattern.clone(), arenas)),
             PatternDisplayVisitorR::new(arenas).display(pattern.clone()),

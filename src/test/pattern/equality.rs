@@ -5,18 +5,20 @@ use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::cmp::PatternOrdAdapter;
 use crate::ast::pattern::format_display::PatternDisplayAdapter;
 use crate::mem::Index;
-use crate::test::pattern::arena_alloc::AnyPatternStrategy;
-use crate::test::pattern::arena_alloc::ArenaTest;
-use crate::test::pattern::arena_alloc::ArenaTest2;
+use crate::test::mem::arena_test::ArenaTest;
+use crate::test::mem::arena_test::ArenaTest2;
+use crate::test::mem::arena_test::with_regenerated_arenas;
+use crate::test::mem::arena_test::with_regenerated_arenas_double;
+use crate::test::mem::arena_test::with_reused_arenas;
+use crate::test::mem::arena_test::with_reused_arenas_double;
+use crate::test::pattern::arbitrary::strategy::AnyPatternStrategy;
 use crate::test::pattern::arena_alloc::GrowableArenas;
-use crate::test::pattern::arena_alloc::with_regenerated_arenas;
-use crate::test::pattern::arena_alloc::with_regenerated_arenas_double;
-use crate::test::pattern::arena_alloc::with_reused_arenas;
-use crate::test::pattern::arena_alloc::with_reused_arenas_double;
 
 struct EqualToItself;
-impl ArenaTest<Index<Pattern>> for EqualToItself {
-    fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>) {
+impl<Arenas: PatternArenas> ArenaTest<Index<Pattern>, Arenas>
+    for EqualToItself
+{
+    fn run(arenas: &Arenas, pattern: Index<Pattern>) {
         let lhs_adapter = PatternOrdAdapter::new(pattern.clone(), arenas);
         let rhs_adapter = PatternOrdAdapter::new(pattern, arenas);
         assert!(lhs_adapter.cmp(&rhs_adapter).is_eq())
@@ -24,9 +26,11 @@ impl ArenaTest<Index<Pattern>> for EqualToItself {
 }
 
 struct PatternEqualIffReprEqual;
-impl ArenaTest2<Index<Pattern>> for PatternEqualIffReprEqual {
+impl<Arenas: PatternArenas> ArenaTest2<Index<Pattern>, Arenas>
+    for PatternEqualIffReprEqual
+{
     fn run(
-        arenas: &impl PatternArenas,
+        arenas: &Arenas,
         pattern1: Index<Pattern>,
         pattern2: Index<Pattern>,
     ) {

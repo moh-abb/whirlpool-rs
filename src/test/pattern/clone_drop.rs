@@ -7,28 +7,30 @@ use crate::ast::pattern::cmp::PatternOrdAdapter;
 use crate::ast::pattern::drop::PatternDropAdapter;
 use crate::ast::pattern::format_display::PatternDisplayAdapter;
 use crate::mem::Index;
-use crate::test::pattern::arena_alloc::AnyPatternStrategy;
-use crate::test::pattern::arena_alloc::ArenaTest;
+use crate::test::mem::arena_test::ArenaTest;
+use crate::test::mem::arena_test::with_regenerated_arenas;
+use crate::test::mem::arena_test::with_reused_arenas;
+use crate::test::pattern::arbitrary::strategy::AnyPatternStrategy;
 use crate::test::pattern::arena_alloc::GrowableArenas;
 use crate::test::pattern::arena_alloc::get_arena_sizes;
-use crate::test::pattern::arena_alloc::with_regenerated_arenas;
-use crate::test::pattern::arena_alloc::with_reused_arenas;
 
 struct DoNothing;
-impl ArenaTest<Index<Pattern>> for DoNothing {
-    fn run(_: &impl PatternArenas, _: Index<Pattern>) {}
+impl<Arenas: PatternArenas> ArenaTest<Index<Pattern>, Arenas> for DoNothing {
+    fn run(_: &Arenas, _: Index<Pattern>) {}
 }
 
 struct DropPattern;
-impl ArenaTest<Index<Pattern>> for DropPattern {
-    fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>) {
+impl<Arenas: PatternArenas> ArenaTest<Index<Pattern>, Arenas> for DropPattern {
+    fn run(arenas: &Arenas, pattern: Index<Pattern>) {
         mem::drop(PatternDropAdapter(Some(pattern), arenas))
     }
 }
 
 struct DropPatternAndCheckArenasEmpty;
-impl ArenaTest<Index<Pattern>> for DropPatternAndCheckArenasEmpty {
-    fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>) {
+impl<Arenas: PatternArenas> ArenaTest<Index<Pattern>, Arenas>
+    for DropPatternAndCheckArenasEmpty
+{
+    fn run(arenas: &Arenas, pattern: Index<Pattern>) {
         let arena_sizes = get_arena_sizes(arenas);
         assert_ne!(arena_sizes(), [0; _]);
         mem::drop(PatternDropAdapter(Some(pattern), arenas));
@@ -37,8 +39,10 @@ impl ArenaTest<Index<Pattern>> for DropPatternAndCheckArenasEmpty {
 }
 
 struct CloneAndCheckEqual;
-impl ArenaTest<Index<Pattern>> for CloneAndCheckEqual {
-    fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>) {
+impl<Arenas: PatternArenas> ArenaTest<Index<Pattern>, Arenas>
+    for CloneAndCheckEqual
+{
+    fn run(arenas: &Arenas, pattern: Index<Pattern>) {
         let mut adapter = PatternCloneDropAdapter::new(pattern.clone(), arenas);
         let cloned = adapter.clone().take_item();
         // To avoid dropping the pattern, take the adapter's index.
@@ -55,8 +59,10 @@ impl ArenaTest<Index<Pattern>> for CloneAndCheckEqual {
 }
 
 struct CloneAndDropAndCheckEqual;
-impl ArenaTest<Index<Pattern>> for CloneAndDropAndCheckEqual {
-    fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>) {
+impl<Arenas: PatternArenas> ArenaTest<Index<Pattern>, Arenas>
+    for CloneAndDropAndCheckEqual
+{
+    fn run(arenas: &Arenas, pattern: Index<Pattern>) {
         let mut pattern_adapter =
             PatternCloneDropAdapter::new(pattern.clone(), arenas);
         let cloned = pattern_adapter.clone().take_item();
@@ -81,8 +87,10 @@ impl ArenaTest<Index<Pattern>> for CloneAndDropAndCheckEqual {
 }
 
 struct CloneAndDropAndCheckSizesEqual;
-impl ArenaTest<Index<Pattern>> for CloneAndDropAndCheckSizesEqual {
-    fn run(arenas: &impl PatternArenas, pattern: Index<Pattern>) {
+impl<Arenas: PatternArenas> ArenaTest<Index<Pattern>, Arenas>
+    for CloneAndDropAndCheckSizesEqual
+{
+    fn run(arenas: &Arenas, pattern: Index<Pattern>) {
         let arena_sizes = get_arena_sizes(arenas);
         let sizes = arena_sizes();
         let mut clone_adapter =

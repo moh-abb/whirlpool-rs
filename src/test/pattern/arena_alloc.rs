@@ -1,15 +1,9 @@
-use proptest::prelude::Strategy;
-use proptest::test_runner::TestRunner;
-
 use crate::ast::Pattern;
 use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::mem::Arena;
 use crate::mem::Chain;
 use crate::mem::GrowableArena;
-use crate::mem::Index;
-use crate::test::mem::arenas_to::ArenasTo;
-use crate::test::pattern::arbitrary::pattern::arb_large_pattern;
 
 #[derive(Debug)]
 pub struct GrowableArenas(
@@ -50,110 +44,6 @@ fn new_growable_arena_tuple() -> GrowableArenas {
         GrowableArena::new(),
         GrowableArena::new(),
     )
-}
-
-pub fn with_regenerated_arenas<
-    TestItem: 'static,
-    Test: ArenaTest<TestItem>,
-    Arenas: PatternArenas + Default + 'static,
-    ItemStrategy: StrategyWithArena<TestItem>,
->() {
-    let mut test_runner = TestRunner::deterministic();
-    let strat = ItemStrategy::item_strategy();
-    let run_with_arena = |pat2: ArenasTo<_, _>, arenas: &Arenas| {
-        Test::run(arenas, pat2.call(arenas).unwrap())
-    };
-    test_runner
-        .run(&strat, move |pat| {
-            let pat2 = pat.clone();
-            let arenas = Arenas::default();
-            run_with_arena(pat2, &arenas);
-            Ok(())
-        })
-        .unwrap()
-}
-
-pub fn with_reused_arenas<
-    TestItem: 'static,
-    Test: ArenaTest<TestItem>,
-    Arenas: PatternArenas + Default + 'static,
-    ItemStrategy: StrategyWithArena<TestItem>,
->() {
-    let mut test_runner = TestRunner::deterministic();
-    let strat = ItemStrategy::item_strategy();
-    let arenas = Arenas::default();
-    let run_with_arena = |pat: ArenasTo<_, _>| {
-        Test::run(&arenas, pat.call(&arenas).unwrap());
-        Ok(())
-    };
-    test_runner
-        .run(&strat, run_with_arena)
-        .unwrap()
-}
-
-pub fn with_regenerated_arenas_double<
-    TestItem: 'static,
-    Test: ArenaTest2<TestItem>,
-    Arenas: PatternArenas + Default + 'static,
-    ItemStrategy: StrategyWithArena<TestItem>,
->() {
-    let mut test_runner = TestRunner::deterministic();
-    let strat = (ItemStrategy::item_strategy(), ItemStrategy::item_strategy())
-        .prop_map(|(x, y)| {
-            ArenasTo::new(move |arenas| Ok((x.call(arenas)?, y.call(arenas)?)))
-        });
-    test_runner
-        .run(&strat, move |pat| {
-            let pat = pat.clone();
-            let arenas = Arenas::default();
-            let (x, y) = pat.call(&arenas).unwrap();
-            Test::run(&arenas, x, y);
-            Ok(())
-        })
-        .unwrap()
-}
-
-pub fn with_reused_arenas_double<
-    TestItem: 'static,
-    Test: ArenaTest2<TestItem>,
-    Arenas: PatternArenas + Default + 'static,
-    ItemStrategy: StrategyWithArena<TestItem>,
->() {
-    let mut test_runner = TestRunner::deterministic();
-    let strat = (ItemStrategy::item_strategy(), ItemStrategy::item_strategy())
-        .prop_map(|(x, y)| {
-            ArenasTo::new(move |arenas| Ok((x.call(arenas)?, y.call(arenas)?)))
-        });
-    let arenas = Arenas::default();
-    let run_with_arena = |pat: ArenasTo<_, _>| {
-        let (x, y) = pat.call(&arenas).unwrap();
-        Test::run(&arenas, x, y);
-        Ok(())
-    };
-    test_runner
-        .run(&strat, run_with_arena)
-        .unwrap()
-}
-
-pub trait ArenaTest<Item> {
-    fn run(arenas: &impl PatternArenas, item: Item);
-}
-
-pub trait StrategyWithArena<Item> {
-    fn item_strategy<Arenas: PatternArenas + 'static>()
-    -> impl Strategy<Value = ArenasTo<Arenas, Item>>;
-}
-
-pub struct AnyPatternStrategy;
-impl StrategyWithArena<Index<Pattern>> for AnyPatternStrategy {
-    fn item_strategy<Arenas: PatternArenas + 'static>()
-    -> impl Strategy<Value = ArenasTo<Arenas, Index<Pattern>>> {
-        arb_large_pattern()
-    }
-}
-
-pub trait ArenaTest2<Item> {
-    fn run(arenas: &impl PatternArenas, item1: Item, item2: Item);
 }
 
 pub fn get_arena_sizes(arenas: &impl PatternArenas) -> impl Fn() -> [usize; 4] {
