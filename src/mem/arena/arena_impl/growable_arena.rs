@@ -28,10 +28,6 @@ impl<T> IndexableMap<T> for GAMap<T> {
     fn get_mut_slot(&mut self, index: Index<T>) -> Option<&mut Option<T>> {
         self.0.get_mut(usize::from(index))
     }
-
-    fn clear(&mut self) {
-        self.0.clear()
-    }
 }
 
 impl<T: ArenaItem> Default for GrowableArena<T> {

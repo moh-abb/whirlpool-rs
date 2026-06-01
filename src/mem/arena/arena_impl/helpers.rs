@@ -23,9 +23,6 @@ pub trait IndexableMap<T> {
     /// Returns `None` if the index is out of bounds, otherwise returns
     /// `Some(slot)` where `slot` is a mutable value mapped by `index`.
     fn get_mut_slot(&mut self, index: Index<T>) -> Option<&mut Option<T>>;
-
-    /// Clears the map, dropping all items stored inside.
-    fn clear(&mut self);
 }
 
 /// An adapter for implementing [Arena] with a backing [IndexableMap] field.

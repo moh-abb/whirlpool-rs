@@ -32,10 +32,6 @@ impl<T: ArenaItem> IndexableMap<T> for BTreeMapAdapter<T> {
             "Should not call [IndexableMap::get_mut_slot] on FixedArena"
         )
     }
-
-    fn clear(&mut self) {
-        unreachable!("Should not call [IndexableMap::clear] on FixedArena")
-    }
 }
 
 impl<T: ArenaItem> FixedArena<T> {

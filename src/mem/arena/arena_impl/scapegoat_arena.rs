@@ -31,10 +31,6 @@ impl<T: ArenaItem, const N: usize> IndexableMap<T> for SgInnerMap<T, N> {
     fn get_mut_slot(&mut self, index: Index<T>) -> Option<&mut Option<T>> {
         self.0.get_mut(&Some(index))
     }
-
-    fn clear(&mut self) {
-        self.0.clear()
-    }
 }
 
 impl<T: ArenaItem, const N: usize> Default for ScapegoatArena<T, N> {
