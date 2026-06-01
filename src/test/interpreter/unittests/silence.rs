@@ -1,6 +1,6 @@
 use crate::ast::CycleTime;
+use crate::test::examples::unittests::pattern::one_cycle_silence;
 use crate::test::interpreter::test_expectations;
-use crate::test::interpreter::unittests::examples::one_cycle_silence;
 
 #[test]
 fn can_play_silence_for_one_cycle() {

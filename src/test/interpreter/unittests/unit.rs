@@ -1,9 +1,9 @@
 use crate::ast::CycleTime;
 use crate::ast::NoteFrequency;
 use crate::ast::NoteUnit;
+use crate::test::examples::unittests::pattern::one_cycle_unit;
 use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::test_expectations;
-use crate::test::interpreter::unittests::examples::one_cycle_unit;
 
 #[test]
 fn can_play_unit_for_one_cycle() {

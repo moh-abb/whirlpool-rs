@@ -1,7 +1,6 @@
 use crate::ast::CycleTime;
 
 mod cat;
-mod examples;
 mod seq;
 mod silence;
 mod stack;

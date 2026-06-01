@@ -4,10 +4,10 @@ use crate::ast::CycleTime;
 use crate::ast::NoteLetter;
 use crate::ast::NoteUnit;
 use crate::ast::Pattern;
+use crate::test::examples::unittests::pattern::half_binary_tree_depth_two_with_timed_steps;
+use crate::test::examples::unittests::pattern::multiple_of_four_timed_steps;
 use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::test_expectations;
-use crate::test::interpreter::unittests::examples::half_binary_tree_depth_two_with_timed_steps;
-use crate::test::interpreter::unittests::examples::multiple_of_four_timed_steps;
 
 fn play_nested_time_cats_with_elem_lengths(
     root_elem_lengths: [CycleTime; 2],

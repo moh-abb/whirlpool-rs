@@ -2,11 +2,11 @@ use crate::ast::CycleTime;
 use crate::ast::NoteLetter;
 use crate::ast::NoteUnit;
 use crate::ast::Pattern;
+use crate::test::examples::unittests::pattern::binary_tree_depth_two;
+use crate::test::examples::unittests::pattern::half_binary_tree_depth_two;
+use crate::test::examples::unittests::pattern::multiple_of_three_units;
 use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::test_expectations;
-use crate::test::interpreter::unittests::examples::binary_tree_depth_two;
-use crate::test::interpreter::unittests::examples::half_binary_tree_depth_two;
-use crate::test::interpreter::unittests::examples::multiple_of_three_units;
 
 #[test]
 fn can_play_four_stacks() {
