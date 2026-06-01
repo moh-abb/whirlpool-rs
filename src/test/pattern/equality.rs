@@ -12,7 +12,7 @@ use crate::test::mem::arena_test::with_regenerated_arenas_double;
 use crate::test::mem::arena_test::with_reused_arenas;
 use crate::test::mem::arena_test::with_reused_arenas_double;
 use crate::test::pattern::arbitrary::strategy::AnyPatternStrategy;
-use crate::test::pattern::arena_alloc::GrowableArenas;
+use crate::test::pattern::arenas::GrowableArenas;
 
 struct EqualToItself;
 impl<Arenas: PatternArenas> ArenaTest<Index<Pattern>, Arenas>

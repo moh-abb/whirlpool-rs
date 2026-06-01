@@ -8,7 +8,7 @@ use crate::test::interpreter::test_expectations_with_interpreter_setup_and_start
 use crate::test::mem::arena_test::ArenaTest;
 use crate::test::mem::arena_test::with_regenerated_arenas;
 use crate::test::mem::arena_test::with_reused_arenas;
-use crate::test::pattern::arena_alloc::GrowableArenas;
+use crate::test::pattern::arenas::GrowableArenas;
 
 mod expectations;
 mod strategy;

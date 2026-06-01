@@ -8,7 +8,7 @@ use crate::test::mem::arena_test::ArenaTest;
 use crate::test::mem::arena_test::with_regenerated_arenas;
 use crate::test::mem::arena_test::with_reused_arenas;
 use crate::test::pattern::arbitrary::strategy::AnyPatternStrategy;
-use crate::test::pattern::arena_alloc::GrowableArenas;
+use crate::test::pattern::arenas::GrowableArenas;
 
 struct LeftAndRightDisplaysEqual;
 impl<Arenas: PatternArenas> ArenaTest<Index<Pattern>, Arenas>
