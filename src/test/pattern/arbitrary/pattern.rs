@@ -17,7 +17,7 @@ use crate::mem::Arena;
 use crate::mem::Chain;
 use crate::mem::Index;
 use crate::mem::Multiple;
-use crate::test::pattern::arbitrary::arenas_to::ArenasTo;
+use crate::test::mem::arenas_to::ArenasTo;
 use crate::test::pattern::arbitrary::silence::arb_pattern_leaf;
 use crate::test::pattern::arbitrary::time::arb_positive_cycle_time;
 

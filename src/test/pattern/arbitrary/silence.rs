@@ -8,7 +8,7 @@ use crate::ast::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::mem::Arena;
 use crate::mem::Index;
-use crate::test::pattern::arbitrary::arenas_to::ArenasTo;
+use crate::test::mem::arenas_to::ArenasTo;
 use crate::test::pattern::arbitrary::unit::arb_pattern_note_unit;
 
 fn arb_silence<Arenas: PatternArenas>() -> ArenasTo<Arenas, Index<Pattern>> {

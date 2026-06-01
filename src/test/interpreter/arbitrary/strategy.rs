@@ -6,7 +6,7 @@ use crate::mem::Index;
 use crate::test::interpreter::arbitrary::expectations::arb_interval_offset_and_multiplier;
 use crate::test::interpreter::arbitrary::expectations::pattern_expectations;
 use crate::test::interpreter::sequence::NoteSequence;
-use crate::test::pattern::arbitrary::arenas_to::ArenasTo;
+use crate::test::mem::arenas_to::ArenasTo;
 use crate::test::pattern::arbitrary::pattern::arb_small_pattern;
 use crate::test::pattern::arena_alloc::StrategyWithArena;
 

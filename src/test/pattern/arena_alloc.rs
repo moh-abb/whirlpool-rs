@@ -8,7 +8,7 @@ use crate::mem::Arena;
 use crate::mem::Chain;
 use crate::mem::GrowableArena;
 use crate::mem::Index;
-use crate::test::pattern::arbitrary::arenas_to::ArenasTo;
+use crate::test::mem::arenas_to::ArenasTo;
 use crate::test::pattern::arbitrary::pattern::arb_large_pattern;
 
 #[derive(Debug)]

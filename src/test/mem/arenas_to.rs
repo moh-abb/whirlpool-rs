@@ -1,6 +1,5 @@
 use core::fmt::Debug;
 
-use crate::ast::pattern::arenas::PatternArenas;
 use crate::mem::ArenaResult;
 use crate::mem::Rc;
 
@@ -11,13 +10,10 @@ use crate::mem::Rc;
 pub trait ArenasToFn<Arenas, T>
 where
     Self: Fn(&Arenas) -> ArenaResult<T>,
-    Arenas: PatternArenas,
 {
 }
-impl<Arenas, T, F> ArenasToFn<Arenas, T> for F
-where
-    Self: Fn(&Arenas) -> ArenaResult<T>,
-    Arenas: PatternArenas,
+impl<Arenas, T, F> ArenasToFn<Arenas, T> for F where
+    Self: Fn(&Arenas) -> ArenaResult<T>
 {
 }
 
@@ -36,7 +32,7 @@ impl<Arenas, T> Clone for ArenasTo<Arenas, T> {
     }
 }
 
-impl<Arenas: PatternArenas, T> ArenasTo<Arenas, T> {
+impl<Arenas, T> ArenasTo<Arenas, T> {
     pub fn new(f: impl ArenasToFn<Arenas, T> + 'static) -> Self {
         Self(Rc::new(f) as Rc<dyn ArenasToFn<Arenas, T>>)
     }
