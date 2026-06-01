@@ -3,12 +3,12 @@ use proptest::prelude::Strategy;
 use crate::ast::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::mem::Index;
+use crate::test::examples::arbitrary::pattern::arb_small_pattern;
 use crate::test::interpreter::arbitrary::expectations::arb_interval_offset_and_multiplier;
 use crate::test::interpreter::arbitrary::expectations::pattern_expectations;
 use crate::test::interpreter::sequence::NoteSequence;
 use crate::test::mem::arena_test::StrategyWithArena;
 use crate::test::mem::arenas_to::ArenasTo;
-use crate::test::pattern::arbitrary::pattern::arb_small_pattern;
 
 pub struct ArbitrarySequenceStrategy;
 impl<Arenas: PatternArenas + 'static>

@@ -17,9 +17,12 @@ use crate::mem::Arena;
 use crate::mem::Chain;
 use crate::mem::Index;
 use crate::mem::Multiple;
+use crate::test::examples::arbitrary::pattern::silence::arb_pattern_leaf;
+use crate::test::examples::arbitrary::time::arb_positive_cycle_time;
 use crate::test::mem::arenas_to::ArenasTo;
-use crate::test::pattern::arbitrary::silence::arb_pattern_leaf;
-use crate::test::pattern::arbitrary::time::arb_positive_cycle_time;
+
+mod silence;
+mod unit;
 
 fn pattern_to_time_cat<Arenas: PatternArenas + 'static>(
     xs: Vec<ArenasTo<Arenas, Index<Pattern>>>,

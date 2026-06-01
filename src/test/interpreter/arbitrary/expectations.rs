@@ -18,10 +18,10 @@ use crate::mem::ArenaResult;
 use crate::mem::Index;
 use crate::mem::Multiple;
 use crate::mem::Vec;
+use crate::test::examples::arbitrary::time::arb_cycle_time;
+use crate::test::examples::arbitrary::time::arb_positive_cycle_time;
 use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::sequence::NoteSequence;
-use crate::test::pattern::arbitrary::time::arb_cycle_time;
-use crate::test::pattern::arbitrary::time::arb_positive_cycle_time;
 
 fn multiple_expectations<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
     interval: CycleInterval,
