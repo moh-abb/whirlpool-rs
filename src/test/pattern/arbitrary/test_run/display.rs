@@ -1,8 +1,7 @@
 use crate::ast::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::format_display::PatternDisplayAdapter;
-use crate::ast::pattern::string_display::PatternDisplayVisitorL;
-use crate::ast::pattern::string_display::PatternDisplayVisitorR;
+use crate::ast::pattern::string_display::PatternDisplayVisitor;
 use crate::mem::Index;
 use crate::test::mem::arena_test::ArenaTest;
 use crate::test::mem::arena_test::with_regenerated_arenas;
@@ -16,8 +15,8 @@ impl<Arenas: PatternArenas> ArenaTest<Index<Pattern>, Arenas>
 {
     fn run(arenas: &Arenas, pattern: Index<Pattern>) {
         assert_eq!(
-            PatternDisplayVisitorL::new(arenas).display(pattern.clone()),
-            PatternDisplayVisitorR::new(arenas).display(pattern.clone()),
+            PatternDisplayVisitor::new_left(arenas).display(pattern.clone()),
+            PatternDisplayVisitor::new_right(arenas).display(pattern.clone()),
         )
     }
 }
@@ -29,7 +28,7 @@ impl<Arenas: PatternArenas> ArenaTest<Index<Pattern>, Arenas>
     fn run(arenas: &Arenas, pattern: Index<Pattern>) {
         assert_eq!(
             format!("{}", PatternDisplayAdapter::new(pattern.clone(), arenas)),
-            PatternDisplayVisitorL::new(arenas).display(pattern.clone()),
+            PatternDisplayVisitor::new_left(arenas).display(pattern.clone()),
         )
     }
 }
@@ -41,7 +40,7 @@ impl<Arenas: PatternArenas> ArenaTest<Index<Pattern>, Arenas>
     fn run(arenas: &Arenas, pattern: Index<Pattern>) {
         assert_eq!(
             format!("{}", PatternDisplayAdapter::new(pattern.clone(), arenas)),
-            PatternDisplayVisitorR::new(arenas).display(pattern.clone()),
+            PatternDisplayVisitor::new_right(arenas).display(pattern.clone()),
         )
     }
 }
