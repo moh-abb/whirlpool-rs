@@ -17,6 +17,10 @@ const INDEX_OUT_OF_BOUNDS: &str = "[Arena]: Index out of bounds";
 /// value into a slot ([Option]) which is empty, i.e. [None].
 const EXPECTED_FULL_SLOT: &str =
     "[Arena::take]: Arena slot should have been full at the given index";
+/// The message to use when an arena using a [core::cell::RefCell] is
+/// borrowed twice.
+const INVALID_BORROW: &str =
+    "[Arena]: Attempted to borrow arena violating borrowing rules";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ArenaError {
@@ -24,6 +28,7 @@ pub enum ArenaError {
     LimitReached,
     ExpectedFreeSlot,
     ExpectedFullSlot,
+    InvalidBorrow,
 }
 
 pub type ArenaResult<T> = Result<T, ArenaError>;
@@ -35,6 +40,7 @@ impl Display for ArenaError {
             Self::LimitReached => LIMIT_REACHED,
             Self::ExpectedFreeSlot => EXPECTED_FREE_SLOT,
             Self::ExpectedFullSlot => EXPECTED_FULL_SLOT,
+            Self::InvalidBorrow => INVALID_BORROW,
         };
         f.write_str(msg)
     }

@@ -60,7 +60,7 @@ impl<T: ArenaItem> Arena<T> for GrowableArena<T> {
                 }
                 map.0.push(None);
                 Ok(())
-            })?;
+            })??;
         self.0.push(value)
     }
 

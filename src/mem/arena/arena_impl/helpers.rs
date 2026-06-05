@@ -44,13 +44,17 @@ impl<T, M: IndexableMap<T>> IndexableMapArena<T, M> {
 
     /// Performs the given mutable action,
     /// using the arena's next index and map fields.
+    #[must_use]
     pub fn with_inner_mut<U>(
         &self,
         f: impl FnOnce(&mut u16, &mut M) -> U,
-    ) -> U {
-        let mut inner = self.0.borrow_mut();
+    ) -> ArenaResult<U> {
+        let mut inner = self
+            .0
+            .try_borrow_mut()
+            .map_err(|_| ArenaError::InvalidBorrow)?;
         let IMInner { next_index, map, phantom: _ } = inner.deref_mut();
-        f(next_index, map)
+        Ok(f(next_index, map))
     }
 
     fn with_mut_slot<U>(
@@ -58,8 +62,9 @@ impl<T, M: IndexableMap<T>> IndexableMapArena<T, M> {
         index: Index<T>,
         func: impl FnOnce(&mut Option<T>) -> U,
     ) -> ArenaResult<U> {
-        let mut inner = self.0.borrow_mut();
-        inner
+        self.0
+            .try_borrow_mut()
+            .map_err(|_| ArenaError::InvalidBorrow)?
             .map
             .get_mut_slot(index)
             .map(func)
@@ -71,8 +76,9 @@ impl<T, M: IndexableMap<T>> IndexableMapArena<T, M> {
         index: Index<T>,
         func: impl FnOnce(&Option<T>) -> U,
     ) -> ArenaResult<U> {
-        let inner = self.0.borrow();
-        inner
+        self.0
+            .try_borrow()
+            .map_err(|_| ArenaError::InvalidBorrow)?
             .map
             .get_slot(index)
             .map(func)
