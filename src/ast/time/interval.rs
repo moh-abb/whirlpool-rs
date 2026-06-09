@@ -12,6 +12,10 @@ impl CycleInterval {
         Self { start, end }
     }
 
+    pub const fn const_eq(&self, other: &Self) -> bool {
+        self.start.const_eq(&other.start) && self.end.const_eq(&other.end)
+    }
+
     pub const fn start(&self) -> CycleTime {
         self.start
     }
@@ -29,5 +33,71 @@ impl CycleInterval {
             return None;
         }
         Some(Self { start, end })
+    }
+
+    /// Calculates an interval with each end as a linear interpolation inside
+    /// `self`, interpolated by the same proportion that the corresponding end
+    /// of `inner` is along `outer`.
+    ///
+    /// For example, if inner = [2, 4), outer = [0, 8), self = [2, 6),
+    /// then the result is [3, 4).
+    #[inline]
+    pub const fn lerp_interval(
+        self,
+        inner: CycleInterval,
+        outer: CycleInterval,
+    ) -> Option<CycleInterval> {
+        // Let  outer_length = outer.end - outer.start
+        //      alpha     = (inner.start - outer.start) / outer_length
+        //      1 - alpha = (outer.end - inner.start)   / outer_length
+        //      beta      = (inner.end - outer.start)   / outer_length
+        //      1 - beta  = (outer.end - inner.end)     / outer_length
+        // Then with lerp(p, x, y) = p * y + (1 - p) * x,
+        // y.start = lerp(alpha, self.start, self.end)
+        //         = (
+        //             inner.start * (self.end - self.start)
+        //             + (self.start * outer.end - self.end * outer.start)
+        //           ) / outer_length
+        //         = (inner.start * self_length + k) / outer_length
+        // y.end = lerp(beta, self.start, self.end)
+        //       = (
+        //           inner.end * (self.end - self.start)
+        //           + (self.start * outer.end - self.end * outer.start)
+        //         ) / outer_length
+        //       = (inner.end * self_length + k) / outer_length
+        // where k = self.start * outer.end - self.end * outer.start
+        //
+        // Trivially, if inner = outer then the result is self
+        // (in which case alpha = 0, beta = 1).
+        if inner.const_eq(&outer) {
+            return Some(self);
+        }
+        let outer_length = outer.end().sub(outer.start());
+        let self_length = self.end().sub(self.start());
+        let k = self
+            .start()
+            .mul(outer.end())
+            .sub(self.end().mul(outer.start()));
+
+        const fn endpoint(
+            point: CycleTime,
+            input_length: CycleTime,
+            outer_length: CycleTime,
+            k: CycleTime,
+        ) -> CycleTime {
+            point
+                .mul(input_length)
+                .add(k)
+                .div(outer_length)
+        }
+
+        let start = endpoint(inner.start(), self_length, outer_length, k)
+            .const_max(self.start());
+        let end = endpoint(inner.end(), self_length, outer_length, k)
+            .const_min(self.end());
+        if end.const_le(&start) {
+            return None;
+        }
+        Some(CycleInterval::new(start, end))
     }
 }

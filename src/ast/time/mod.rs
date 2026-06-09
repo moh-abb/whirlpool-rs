@@ -133,6 +133,10 @@ impl CycleTime {
         self.0.to_bits() <= other.0.to_bits()
     }
 
+    pub const fn const_eq(&self, other: &Self) -> bool {
+        self.0.to_bits() == other.0.to_bits()
+    }
+
     #[inline]
     #[must_use]
     pub const fn const_max(self, other: Self) -> Self {

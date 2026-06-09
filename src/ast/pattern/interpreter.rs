@@ -406,60 +406,6 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
     fn map_silence(&self) -> Self::PatternOutput {}
 }
 
-// Calculates the interval `y1` with each end as a linear interpolation
-// along `y2`, by the same fraction that the corresponding end of `x1` is
-// along `x2`.
-//
-// For example, if x1 = [2, 4), x2 = [0, 8), y2 = [2, 6), then y1 = [3, 4).
-#[inline]
-fn lerp_interval(
-    x1: CycleInterval,
-    x2: CycleInterval,
-    y2: CycleInterval,
-) -> Option<CycleInterval> {
-    // Let  alpha     = (x1.start - x2.start) / (x2.end - x2.start)
-    //      1 - alpha = (x2.end - x1.start) / (x2.end - x2.start)
-    //      beta      = (x1.end - x2.start) / (x2.end - x2.start)
-    //      1 - beta  = (x2.end - x1.end) / (x2.end - x2.start)
-    // Then with lerp(p, x, y) = p * y + (1 - p) * x,
-    // y1.start = lerp(alpha, y2.start, y2.end)
-    //      = (
-    //          x1.start * (y2.end - y2.start)
-    //          + (y2.start * x2.end - y2.end * x2.start)
-    //        ) / (x2.end - x2.start)
-    //      = (x1.start * y2.length + k) / x2.length
-    // y1.end = lerp(beta, y2.start, y2.end)
-    //      = (
-    //          x1.end * (y2.end - y2.start)
-    //          + (y2.start * x2.end - y2.end * x2.start)
-    //        ) / (x2.end - x2.start)
-    //      = (x1.end * y2.length + k) / x2.length
-    // where k = y2.start * x2.end - y2.end * x2.start
-    //
-    // Trivially, if x1 = x2 then y1 = y2 (in which case alpha = 0, beta = 1).
-    if x1 == x2 {
-        return Some(y2);
-    }
-    let x2_length = x2.end().sub(x2.start());
-    let y2_length = y2.end().sub(y2.start());
-    let k = y2
-        .start()
-        .mul(x2.end())
-        .sub(y2.end().mul(x2.start()));
-    let endpoint = |point: CycleTime| {
-        point
-            .mul(y2_length)
-            .add(k)
-            .div(x2_length)
-    };
-    let start = endpoint(x1.start()).max(y2.start());
-    let end = endpoint(x1.end()).min(y2.end());
-    if start >= end {
-        return None;
-    }
-    Some(CycleInterval::new(start, end))
-}
-
 #[inline]
 fn play_intersection<T: Debug>(
     elem: &T,
@@ -477,7 +423,7 @@ fn play_intersection<T: Debug>(
     );
 
     let opt_sim_intersection =
-        lerp_interval(rep_intersection, rep_interval, sim_interval);
+        sim_interval.lerp_interval(rep_intersection, rep_interval);
     let Some(sim_intersection) = opt_sim_intersection else {
         // Due to fixed point arithmetic errors, the intersection is too small
         // to consider.
