@@ -6,13 +6,13 @@ use core::ops::DerefMut;
 
 use crate::ast::CycleInterval;
 use crate::ast::CycleTime;
-use crate::ast::ElemProps;
 use crate::ast::NoteUnit;
 use crate::ast::Pattern;
 use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::visitor::PatternVisitor;
 use crate::ast::pattern::visitor::visit_pattern;
+use crate::ast::time::props::ElemProps;
 use crate::mem::Arena;
 use crate::mem::Index;
 use crate::mem::Multiple;

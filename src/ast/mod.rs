@@ -8,6 +8,5 @@ pub use pattern::note::NoteFrequency;
 pub use pattern::note::NoteLetter;
 pub use pattern::note::NoteNumber;
 pub use pattern::note::NoteUnit;
-pub use time::CycleInterval;
 pub use time::CycleTime;
-pub use time::props::ElemProps;
+pub use time::interval::CycleInterval;

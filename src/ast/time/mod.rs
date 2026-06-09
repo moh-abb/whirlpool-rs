@@ -1,6 +1,7 @@
 use fixed::FixedI32;
 use fixed::types::extra::U12;
 
+pub mod interval;
 pub mod props;
 mod traits;
 

@@ -8,11 +8,11 @@ use proptest::test_runner::Reason;
 
 use crate::ast::CycleInterval;
 use crate::ast::CycleTime;
-use crate::ast::ElemProps;
 use crate::ast::Pattern;
 use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::interpreter::test_play_multiple;
+use crate::ast::time::props::ElemProps;
 use crate::mem::Arena;
 use crate::mem::ArenaResult;
 use crate::mem::Index;
