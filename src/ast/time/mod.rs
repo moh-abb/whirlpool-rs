@@ -127,36 +127,20 @@ impl CycleTime {
             .floor()
             .mul(increment)
     }
-}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct CycleInterval {
-    start: CycleTime,
-    end: CycleTime,
-}
-
-impl CycleInterval {
-    pub fn new(start: CycleTime, end: CycleTime) -> Self {
-        debug_assert!(start <= end);
-        Self { start, end }
+    pub const fn const_le(&self, other: &Self) -> bool {
+        self.0.to_bits() <= other.0.to_bits()
     }
 
-    pub const fn start(&self) -> CycleTime {
-        self.start
+    #[inline]
+    #[must_use]
+    pub const fn const_max(self, other: Self) -> Self {
+        if self.const_le(&other) { other } else { self }
     }
 
-    pub const fn end(&self) -> CycleTime {
-        self.end
-    }
-
-    pub fn intersection(self, other: Self) -> Option<Self> {
-        // There is no intersection between the two intervals if the
-        // end of one is before the start of another.
-        let start = self.start.max(other.start);
-        let end = self.end.min(other.end);
-        if start >= end {
-            return None;
-        }
-        Some(Self { start, end })
+    #[inline]
+    #[must_use]
+    pub const fn const_min(self, other: Self) -> Self {
+        if self.const_le(&other) { self } else { other }
     }
 }
