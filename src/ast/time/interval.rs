@@ -1,4 +1,6 @@
 use crate::ast::CycleTime;
+use crate::ast::macros::compose_result;
+use crate::ast::time::OverflowError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CycleInterval {
@@ -46,7 +48,7 @@ impl CycleInterval {
         self,
         inner: CycleInterval,
         outer: CycleInterval,
-    ) -> Option<CycleInterval> {
+    ) -> Result<Option<CycleInterval>, OverflowError> {
         // Let  outer_length = outer.end - outer.start
         //      alpha     = (inner.start - outer.start) / outer_length
         //      1 - alpha = (outer.end - inner.start)   / outer_length
@@ -70,34 +72,34 @@ impl CycleInterval {
         // Trivially, if inner = outer then the result is self
         // (in which case alpha = 0, beta = 1).
         if inner.const_eq(&outer) {
-            return Some(self);
+            return Ok(Some(self));
         }
-        let outer_length = outer.end().sub(outer.start());
-        let self_length = self.end().sub(self.start());
-        let k = self
-            .start()
-            .mul(outer.end())
-            .sub(self.end().mul(outer.start()));
+
+        let outer_length = compose_result!(outer.end().sub(outer.start()));
+        let self_length = compose_result!(self.end().sub(self.start()));
+        let k1 = compose_result!(self.start().mul(outer.end()));
+        let k2 = compose_result!(self.end().mul(outer.start()));
+        let k = compose_result!(k1.sub(k2));
 
         const fn endpoint(
             point: CycleTime,
             input_length: CycleTime,
             outer_length: CycleTime,
             k: CycleTime,
-        ) -> CycleTime {
-            point
-                .mul(input_length)
-                .add(k)
+        ) -> Result<CycleTime, OverflowError> {
+            compose_result!(compose_result!(point.mul(input_length)).add(k))
                 .div(outer_length)
         }
 
-        let start = endpoint(inner.start(), self_length, outer_length, k)
-            .const_max(self.start());
-        let end = endpoint(inner.end(), self_length, outer_length, k)
-            .const_min(self.end());
+        let opt_start = endpoint(inner.start(), self_length, outer_length, k);
+        let opt_end = endpoint(inner.end(), self_length, outer_length, k);
+        let start = compose_result!(opt_start).const_max(self.start());
+        let end = compose_result!(opt_end).const_min(self.end());
+
         if end.const_le(&start) {
-            return None;
+            return Ok(None);
         }
-        Some(CycleInterval::new(start, end))
+
+        Ok(Some(CycleInterval::new(start, end)))
     }
 }

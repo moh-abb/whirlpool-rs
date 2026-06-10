@@ -4,6 +4,7 @@ use crate::ast::CycleTime;
 use crate::ast::NoteLetter;
 use crate::ast::NoteUnit;
 use crate::ast::Pattern;
+use crate::ast::time::OverflowError;
 use crate::test::examples::unittests::pattern::half_binary_tree_depth_two_with_timed_steps;
 use crate::test::examples::unittests::pattern::multiple_of_four_timed_steps;
 use crate::test::interpreter::ScheduledExpectation;
@@ -15,10 +16,18 @@ fn play_nested_time_cats_with_elem_lengths(
 ) {
     let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
     let proportion_of_root = |index: usize| {
-        root_elem_lengths[index] / root_elem_lengths.into_iter().sum()
+        root_elem_lengths[index]
+            / root_elem_lengths
+                .into_iter()
+                .sum::<Result<CycleTime, OverflowError>>()
+                .unwrap()
     };
     let proportion_of_children = |index: usize| {
-        child_elem_lengths[index] / child_elem_lengths.into_iter().sum()
+        child_elem_lengths[index]
+            / child_elem_lengths
+                .into_iter()
+                .sum::<Result<CycleTime, OverflowError>>()
+                .unwrap()
     };
     let a_plus_b_length = proportion_of_root(0);
     let unit_len = |letter: NoteLetter| match letter {
@@ -38,7 +47,7 @@ fn play_nested_time_cats_with_elem_lengths(
     // Check expectations for up to two whole repetitions
     let max_time = 2;
     for rep in 0..max_time {
-        let rep_time = CycleTime::from_int(rep);
+        let rep_time = CycleTime::unwrapped_from_int(rep);
         expected_schedule_actions.extend([
             (
                 rep_time + unit_len(NoteLetter::A),
@@ -74,7 +83,7 @@ fn can_play_nested_time_cats_with_equal_elem_lengths() {
 #[test]
 fn can_play_nested_time_cats_with_nonequal_root_lengths() {
     play_nested_time_cats_with_elem_lengths(
-        [CycleTime::ONE, CycleTime::from_int(3)],
+        [CycleTime::ONE, CycleTime::unwrapped_from_int(3)],
         [CycleTime::ONE; 2],
     );
 }
@@ -83,7 +92,7 @@ fn can_play_nested_time_cats_with_nonequal_root_lengths() {
 fn can_play_nested_time_cats_with_nonequal_child_lengths() {
     play_nested_time_cats_with_elem_lengths(
         [CycleTime::ONE; 2],
-        [CycleTime::ONE, CycleTime::from_int(3)],
+        [CycleTime::ONE, CycleTime::unwrapped_from_int(3)],
     );
 }
 
@@ -117,7 +126,7 @@ fn play_linear_time_cat_with_elem_lengths(elem_lengths: [CycleTime; 4]) {
     let mut expected_schedule_actions =
         Vec::<(CycleTime, Vec<ScheduledExpectation>)>::new();
     for rep in 0..max_time {
-        let rep_time = CycleTime::from_int(rep);
+        let rep_time = CycleTime::unwrapped_from_int(rep);
         let letters =
             [NoteLetter::A, NoteLetter::B, NoteLetter::C, NoteLetter::D];
         let mut elems = Vec::new();
@@ -149,12 +158,16 @@ fn can_play_linear_time_cat_with_elem_lengths_of_half() {
 
 #[test]
 fn can_play_linear_time_cat_with_elem_lengths_of_two() {
-    play_linear_time_cat_with_elem_lengths([CycleTime::from_int(2); 4])
+    play_linear_time_cat_with_elem_lengths(
+        [CycleTime::unwrapped_from_int(2); 4],
+    )
 }
 
 #[test]
 fn can_play_linear_time_cat_with_elem_lengths_of_seven() {
-    play_linear_time_cat_with_elem_lengths([CycleTime::from_int(7); 4])
+    play_linear_time_cat_with_elem_lengths(
+        [CycleTime::unwrapped_from_int(7); 4],
+    )
 }
 
 #[test]
@@ -167,14 +180,14 @@ fn can_play_linear_time_cat_with_unequal_lengths_adding_to_one() {
 #[test]
 fn can_play_linear_time_cat_with_unequal_lengths_not_adding_to_one() {
     play_linear_time_cat_with_elem_lengths(
-        [4, 4, 2, 2].map(CycleTime::from_int),
+        [4, 4, 2, 2].map(CycleTime::unwrapped_from_int),
     )
 }
 
 #[test]
 fn can_play_linear_time_cat_with_complex_unequal_integer_lengths() {
     play_linear_time_cat_with_elem_lengths(
-        [11, 13, 17, 23].map(CycleTime::from_int),
+        [11, 13, 17, 23].map(CycleTime::unwrapped_from_int),
     )
 }
 
@@ -188,7 +201,7 @@ fn can_play_linear_time_cat_with_complex_unequal_decimal_lengths() {
 #[test]
 fn can_play_nested_arranges() {
     let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
-    let start_time = |num: i32| CycleTime::from_int(num);
+    let start_time = |num: i32| CycleTime::unwrapped_from_int(num);
     let single_action = |unscaled_start_time, letter: NoteLetter| {
         [ScheduledExpectation {
             start_time: start_time(unscaled_start_time),
@@ -213,7 +226,7 @@ fn can_play_nested_arranges() {
     let (arenas, head_index) = half_binary_tree_depth_two_with_timed_steps(
         Pattern::Arrange,
         Pattern::Arrange,
-        [CycleTime::ONE, CycleTime::from_int(2)],
+        [CycleTime::ONE, CycleTime::unwrapped_from_int(2)],
         [CycleTime::ONE, CycleTime::ONE],
     );
     test_expectations(&arenas, head_index, &expected_schedule_actions);

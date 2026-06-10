@@ -9,6 +9,7 @@ use crate::ast::NoteUnit;
 use crate::ast::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::interpreter::Interpreter;
+use crate::ast::time::OverflowError;
 use crate::mem::Index;
 use crate::synth::scheduler::MockUnitScheduler;
 use crate::synth::unit::SoundUnit;
@@ -18,10 +19,6 @@ mod arbitrary;
 mod logging;
 mod sequence;
 mod unittests;
-
-/// Minimum threshold for which a played element's start time is considered
-/// equal to the expected start time.
-const EPSILON: CycleTime = CycleTime::from_int_recip(4096);
 
 /// A triple of an expected scheduled start time, duration, and note unit.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
@@ -131,7 +128,11 @@ fn test_expectations_with_interpreter_setup_and_start_time<
     logging_scheduler
         .borrow_mut()
         .set_inner_enabled(false);
-    interpreter.update_time(start_time);
+    interpreter
+        .update_time(start_time)
+        .unwrap_or_else(|OverflowError| {
+            panic!("Overflowed when updating start time {start_time:?}")
+        });
     logging_scheduler
         .borrow_mut()
         .set_inner_enabled(true);
@@ -150,7 +151,7 @@ fn test_expectations_with_interpreter_setup_and_start_time<
             };
             let approx_eq_start_time =
                 predicate::function(move |time: &CycleTime| {
-                    abs_diff(start_time, *time) <= EPSILON
+                    abs_diff(start_time, *time) <= CycleTime::EPSILON
                 });
             borrowed_scheduler
                 .expect_add()
@@ -167,7 +168,11 @@ fn test_expectations_with_interpreter_setup_and_start_time<
             .clone()
             .into_iter()
             .for_each(|e| expect_note_unit(e.borrow().clone()));
-        interpreter.update_time(*next_cycle_time);
+        interpreter
+            .update_time(*next_cycle_time)
+            .unwrap_or_else(|OverflowError| {
+                panic!("Overflowed when updating start time {start_time:?}")
+            });
         with_mock_scheduler(&|player| player.checkpoint());
     }
 }

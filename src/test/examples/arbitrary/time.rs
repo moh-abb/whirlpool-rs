@@ -14,11 +14,11 @@ pub fn arb_positive_cycle_time<NumSource: Arbitrary + Into<NonZeroU16>>()
     (any::<NumSource>(), any::<NumSource>()).prop_filter_map(
         Reason::from("result should be positive"),
         |(num, denom)| {
-            let num_time = CycleTime::from_int(i32::from(num.into().get()));
+            let num_time =
+                CycleTime::unwrapped_from_int(i32::from(num.into().get()));
             let denom_time =
                 CycleTime::from_int_recip(i32::from(denom.into().get()));
-            let result = Some(num_time * denom_time);
-            result.filter(|x| x > &CycleTime::ZERO)
+            Some(num_time * denom_time).filter(|x| x > &CycleTime::ZERO)
         },
     )
 }
@@ -27,6 +27,7 @@ pub fn arb_cycle_time() -> impl Strategy<Value = CycleTime> {
     prop_oneof![
         Just(CycleTime::ZERO),
         arb_positive_cycle_time::<NonZeroU16>(),
-        arb_positive_cycle_time::<NonZeroU16>().prop_map(CycleTime::neg),
+        arb_positive_cycle_time::<NonZeroU16>()
+            .prop_filter_map(Reason::from("Overflow error"), |x| x.neg().ok()),
     ]
 }

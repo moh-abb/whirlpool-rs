@@ -17,14 +17,17 @@ fn play_double_sequential_seqs_with_offset_and_multiplier(
     multiplier: CycleTime,
 ) {
     let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
-    let multiple_length_product = CycleTime::from_int(4);
+    let multiple_length_product = CycleTime::unwrapped_from_int(4);
 
-    let interpreter_time =
-        |start_time| CycleTime::from_int(start_time) / multiple_length_product;
+    let interpreter_time = |start_time| {
+        CycleTime::unwrapped_from_int(start_time) / multiple_length_product
+    };
     let make_scheduled_action = |start_time, letter: NoteLetter| {
-        let unit_duration = (multiple_length_product * multiplier).recip();
+        let unit_duration = (multiple_length_product * multiplier)
+            .recip()
+            .unwrap();
         [ScheduledExpectation {
-            start_time: ((CycleTime::from_int(start_time)
+            start_time: ((CycleTime::unwrapped_from_int(start_time)
                 / multiple_length_product)
                 + offset)
                 / multiplier,
@@ -65,7 +68,7 @@ fn can_play_double_sequential_seqs() {
 fn can_play_double_sequential_seqs_at_double_speed() {
     play_double_sequential_seqs_with_offset_and_multiplier(
         CycleTime::ZERO,
-        CycleTime::from_int(2),
+        CycleTime::unwrapped_from_int(2),
     );
 }
 
@@ -73,7 +76,7 @@ fn can_play_double_sequential_seqs_at_double_speed() {
 fn can_play_double_sequential_seqs_at_seven_times_speed() {
     play_double_sequential_seqs_with_offset_and_multiplier(
         CycleTime::ZERO,
-        CycleTime::from_int(7),
+        CycleTime::unwrapped_from_int(7),
     );
 }
 
@@ -89,7 +92,7 @@ fn can_play_double_sequential_seqs_at_nonzero_offset() {
 fn can_play_double_sequential_seqs_at_double_speed_and_nonzero_offset() {
     play_double_sequential_seqs_with_offset_and_multiplier(
         NONZERO_OFFSET,
-        CycleTime::from_int(2),
+        CycleTime::unwrapped_from_int(2),
     );
 }
 
@@ -97,7 +100,7 @@ fn can_play_double_sequential_seqs_at_double_speed_and_nonzero_offset() {
 fn can_play_double_sequential_seqs_at_seven_times_speed_and_nonzero_offset() {
     play_double_sequential_seqs_with_offset_and_multiplier(
         NONZERO_OFFSET,
-        CycleTime::from_int(7),
+        CycleTime::unwrapped_from_int(7),
     );
 }
 
@@ -108,14 +111,15 @@ fn play_double_seq_then_unit_with_multiplier(multiplier: CycleTime) {
     // ↓  ↓
     // A   B
     let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
-    let multiple_length_product = CycleTime::from_int(4);
+    let multiple_length_product = CycleTime::unwrapped_from_int(4);
 
-    let interpreter_time =
-        |start_time| CycleTime::from_int(start_time) / multiple_length_product;
+    let interpreter_time = |start_time| {
+        CycleTime::unwrapped_from_int(start_time) / multiple_length_product
+    };
     let make_scheduled_action =
         |start_time, duration_recip, letter: NoteLetter| {
             [ScheduledExpectation {
-                start_time: CycleTime::from_int(start_time)
+                start_time: CycleTime::unwrapped_from_int(start_time)
                     / (multiplier * multiple_length_product),
                 duration: CycleTime::from_int_recip(duration_recip)
                     / multiplier,
@@ -149,12 +153,12 @@ fn can_play_double_seq_then_unit() {
 
 #[test]
 fn can_play_double_seq_then_unit_at_double_speed() {
-    play_double_seq_then_unit_with_multiplier(CycleTime::from_int(2))
+    play_double_seq_then_unit_with_multiplier(CycleTime::unwrapped_from_int(2))
 }
 
 #[test]
 fn can_play_double_seq_then_unit_at_seven_times_speed() {
-    play_double_seq_then_unit_with_multiplier(CycleTime::from_int(7))
+    play_double_seq_then_unit_with_multiplier(CycleTime::unwrapped_from_int(7))
 }
 
 fn play_seq_of_three_units_with_offset_and_multiplier(
@@ -165,19 +169,23 @@ fn play_seq_of_three_units_with_offset_and_multiplier(
     // ↓ ↓ ↓
     // A  B  C
     let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
-    let multiple_length = CycleTime::from_int(3);
+    let multiple_length = CycleTime::unwrapped_from_int(3);
 
     let make_scheduled_action = |start_time, letter: NoteLetter| {
         [ScheduledExpectation {
-            start_time: ((CycleTime::from_int(start_time) / multiple_length)
+            start_time: ((CycleTime::unwrapped_from_int(start_time)
+                / multiple_length)
                 + offset)
                 / multiplier,
-            duration: (multiplier * multiple_length).recip(),
+            duration: (multiplier * multiple_length)
+                .recip()
+                .unwrap(),
             note_unit: note_unit(letter),
         }]
     };
-    let interpreter_time =
-        |start_time| CycleTime::from_int(start_time) / multiple_length;
+    let interpreter_time = |start_time| {
+        CycleTime::unwrapped_from_int(start_time) / multiple_length
+    };
     let expected_schedule_actions = [
         (interpreter_time(1), &make_scheduled_action(0, NoteLetter::A)[..]),
         (interpreter_time(2), &make_scheduled_action(1, NoteLetter::B)[..]),
@@ -207,7 +215,7 @@ fn can_play_seq_of_three_units() {
 fn can_play_seq_of_three_units_at_double_speed() {
     play_seq_of_three_units_with_offset_and_multiplier(
         CycleTime::ZERO,
-        CycleTime::from_int(2),
+        CycleTime::unwrapped_from_int(2),
     )
 }
 
@@ -215,7 +223,7 @@ fn can_play_seq_of_three_units_at_double_speed() {
 fn can_play_seq_of_three_units_at_seven_times_speed() {
     play_seq_of_three_units_with_offset_and_multiplier(
         CycleTime::ZERO,
-        CycleTime::from_int(7),
+        CycleTime::unwrapped_from_int(7),
     )
 }
 
@@ -231,7 +239,7 @@ fn can_play_seq_of_three_units_at_nonzero_offset() {
 fn can_play_seq_of_three_units_at_double_speed_and_nonzero_offset() {
     play_seq_of_three_units_with_offset_and_multiplier(
         NONZERO_OFFSET,
-        CycleTime::from_int(2),
+        CycleTime::unwrapped_from_int(2),
     )
 }
 
@@ -239,7 +247,7 @@ fn can_play_seq_of_three_units_at_double_speed_and_nonzero_offset() {
 fn can_play_seq_of_three_units_at_seven_times_speed_and_nonzero_offset() {
     play_seq_of_three_units_with_offset_and_multiplier(
         NONZERO_OFFSET,
-        CycleTime::from_int(7),
+        CycleTime::unwrapped_from_int(7),
     )
 }
 
@@ -249,17 +257,19 @@ fn can_play_seq_of_unit_then_silence_then_unit() {
     // ↓ ↓ ↓
     // A  ~  C
     let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
-    let multiple_length = CycleTime::from_int(3);
+    let multiple_length = CycleTime::unwrapped_from_int(3);
 
     let make_scheduled_action = |start_time, letter: NoteLetter| {
         [ScheduledExpectation {
-            start_time: CycleTime::from_int(start_time) / multiple_length,
-            duration: multiple_length.recip(),
+            start_time: CycleTime::unwrapped_from_int(start_time)
+                / multiple_length,
+            duration: multiple_length.recip().unwrap(),
             note_unit: note_unit(letter),
         }]
     };
-    let interpreter_time =
-        |start_time| CycleTime::from_int(start_time) / multiple_length;
+    let interpreter_time = |start_time| {
+        CycleTime::unwrapped_from_int(start_time) / multiple_length
+    };
     let expected_schedule_actions = [
         (interpreter_time(1), &make_scheduled_action(0, NoteLetter::A)[..]),
         (interpreter_time(2), &[][..]),

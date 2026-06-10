@@ -3,6 +3,8 @@ pub mod arena;
 pub mod clone;
 pub mod cmp;
 pub mod drop;
+
+#[macro_use]
 pub mod structures;
 
 // Common re-exports

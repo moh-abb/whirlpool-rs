@@ -9,6 +9,7 @@
 #[allow(unused_extern_crates)]
 extern crate alloc;
 
+#[macro_use]
 pub mod ast;
 pub mod mem;
 pub mod synth;

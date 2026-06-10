@@ -12,6 +12,7 @@ use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::visitor::PatternVisitor;
 use crate::ast::pattern::visitor::visit_pattern;
+use crate::ast::time::OverflowError;
 use crate::ast::time::props::ElemProps;
 use crate::mem::Arena;
 use crate::mem::Index;
@@ -118,14 +119,18 @@ impl<
 > Interpreter<'a, Arenas, S, Borrow>
 {
     #[allow(unused)]
-    pub fn update_time(&mut self, next_position: CycleTime) {
+    #[must_use]
+    pub fn update_time(
+        &mut self,
+        next_position: CycleTime,
+    ) -> Result<(), OverflowError> {
         // The time should be monotonically increasing.
         assert!(next_position >= self.position);
         let mut borrowed_scheduler = self.borrow_adapter.borrow_mut();
         let visitor = InterpreterVisitor {
             arenas: self.arenas,
             start: self.position,
-            duration: next_position.sub(self.position),
+            duration: next_position.sub(self.position)?,
             offset: self.base_offset,
             multiplier: self.base_multiplier,
             inner: RefCell::new(VisitorInner {
@@ -134,6 +139,7 @@ impl<
         };
         visit_pattern(&visitor, self.pattern.clone());
         self.position = next_position;
+        Ok(())
     }
 }
 
@@ -167,13 +173,19 @@ struct PlayElemArgs<'a, T> {
 impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler>
     InterpreterVisitor<'a, Arenas, Scheduler>
 {
-    fn play_elem_func(&self) -> impl FnMut(PlayElemArgs<'_, Index<Pattern>>) {
+    fn play_elem_func(
+        &self,
+    ) -> impl FnMut(PlayElemArgs<'_, Index<Pattern>>) -> Result<(), OverflowError>
+    {
         |args| {
             let mut inner_mut = self.inner.borrow_mut();
             let visitor = InterpreterVisitor {
                 arenas: self.arenas,
                 start: args.interval.start(),
-                duration: args.interval.end() - args.interval.start(),
+                duration: (args
+                    .interval
+                    .end()
+                    .sub(args.interval.start()))?,
                 offset: args.offset,
                 multiplier: args.multiplier,
                 inner: RefCell::new(VisitorInner {
@@ -198,19 +210,25 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler>
             })
     }
 
-    fn map_cat_or_seq(&self, multiple: Multiple<Pattern>, is_fast: bool) {
+    fn map_cat_or_seq(
+        &self,
+        multiple: Multiple<Pattern>,
+        is_fast: bool,
+    ) -> Result<(), OverflowError> {
         if multiple.is_empty() {
             panic!("Cannot play empty multiple patterns");
         }
 
         let interval =
-            CycleInterval::new(self.start, self.start + self.duration);
-        let make_sim_elem = |elem: Index<Pattern>| ElemProps {
-            elem,
-            sim_duration: CycleTime::ONE,
-            played_duration: CycleTime::ONE,
+            CycleInterval::new(self.start, self.start.add(self.duration)?);
+        let make_sim_elem = |elem: Index<Pattern>| {
+            Ok(ElemProps {
+                elem,
+                sim_duration: CycleTime::ONE,
+                played_duration: CycleTime::ONE,
+            })
         };
-        let length = CycleTime::from_int(i32::from(multiple.length()));
+        let length = CycleTime::checked_from_int(i32::from(multiple.length()))?;
         let get_elements = || {
             multiple
                 .iter(self.arenas.get_pattern_chain_arena())
@@ -238,8 +256,8 @@ struct VisitorInner<'a, Scheduler> {
 impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
     for InterpreterVisitor<'a, Arenas, Scheduler>
 {
-    type Output = ();
-    type PatternOutput = ();
+    type Output = Result<(), OverflowError>;
+    type PatternOutput = Result<(), OverflowError>;
 
     fn get_arenas(&self) -> &impl PatternArenas {
         self.arenas
@@ -254,11 +272,11 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
     }
 
     fn map_cat(&self, multiple: Multiple<Pattern>) -> Self::PatternOutput {
-        self.map_cat_or_seq(multiple, false);
+        self.map_cat_or_seq(multiple, false)
     }
 
     fn map_seq(&self, multiple: Multiple<Pattern>) -> Self::PatternOutput {
-        self.map_cat_or_seq(multiple, true);
+        self.map_cat_or_seq(multiple, true)
     }
 
     fn map_stack(&self, multiple: Multiple<Pattern>) -> Self::PatternOutput {
@@ -270,7 +288,7 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
 
         multiple
             .iter(self.arenas.get_pattern_chain_arena())
-            .for_each(|pattern_index| visit_pattern(self, pattern_index));
+            .try_for_each(|pattern_index| visit_pattern(self, pattern_index))
     }
 
     fn map_time_cat(
@@ -282,26 +300,31 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
         }
 
         let interval =
-            CycleInterval::new(self.start, self.start + self.duration);
+            CycleInterval::new(self.start, self.start.add(self.duration)?);
 
-        let multiple_length = CycleTime::from_int(i32::from(multiple.length()));
+        let multiple_length =
+            CycleTime::checked_from_int(i32::from(multiple.length()))?;
         // TODO: Store the total length to reduce repeated calculation
         let total_cycle_length = self
             .timed_step_iter(&multiple)
             .map(|TimedStep(dur, _)| dur)
-            .sum();
+            .sum::<Result<CycleTime, OverflowError>>()?;
         // If we have a [TimeCat], then we simulate over each one cycle in the
         // [Multiple] and then scale each element individually by its
         // proportion of the total; e.g. TimeCat([1, "A"], [2, "B"], [3, "C"])
         // will have element lengths 1*3/6, 2*3/6, 3*3/6
         // (which adds to 3, the number of elements).
         let get_scaled_length = |elem_length: CycleTime| {
-            (elem_length * multiple_length) / total_cycle_length
+            elem_length
+                .mul(multiple_length)?
+                .div(total_cycle_length)
         };
-        let make_sim_elem = |TimedStep(elem_length, pattern)| ElemProps {
-            elem: pattern,
-            sim_duration: CycleTime::ONE,
-            played_duration: get_scaled_length(elem_length),
+        let make_sim_elem = |TimedStep(elem_length, pattern)| {
+            Ok(ElemProps {
+                elem: pattern,
+                sim_duration: CycleTime::ONE,
+                played_duration: get_scaled_length(elem_length)?,
+            })
         };
         let get_elements = || {
             self.timed_step_iter(&multiple)
@@ -310,8 +333,7 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
         // Due to fixed point rounding errors, recalculate the total length
         // after calculating the scaled length of each element.
         let played_duration = get_elements()
-            .map(|elem| elem.played_duration)
-            .sum();
+            .try_fold(CycleTime::ZERO, |acc, x| acc.add(x?.played_duration))?;
         play_multiple(
             interval,
             ElemProps {
@@ -323,7 +345,7 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
             self.offset,
             self.multiplier,
             self.play_elem_func(),
-        );
+        )
     }
 
     fn map_arrange(
@@ -335,17 +357,19 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
         }
 
         let interval =
-            CycleInterval::new(self.start, self.start + self.duration);
+            CycleInterval::new(self.start, self.start.add(self.duration)?);
 
         // TODO: Store the total length to reduce repeated calculation
         let total_cycle_length = self
             .timed_step_iter(&multiple)
             .map(|TimedStep(dur, _)| dur)
-            .sum();
-        let make_sim_elem = |TimedStep(elem_length, pattern)| ElemProps {
-            elem: pattern,
-            sim_duration: elem_length,
-            played_duration: elem_length,
+            .sum::<Result<CycleTime, OverflowError>>()?;
+        let make_sim_elem = |TimedStep(elem_length, pattern)| {
+            Ok(ElemProps {
+                elem: pattern,
+                sim_duration: elem_length,
+                played_duration: elem_length,
+            })
         };
         // If we have an [Arrange], then we simulate over all the cycles in
         // the pattern and so the played length is `total_cycle_length`.
@@ -368,7 +392,7 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
     }
 
     fn map_note_unit(&self, unit: NoteUnit) -> Self::PatternOutput {
-        let unit_duration = self.multiplier.recip();
+        let unit_duration = self.multiplier.recip()?;
         let sound_unit = SoundUnit::new(unit, unit_duration);
         let get_elements = || {
             iter::once(ElemProps {
@@ -376,9 +400,10 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
                 sim_duration: CycleTime::ONE,
                 played_duration: CycleTime::ONE,
             })
+            .map(Ok)
         };
         play_multiple(
-            CycleInterval::new(self.start, self.start + self.duration),
+            CycleInterval::new(self.start, self.start.add(self.duration)?),
             ElemProps {
                 elem: get_elements,
                 sim_duration: CycleTime::ONE,
@@ -391,19 +416,24 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
                 debug_assert_eq!(args.elem, &sound_unit);
                 // Only play if aligned to single cycle
                 let start = args.interval.start();
-                if start != start.floor() {
-                    return;
+                if start != start.floor()? {
+                    return Ok(());
                 }
-                let scaled_start = (start + args.offset) / args.multiplier;
+                let scaled_start = start
+                    .add(args.offset)?
+                    .div(args.multiplier)?;
                 self.inner
                     .borrow_mut()
                     .scheduler
                     .add(args.elem.clone(), scaled_start);
+                Ok(())
             },
-        );
+        )
     }
 
-    fn map_silence(&self) -> Self::PatternOutput {}
+    fn map_silence(&self) -> Self::PatternOutput {
+        Ok(())
+    }
 }
 
 #[inline]
@@ -414,8 +444,8 @@ fn play_intersection<T: Debug>(
     sim_interval: CycleInterval,
     elem_offset: CycleTime,
     elem_multiplier: CycleTime,
-    play_elem: &mut impl FnMut(PlayElemArgs<'_, T>),
-) {
+    play_elem: &mut impl FnMut(PlayElemArgs<'_, T>) -> Result<(), OverflowError>,
+) -> Result<(), OverflowError> {
     // `rep_intersection` should fit completely inside `rep_interval`.
     debug_assert_eq!(
         rep_intersection.intersection(rep_interval),
@@ -423,11 +453,11 @@ fn play_intersection<T: Debug>(
     );
 
     let opt_sim_intersection =
-        sim_interval.lerp_interval(rep_intersection, rep_interval);
+        sim_interval.lerp_interval(rep_intersection, rep_interval)?;
     let Some(sim_intersection) = opt_sim_intersection else {
         // Due to fixed point arithmetic errors, the intersection is too small
         // to consider.
-        return;
+        return Ok(());
     };
 
     // `sim_intersection` should fit completely inside `sim_interval`.
@@ -445,13 +475,16 @@ fn play_intersection<T: Debug>(
     play_elem(args)
 }
 
-fn play_elements<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
+fn play_elements<
+    T: Debug,
+    Iter: Iterator<Item = Result<ElemProps<T>, OverflowError>>,
+>(
     interval: CycleInterval,
     total: ElemProps<Iter>,
     offset: CycleTime,
     total_multiplier: CycleTime,
-    mut play_elem: impl FnMut(PlayElemArgs<'_, T>),
-) {
+    mut play_elem: impl FnMut(PlayElemArgs<'_, T>) -> Result<(), OverflowError>,
+) -> Result<(), OverflowError> {
     // Cat and similar patterns play alternating elements.
     // This is achieved by looking at the "repetitions" of each element.
     //
@@ -504,64 +537,84 @@ fn play_elements<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
     // Iterate over i in [1, n].
     // INV: played_start == P(i - 1)
     let mut played_start = CycleTime::ZERO;
-    for cur in total.elem {
+    for opt_cur in total.elem {
+        let cur = opt_cur?;
         // INV: played_start == P(i - 1)
         // elem_interval = [P(i - 1), P(i))
         let elem_interval = CycleInterval::new(
             played_start,
-            played_start + cur.played_duration,
+            played_start.add(cur.played_duration)?,
         );
 
         // Upper and lower bounds of rep.
         // Not all of these will be inside the played interval, so we need to
         // verify its intersection.
-        let max_start_difference =
-            interval.start().floor() - elem_interval.start().ceil();
-        let max_end_difference =
-            interval.end().ceil() - elem_interval.end().floor();
-        let first_rep = (max_start_difference / total.played_duration).floor();
-        let last_rep = (max_end_difference / total.played_duration).ceil();
+        let max_start_difference = interval
+            .start()
+            .floor()?
+            .sub(elem_interval.start().ceil()?)?;
+        let max_end_difference = interval
+            .end()
+            .ceil()?
+            .sub(elem_interval.end().floor()?)?;
+        let first_rep = max_start_difference
+            .div(total.played_duration)?
+            .floor()?;
+        let last_rep = max_end_difference
+            .div(total.played_duration)?
+            .ceil()?;
 
         debug_assert!(
-            played_start + first_rep * total.played_duration
+            played_start.add(first_rep.mul(total.played_duration)?)?
                 <= interval.start(),
             "first repetition to try should start on or before interval"
         );
         debug_assert!(
             played_start
-                + last_rep * total.played_duration
-                + cur.played_duration
+                .add(last_rep.mul(total.played_duration)?)?
+                .add(cur.played_duration)?
                 >= interval.end(),
             "last repetition to try should end on or after interval"
         );
 
         // elem_multiplier = m_s = (s_i / p_i) * m_t
-        let multiplier_scale = cur.sim_duration / cur.played_duration;
-        let elem_multiplier = multiplier_scale * total_multiplier;
+        let multiplier_scale = cur
+            .sim_duration
+            .div(cur.played_duration)?;
+        let elem_multiplier = multiplier_scale.mul(total_multiplier)?;
 
         // INV: rep_start = rep * PL + P(i - 1)
-        let mut rep_start = first_rep * total.played_duration + played_start;
+        let mut rep_start = first_rep
+            .mul(total.played_duration)?
+            .add(played_start)?;
         for rep_index in first_rep.to_int()..=last_rep.to_int() {
-            let rep = CycleTime::from_int(rep_index);
+            let rep = CycleTime::checked_from_int(rep_index)?;
             // Verify invariant for rep_start
             debug_assert_eq!(
                 rep_start,
-                rep * total.played_duration + played_start
+                rep.mul(total.played_duration)?
+                    .add(played_start)?
             );
 
             // rep_interval = [rep_start, rep_start + p_i)
-            let rep_interval =
-                CycleInterval::new(rep_start, rep_start + cur.played_duration);
+            let rep_interval = CycleInterval::new(
+                rep_start,
+                rep_start.add(cur.played_duration)?,
+            );
             // Calculation detailed above.
-            let rep_offset = (rep_start + offset) * multiplier_scale
-                - rep * cur.sim_duration;
+            let rep_offset = rep_start
+                .add(offset)?
+                .mul(multiplier_scale)?
+                .sub(rep.mul(cur.sim_duration)?)?;
 
             let opt_rep_intersection = rep_interval.intersection(interval);
             if let Some(rep_intersection) = opt_rep_intersection {
                 // sim_interval == [r*s_i, (r+1)*s_i)
-                let sim_start = rep * cur.sim_duration;
-                let sim_interval =
-                    CycleInterval::new(sim_start, sim_start + cur.sim_duration);
+                let sim_start = rep.mul(cur.sim_duration)?;
+                let sim_interval = CycleInterval::new(
+                    sim_start,
+                    sim_start.add(cur.sim_duration)?,
+                );
 
                 play_intersection(
                     &cur.elem,
@@ -571,68 +624,36 @@ fn play_elements<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
                     rep_offset,
                     elem_multiplier,
                     &mut play_elem,
-                );
+                )?
             }
 
-            rep_start += total.played_duration;
+            rep_start = rep_start.add(total.played_duration)?;
         }
 
         played_start = elem_interval.end();
     }
+
+    Ok(())
 }
 
 #[inline]
-fn play_slow_multiple<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
-    interval: CycleInterval,
-    total: ElemProps<Iter>,
-    offset: CycleTime,
-    multiplier: CycleTime,
-    play_elem: impl FnMut(PlayElemArgs<'_, T>),
-) {
-    play_elements(interval, total, offset, multiplier, play_elem)
-}
-
-#[inline]
-fn play_fast_multiple<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
-    interval: CycleInterval,
-    total: ElemProps<Iter>,
-    offset: CycleTime,
-    multiplier: CycleTime,
-    play_elem: impl FnMut(PlayElemArgs<'_, T>),
-) {
-    // Scale up the interval, multiplier and offset by the simulated length.
-    let scaled_interval = CycleInterval::new(
-        interval.start() * total.sim_duration,
-        interval.end() * total.sim_duration,
-    );
-    let scaled_offset = offset * total.sim_duration;
-    let scaled_multiplier = multiplier * total.sim_duration;
-    play_slow_multiple(
-        scaled_interval,
-        total,
-        scaled_offset,
-        scaled_multiplier,
-        play_elem,
-    )
-}
-
-#[inline]
-fn play_multiple<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
-    interval: CycleInterval,
+fn play_multiple<
+    T: Debug,
+    Iter: Iterator<Item = Result<ElemProps<T>, OverflowError>>,
+>(
+    mut interval: CycleInterval,
     total: ElemProps<impl Fn() -> Iter>,
     is_fast: bool,
-    offset: CycleTime,
-    multiplier: CycleTime,
-    play_elem: impl FnMut(PlayElemArgs<'_, T>),
-) {
+    mut offset: CycleTime,
+    mut multiplier: CycleTime,
+    play_elem: impl FnMut(PlayElemArgs<'_, T>) -> Result<(), OverflowError>,
+) -> Result<(), OverflowError> {
     if cfg!(debug_assertions) {
         let calculated_sim_duration = (total.elem)()
-            .map(|multiple_elem| multiple_elem.sim_duration)
-            .sum::<CycleTime>();
+            .try_fold(CycleTime::ZERO, |acc, x| acc.add(x?.sim_duration))?;
 
         let calculated_played_duration = (total.elem)()
-            .map(|multiple_elem| multiple_elem.played_duration)
-            .sum::<CycleTime>();
+            .try_fold(CycleTime::ZERO, |acc, x| acc.add(x?.played_duration))?;
 
         debug_assert_eq!(calculated_sim_duration, total.sim_duration);
         debug_assert_eq!(calculated_played_duration, total.played_duration);
@@ -643,20 +664,38 @@ fn play_multiple<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
         sim_duration: total.sim_duration,
         played_duration: total.played_duration,
     };
-    let play_func =
-        if is_fast { play_fast_multiple } else { play_slow_multiple };
-    play_func(interval, total_props, offset, multiplier, play_elem)
+
+    if is_fast {
+        // Scale up the interval, multiplier and offset by the simulated length.
+        interval = CycleInterval::new(
+            interval
+                .start()
+                .mul(total.sim_duration)?,
+            interval.end().mul(total.sim_duration)?,
+        );
+        offset = offset.mul(total.sim_duration)?;
+        multiplier = multiplier.mul(total.sim_duration)?;
+    }
+    play_elements(interval, total_props, offset, multiplier, play_elem)
 }
 
 #[cfg(test)]
-pub fn test_play_multiple<T: Debug, Iter: Iterator<Item = ElemProps<T>>>(
+pub fn test_play_multiple<
+    T: Debug,
+    Iter: Iterator<Item = Result<ElemProps<T>, OverflowError>>,
+>(
     interval: CycleInterval,
     total: ElemProps<impl Fn() -> Iter>,
     is_fast: bool,
     offset: CycleTime,
     multiplier: CycleTime,
-    mut play_elem: impl FnMut(&T, CycleInterval, CycleTime, CycleTime),
-) {
+    mut play_elem: impl FnMut(
+        &T,
+        CycleInterval,
+        CycleTime,
+        CycleTime,
+    ) -> Result<(), OverflowError>,
+) -> Result<(), OverflowError> {
     play_multiple(interval, total, is_fast, offset, multiplier, |args| {
         play_elem(args.elem, args.interval, args.offset, args.multiplier)
     })
