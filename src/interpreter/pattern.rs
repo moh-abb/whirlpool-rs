@@ -105,8 +105,7 @@ impl<'a, Arenas: PatternArenas, S: UnitScheduler, Borrow: BorrowAdapter<S>>
         let mut borrowed_scheduler = self.borrow_adapter.borrow_mut();
         let visitor = InterpreterVisitor {
             arenas: self.arenas,
-            start: self.cur_time,
-            duration: next_time.sub(self.cur_time)?,
+            interval: CycleInterval::new(self.cur_time, next_time),
             offset: self.base_offset,
             multiplier: self.base_multiplier,
             inner: RefCell::new(VisitorInner {
@@ -129,8 +128,7 @@ impl<'a, Arenas: PatternArenas, S: UnitScheduler, Borrow: BorrowAdapter<S>>
 /// - `inner` contains the `Player` from which units will be scheduled.
 struct InterpreterVisitor<'a, Arenas, Scheduler> {
     arenas: &'a Arenas,
-    start: CycleTime,
-    duration: CycleTime,
+    interval: CycleInterval,
     offset: CycleTime,
     multiplier: CycleTime,
     inner: RefCell<VisitorInner<'a, Scheduler>>,
@@ -147,11 +145,7 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler>
             let mut inner_mut = self.inner.borrow_mut();
             let visitor = InterpreterVisitor {
                 arenas: self.arenas,
-                start: args.interval.start(),
-                duration: (args
-                    .interval
-                    .end()
-                    .sub(args.interval.start()))?,
+                interval: args.interval,
                 offset: args.offset,
                 multiplier: args.multiplier,
                 inner: RefCell::new(VisitorInner {
@@ -185,8 +179,6 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler>
             panic!("Cannot play empty multiple patterns");
         }
 
-        let interval =
-            CycleInterval::new(self.start, self.start.add(self.duration)?);
         let make_sim_elem = |elem: Index<Pattern>| {
             Ok(ElemProps {
                 elem,
@@ -201,7 +193,7 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler>
                 .map(make_sim_elem)
         };
         play_multiple(
-            interval,
+            self.interval,
             ElemProps {
                 elem: get_elements,
                 sim_duration: length,
@@ -265,9 +257,6 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
             panic!("Cannot play empty multiple patterns");
         }
 
-        let interval =
-            CycleInterval::new(self.start, self.start.add(self.duration)?);
-
         let multiple_length =
             CycleTime::checked_from_int(i32::from(multiple.length()))?;
         // TODO: Store the total length to reduce repeated calculation
@@ -301,7 +290,7 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
         let played_duration = get_elements()
             .try_fold(CycleTime::ZERO, |acc, x| acc.add(x?.played_duration))?;
         play_multiple(
-            interval,
+            self.interval,
             ElemProps {
                 elem: get_elements,
                 sim_duration: multiple_length,
@@ -322,9 +311,6 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
             panic!("Cannot play empty multiple patterns");
         }
 
-        let interval =
-            CycleInterval::new(self.start, self.start.add(self.duration)?);
-
         // TODO: Store the total length to reduce repeated calculation
         let total_cycle_length = self
             .timed_step_iter(&multiple)
@@ -344,7 +330,7 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
                 .map(make_sim_elem)
         };
         play_multiple(
-            interval,
+            self.interval,
             ElemProps {
                 elem: get_elements,
                 sim_duration: total_cycle_length,
@@ -369,7 +355,7 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
             .map(Ok)
         };
         play_multiple(
-            CycleInterval::new(self.start, self.start.add(self.duration)?),
+            self.interval,
             ElemProps {
                 elem: get_elements,
                 sim_duration: CycleTime::ONE,
