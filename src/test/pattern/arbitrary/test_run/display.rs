@@ -15,8 +15,12 @@ impl<Arenas: PatternArenas> ArenaTest<Index<Pattern>, Arenas>
 {
     fn run(arenas: &Arenas, pattern: Index<Pattern>) {
         assert_eq!(
-            PatternDisplayVisitor::new_left(arenas).display(pattern.clone()),
-            PatternDisplayVisitor::new_right(arenas).display(pattern.clone()),
+            PatternDisplayVisitor::new_left(arenas)
+                .display(pattern.clone())
+                .unwrap(),
+            PatternDisplayVisitor::new_right(arenas)
+                .display(pattern.clone())
+                .unwrap(),
         )
     }
 }
@@ -28,7 +32,9 @@ impl<Arenas: PatternArenas> ArenaTest<Index<Pattern>, Arenas>
     fn run(arenas: &Arenas, pattern: Index<Pattern>) {
         assert_eq!(
             format!("{}", PatternDisplayAdapter::new(pattern.clone(), arenas)),
-            PatternDisplayVisitor::new_left(arenas).display(pattern.clone()),
+            PatternDisplayVisitor::new_left(arenas)
+                .display(pattern.clone())
+                .unwrap(),
         )
     }
 }
@@ -40,7 +46,9 @@ impl<Arenas: PatternArenas> ArenaTest<Index<Pattern>, Arenas>
     fn run(arenas: &Arenas, pattern: Index<Pattern>) {
         assert_eq!(
             format!("{}", PatternDisplayAdapter::new(pattern.clone(), arenas)),
-            PatternDisplayVisitor::new_right(arenas).display(pattern.clone()),
+            PatternDisplayVisitor::new_right(arenas)
+                .display(pattern.clone())
+                .unwrap(),
         )
     }
 }

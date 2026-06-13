@@ -2,9 +2,13 @@ use core::fmt::Debug;
 
 use crate::ast::CycleInterval;
 use crate::ast::CycleTime;
-use crate::ast::time::OverflowError;
+use crate::ast::TimedStep;
+use crate::ast::pattern::arenas::PatternArenas;
+use crate::ast::pattern::visitor::timed_step_iter;
+use crate::interpreter::error::PatternInterpreterError;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
+use crate::mem::Multiple;
 
 #[inline]
 fn play_intersection<T: Debug>(
@@ -14,8 +18,10 @@ fn play_intersection<T: Debug>(
     sim_interval: CycleInterval,
     elem_offset: CycleTime,
     elem_multiplier: CycleTime,
-    play_elem: &mut impl FnMut(PlayElemArgs<'_, T>) -> Result<(), OverflowError>,
-) -> Result<(), OverflowError> {
+    play_elem: &mut impl FnMut(
+        PlayElemArgs<'_, T>,
+    ) -> Result<(), PatternInterpreterError>,
+) -> Result<(), PatternInterpreterError> {
     // `rep_intersection` should fit completely inside `rep_interval`.
     debug_assert_eq!(
         rep_intersection.intersection(rep_interval),
@@ -47,14 +53,16 @@ fn play_intersection<T: Debug>(
 
 fn play_repetitions<
     T: Debug,
-    Iter: Iterator<Item = Result<ElemProps<T>, OverflowError>>,
+    Iter: Iterator<Item = Result<ElemProps<T>, PatternInterpreterError>>,
 >(
     interval: CycleInterval,
     total: ElemProps<Iter>,
     offset: CycleTime,
     total_multiplier: CycleTime,
-    mut play_elem: impl FnMut(PlayElemArgs<'_, T>) -> Result<(), OverflowError>,
-) -> Result<(), OverflowError> {
+    mut play_elem: impl FnMut(
+        PlayElemArgs<'_, T>,
+    ) -> Result<(), PatternInterpreterError>,
+) -> Result<(), PatternInterpreterError> {
     // Cat and similar patterns play alternating elements.
     // This is achieved by looking at the "repetitions" of each element.
     //
@@ -209,21 +217,23 @@ fn play_repetitions<
 #[inline]
 pub fn play_multiple<
     T: Debug,
-    Iter: Iterator<Item = Result<ElemProps<T>, OverflowError>>,
+    Iter: Iterator<Item = Result<ElemProps<T>, PatternInterpreterError>>,
 >(
     mut interval: CycleInterval,
     total: ElemProps<impl Fn() -> Iter>,
     is_fast: bool,
     mut offset: CycleTime,
     mut multiplier: CycleTime,
-    play_elem: impl FnMut(PlayElemArgs<'_, T>) -> Result<(), OverflowError>,
-) -> Result<(), OverflowError> {
+    play_elem: impl FnMut(
+        PlayElemArgs<'_, T>,
+    ) -> Result<(), PatternInterpreterError>,
+) -> Result<(), PatternInterpreterError> {
     if cfg!(debug_assertions) {
-        let calculated_sim_duration = (total.elem)()
-            .try_fold(CycleTime::ZERO, |acc, x| acc.add(x?.sim_duration))?;
+        let calculated_sim_duration =
+            sum_cycle_length((total.elem)(), |x| x.sim_duration)?;
 
-        let calculated_played_duration = (total.elem)()
-            .try_fold(CycleTime::ZERO, |acc, x| acc.add(x?.played_duration))?;
+        let calculated_played_duration =
+            sum_cycle_length((total.elem)(), |x| x.played_duration)?;
 
         debug_assert_eq!(calculated_sim_duration, total.sim_duration);
         debug_assert_eq!(calculated_played_duration, total.played_duration);
@@ -247,4 +257,25 @@ pub fn play_multiple<
         multiplier = multiplier.mul(total.sim_duration)?;
     }
     play_repetitions(interval, total_props, offset, multiplier, play_elem)
+}
+
+pub fn sum_cycle_length<T>(
+    mut iter: impl Iterator<Item = Result<T, PatternInterpreterError>>,
+    mut f: impl FnMut(T) -> CycleTime,
+) -> Result<CycleTime, PatternInterpreterError> {
+    iter.try_fold(CycleTime::ZERO, |acc, x| {
+        let time = f(x?);
+        Ok(acc.add(time)?)
+    })
+}
+
+pub fn timed_step_total_cycle_length(
+    multiple: &Multiple<TimedStep>,
+    arenas: &impl PatternArenas,
+) -> Result<CycleTime, PatternInterpreterError> {
+    sum_cycle_length(
+        timed_step_iter(arenas, &multiple)
+            .map(|x| x.map_err(PatternInterpreterError::ArenaErr)),
+        |x| x.0,
+    )
 }

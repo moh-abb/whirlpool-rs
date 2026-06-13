@@ -4,6 +4,7 @@ use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::visitor::PatternVisitor;
 use crate::ast::pattern::visitor::visit_pattern;
 use crate::mem::Arena;
+use crate::mem::ArenaResult;
 use crate::mem::Index;
 use crate::mem::Multiple;
 use crate::mem::String;
@@ -26,62 +27,72 @@ impl<'a, Arenas: PatternArenas> PatternDisplayVisitor<'a, Arenas> {
     }
 
     #[allow(unused)]
-    pub fn display(&self, pattern_index: Index<super::Pattern>) -> String {
-        visit_pattern(self, pattern_index)
+    pub fn display(
+        &self,
+        pattern_index: Index<super::Pattern>,
+    ) -> ArenaResult<String> {
+        visit_pattern(self, pattern_index).flatten()
     }
 
-    fn fold(&self, iter: impl DoubleEndedIterator<Item = String>) -> String {
+    fn try_fold(
+        &self,
+        mut iter: impl DoubleEndedIterator<Item = ArenaResult<String>>,
+    ) -> ArenaResult<String> {
         let fold_func = if self.folds_right {
-            DoubleEndedIterator::rfold
+            DoubleEndedIterator::try_rfold
         } else {
-            Iterator::fold
+            Iterator::try_fold
         };
-        fold_func(iter, String::new(), |acc: String, x| {
+        fold_func(&mut iter, String::new(), |acc: String, opt_x| {
             // Check if we are the last value in the chain.
             let not_at_end = !acc.is_empty();
             let separator = if not_at_end { ", " } else { "" };
-            if self.folds_right {
+            let x = opt_x?;
+            let formatted = if self.folds_right {
                 format!("{x}{separator}{acc}")
             } else {
                 format!("{acc}{separator}{x}")
-            }
+            };
+            Ok(formatted)
         })
     }
 
-    fn print_multiple_pattern(&self, multiple: Multiple<Pattern>) -> String {
+    fn print_multiple_pattern(
+        &self,
+        multiple: Multiple<Pattern>,
+    ) -> ArenaResult<String> {
         let iter = multiple
             .checked_iter(self.arenas.get_pattern_chain_arena())
-            .flatten()
-            .map(|x| visit_pattern(self, x));
-        self.fold(iter)
+            .map(|x| self.display(x?));
+        self.try_fold(iter)
     }
 
     fn print_multiple_timed_step(
         &self,
         multiple: Multiple<TimedStep>,
-    ) -> String {
+    ) -> ArenaResult<String> {
         let iter = multiple
             .checked_iter(self.arenas.get_timed_step_chain_arena())
-            .flatten()
-            .flat_map(|x| {
+            .map(|x| {
                 self.arenas
                     .get_timed_step_arena()
-                    .map(x, Clone::clone)
+                    .map(x?, Clone::clone)
             })
             .map(|x| {
-                let TimedStep(time_unit, pattern) = x;
-                let displayed_pattern = visit_pattern(self, pattern);
-                format!("[{time_unit:?}, {displayed_pattern}]")
+                let TimedStep(time_unit, pattern) = x?;
+                let displayed_pattern = self.display(pattern)?;
+                let formatted = format!("[{time_unit:?}, {displayed_pattern}]");
+                Ok(formatted)
             });
-        self.fold(iter)
+        self.try_fold(iter)
     }
 }
 
 impl<'a, Arenas: PatternArenas> PatternVisitor
     for PatternDisplayVisitor<'a, Arenas>
 {
-    type Output = String;
-    type PatternOutput = String;
+    type Output = ArenaResult<String>;
+    type PatternOutput = ArenaResult<String>;
 
     fn get_arenas(&self) -> &impl PatternArenas {
         self.arenas
@@ -99,45 +110,45 @@ impl<'a, Arenas: PatternArenas> PatternVisitor
         &self,
         multiple: Multiple<super::Pattern>,
     ) -> Self::PatternOutput {
-        format!("Cat({})", self.print_multiple_pattern(multiple))
+        Ok(format!("Cat({})", self.print_multiple_pattern(multiple)?))
     }
 
     fn map_seq(
         &self,
         multiple: Multiple<super::Pattern>,
     ) -> Self::PatternOutput {
-        format!("Seq({})", self.print_multiple_pattern(multiple))
+        Ok(format!("Seq({})", self.print_multiple_pattern(multiple)?))
     }
 
     fn map_stack(
         &self,
         multiple: Multiple<super::Pattern>,
     ) -> Self::PatternOutput {
-        format!("Stack({})", self.print_multiple_pattern(multiple))
+        Ok(format!("Stack({})", self.print_multiple_pattern(multiple)?))
     }
 
     fn map_time_cat(
         &self,
         multiple: Multiple<super::TimedStep>,
     ) -> Self::PatternOutput {
-        format!("TimeCat({})", self.print_multiple_timed_step(multiple))
+        Ok(format!("TimeCat({})", self.print_multiple_timed_step(multiple)?))
     }
 
     fn map_arrange(
         &self,
         multiple: Multiple<TimedStep>,
     ) -> Self::PatternOutput {
-        format!("Arrange({})", self.print_multiple_timed_step(multiple))
+        Ok(format!("Arrange({})", self.print_multiple_timed_step(multiple)?))
     }
 
     fn map_note_unit(
         &self,
         unit: super::note::NoteUnit,
     ) -> Self::PatternOutput {
-        format!("Unit({unit:?})")
+        Ok(format!("Unit({unit:?})"))
     }
 
     fn map_silence(&self) -> Self::PatternOutput {
-        String::from("Silence")
+        Ok(String::from("Silence"))
     }
 }

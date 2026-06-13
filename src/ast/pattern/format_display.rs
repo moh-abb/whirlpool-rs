@@ -38,7 +38,7 @@ impl<'a, Arenas: PatternArenas> Display for PatternDisplayAdapter<'a, Arenas> {
             arenas: self.arenas,
             formatter: RefCell::new(f),
         };
-        visit_pattern(&visitor, self.index.clone())
+        visit_pattern(&visitor, self.index.clone()).unwrap()
     }
 }
 
@@ -93,7 +93,7 @@ fn print_multiple_pattern(
                 arenas,
                 formatter: RefCell::new(borrowed_formatter.deref_mut()),
             };
-            visit_pattern(&visitor, pattern_index)
+            visit_pattern(&visitor, pattern_index).unwrap()
         },
     )
 }
@@ -119,7 +119,7 @@ fn print_multiple_timed_step(
                     arenas,
                     formatter: RefCell::new(formatter),
                 };
-                visit_pattern(&visitor, pattern_index)
+                visit_pattern(&visitor, pattern_index).unwrap()
             };
             let mut borrowed_formatter = formatter_refcell.borrow_mut();
             write!(borrowed_formatter, "[{time_unit:?}, ")?;

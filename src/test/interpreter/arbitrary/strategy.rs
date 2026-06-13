@@ -3,10 +3,10 @@ use proptest::prelude::Strategy;
 use crate::ast::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::time::OverflowError;
+use crate::interpreter::error::PatternInterpreterError;
 use crate::mem::Index;
 use crate::test::examples::arbitrary::pattern::arb_large_pattern;
 use crate::test::examples::arbitrary::pattern::arb_small_pattern;
-use crate::test::interpreter::arbitrary::expectations::ExpectationError;
 use crate::test::interpreter::arbitrary::expectations::arb_interval_offset_and_multiplier;
 use crate::test::interpreter::arbitrary::expectations::pattern_expectations;
 use crate::test::interpreter::sequence::NoteSequence;
@@ -36,8 +36,8 @@ fn prop_map_func<Arenas: PatternArenas + 'static>(
         );
         match opt_expectations {
             Ok(expectations) => Ok(Ok((pattern, expectations))),
-            Err(ExpectationError::ArenaErr(e)) => Err(e),
-            Err(ExpectationError::OverflowErr(e)) => Ok(Err(e)),
+            Err(PatternInterpreterError::ArenaErr(e)) => Err(e),
+            Err(PatternInterpreterError::OverflowErr(e)) => Ok(Err(e)),
         }
     })
 }

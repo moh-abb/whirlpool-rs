@@ -10,14 +10,17 @@ use crate::ast::Pattern;
 use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::visitor::PatternVisitor;
+use crate::ast::pattern::visitor::timed_step_iter;
 use crate::ast::pattern::visitor::visit_pattern;
 use crate::ast::time::OverflowError;
 use crate::interpreter::Interpreter;
 use crate::interpreter::borrow::BorrowAdapter;
 use crate::interpreter::elements::play_multiple;
+use crate::interpreter::elements::sum_cycle_length;
+use crate::interpreter::elements::timed_step_total_cycle_length;
+use crate::interpreter::error::PatternInterpreterError;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
-use crate::mem::Arena;
 use crate::mem::Index;
 use crate::mem::Multiple;
 use crate::synth::scheduler::UnitScheduler;
@@ -139,8 +142,9 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler>
 {
     fn play_elem_func(
         &self,
-    ) -> impl FnMut(PlayElemArgs<'_, Index<Pattern>>) -> Result<(), OverflowError>
-    {
+    ) -> impl FnMut(
+        PlayElemArgs<'_, Index<Pattern>>,
+    ) -> Result<(), PatternInterpreterError> {
         |args| {
             let mut inner_mut = self.inner.borrow_mut();
             let visitor = InterpreterVisitor {
@@ -152,29 +156,16 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler>
                     scheduler: inner_mut.scheduler,
                 }),
             };
-            visit_pattern(&visitor, args.elem.clone())
+            visit_pattern(&visitor, args.elem.clone())??;
+            Ok(())
         }
-    }
-
-    fn timed_step_iter<'b>(
-        &'b self,
-        multiple: &'b Multiple<TimedStep>,
-    ) -> impl Iterator<Item = TimedStep> + 'b {
-        multiple
-            .iter(self.arenas.get_timed_step_chain_arena())
-            .filter_map(move |timed_step| {
-                self.arenas
-                    .get_timed_step_arena()
-                    .map(timed_step, Clone::clone)
-                    .ok()
-            })
     }
 
     fn map_cat_or_seq(
         &self,
         multiple: Multiple<Pattern>,
         is_fast: bool,
-    ) -> Result<(), OverflowError> {
+    ) -> Result<(), PatternInterpreterError> {
         if multiple.is_empty() {
             panic!("Cannot play empty multiple patterns");
         }
@@ -214,8 +205,8 @@ struct VisitorInner<'a, Scheduler> {
 impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
     for InterpreterVisitor<'a, Arenas, Scheduler>
 {
-    type Output = Result<(), OverflowError>;
-    type PatternOutput = Result<(), OverflowError>;
+    type Output = Result<(), PatternInterpreterError>;
+    type PatternOutput = Result<(), PatternInterpreterError>;
 
     fn get_arenas(&self) -> &impl PatternArenas {
         self.arenas
@@ -245,8 +236,11 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
         }
 
         multiple
-            .iter(self.arenas.get_pattern_chain_arena())
-            .try_for_each(|pattern_index| visit_pattern(self, pattern_index))
+            .checked_iter(self.arenas.get_pattern_chain_arena())
+            .try_for_each(|pattern_index| {
+                visit_pattern(self, pattern_index?)??;
+                Ok(())
+            })
     }
 
     fn map_time_cat(
@@ -260,10 +254,8 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
         let multiple_length =
             CycleTime::checked_from_int(i32::from(multiple.length()))?;
         // TODO: Store the total length to reduce repeated calculation
-        let total_cycle_length = self
-            .timed_step_iter(&multiple)
-            .map(|TimedStep(dur, _)| dur)
-            .sum::<Result<CycleTime, OverflowError>>()?;
+        let total_cycle_length =
+            timed_step_total_cycle_length(&multiple, self.arenas)?;
         // If we have a [TimeCat], then we simulate over each one cycle in the
         // [Multiple] and then scale each element individually by its
         // proportion of the total; e.g. TimeCat([1, "A"], [2, "B"], [3, "C"])
@@ -274,27 +266,26 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
                 .mul(multiple_length)?
                 .div(total_cycle_length)
         };
-        let make_sim_elem = |TimedStep(elem_length, pattern)| {
-            Ok(ElemProps {
+        let make_sim_elem = |opt_timed_step| {
+            let TimedStep(elem_length, pattern) = opt_timed_step?;
+            Result::<_, PatternInterpreterError>::Ok(ElemProps {
                 elem: pattern,
                 sim_duration: CycleTime::ONE,
                 played_duration: get_scaled_length(elem_length)?,
             })
         };
-        let get_elements = || {
-            self.timed_step_iter(&multiple)
-                .map(make_sim_elem)
-        };
+        let get_elements =
+            || timed_step_iter(self.arenas, &multiple).map(make_sim_elem);
         // Due to fixed point rounding errors, recalculate the total length
         // after calculating the scaled length of each element.
-        let played_duration = get_elements()
-            .try_fold(CycleTime::ZERO, |acc, x| acc.add(x?.played_duration))?;
+        let played_duration =
+            sum_cycle_length(get_elements(), |x| x.played_duration)?;
         play_multiple(
             self.interval,
             ElemProps {
                 elem: get_elements,
                 sim_duration: multiple_length,
-                played_duration: played_duration,
+                played_duration,
             },
             true,
             self.offset,
@@ -312,12 +303,11 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
         }
 
         // TODO: Store the total length to reduce repeated calculation
-        let total_cycle_length = self
-            .timed_step_iter(&multiple)
-            .map(|TimedStep(dur, _)| dur)
-            .sum::<Result<CycleTime, OverflowError>>()?;
-        let make_sim_elem = |TimedStep(elem_length, pattern)| {
-            Ok(ElemProps {
+        let total_cycle_length =
+            timed_step_total_cycle_length(&multiple, self.arenas)?;
+        let make_sim_elem = |opt_timed_step| {
+            let TimedStep(elem_length, pattern) = opt_timed_step?;
+            Result::<_, PatternInterpreterError>::Ok(ElemProps {
                 elem: pattern,
                 sim_duration: elem_length,
                 played_duration: elem_length,
@@ -325,10 +315,8 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
         };
         // If we have an [Arrange], then we simulate over all the cycles in
         // the pattern and so the played length is `total_cycle_length`.
-        let get_elements = || {
-            self.timed_step_iter(&multiple)
-                .map(make_sim_elem)
-        };
+        let get_elements =
+            || timed_step_iter(self.arenas, &multiple).map(make_sim_elem);
         play_multiple(
             self.interval,
             ElemProps {

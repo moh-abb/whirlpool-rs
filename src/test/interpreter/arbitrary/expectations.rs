@@ -11,12 +11,13 @@ use crate::ast::CycleTime;
 use crate::ast::Pattern;
 use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::ast::time::OverflowError;
 use crate::interpreter::elements::play_multiple as test_play_multiple;
+use crate::interpreter::elements::timed_step_total_cycle_length;
+use crate::interpreter::error::PatternInterpreterError;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
 use crate::mem::Arena;
-use crate::mem::ArenaError;
+use crate::mem::ArenaResult;
 use crate::mem::Index;
 use crate::mem::Multiple;
 use crate::mem::Vec;
@@ -27,7 +28,7 @@ use crate::test::interpreter::sequence::NoteSequence;
 
 fn multiple_expectations<
     T: Debug,
-    Iter: Iterator<Item = Result<ElemProps<T>, OverflowError>>,
+    Iter: Iterator<Item = Result<ElemProps<T>, PatternInterpreterError>>,
 >(
     interval: CycleInterval,
     total: ElemProps<impl Fn() -> Iter>,
@@ -36,9 +37,11 @@ fn multiple_expectations<
     multiplier: CycleTime,
     mut get_elem_expectations: impl FnMut(
         PlayElemArgs<'_, T>,
-    )
-        -> Result<NoteSequence, ExpectationError>,
-) -> Result<NoteSequence, ExpectationError> {
+    ) -> Result<
+        NoteSequence,
+        PatternInterpreterError,
+    >,
+) -> Result<NoteSequence, PatternInterpreterError> {
     assert_ne!(total.sim_duration, CycleTime::ZERO);
     assert_ne!(total.played_duration, CycleTime::ZERO);
 
@@ -49,24 +52,25 @@ fn multiple_expectations<
         // Note that the simulated offsets may be different due to the
         // alteration of elements, and the simulated multiplier is different
         // if the sequence is fast.
-        match (&mut result_sequence, elem_sequence) {
+        match (&mut result_sequence, &elem_sequence) {
             (Ok(sequence), Ok(elem_sequence)) => {
                 sequence
                     .expected
-                    .extend(elem_sequence.expected);
-                Ok(())
+                    .extend(elem_sequence.expected.clone());
             }
-            (_, Err(ExpectationError::ArenaErr(e))) => {
+            (_, Err(PatternInterpreterError::ArenaErr(e))) => {
                 // The error will be propagated in the return value.
-                result_sequence = Err(ExpectationError::ArenaErr(e));
-                Ok(())
+                result_sequence =
+                    Err(PatternInterpreterError::ArenaErr(e.clone()));
             }
-            (_, Err(ExpectationError::OverflowErr(e))) => Err(e),
+            (_, Err(err @ PatternInterpreterError::OverflowErr(_))) => {
+                return Err(err.clone());
+            }
             (Err(_), Ok(_)) => {
                 // The error has already been set.
-                Ok(())
             }
         }
+        Ok(())
     };
     test_play_multiple(
         interval,
@@ -75,28 +79,21 @@ fn multiple_expectations<
         offset,
         multiplier,
         append_sequence,
-    )
-    .map_err(ExpectationError::OverflowErr)?;
+    )?;
     result_sequence
 }
 
 fn timed_step_iter<'a>(
     multiple: &'a Multiple<TimedStep>,
     arenas: &'a impl PatternArenas,
-) -> impl Iterator<Item = TimedStep> + 'a {
+) -> impl Iterator<Item = ArenaResult<TimedStep>> + 'a {
     multiple
-        .iter(arenas.get_timed_step_chain_arena())
-        .filter_map(|timed_step| {
+        .checked_iter(arenas.get_timed_step_chain_arena())
+        .map(|opt_timed_step| {
             arenas
                 .get_timed_step_arena()
-                .map(timed_step, Clone::clone)
-                .ok()
+                .map(opt_timed_step?, Clone::clone)
         })
-}
-
-pub enum ExpectationError {
-    ArenaErr(ArenaError),
-    OverflowErr(OverflowError),
 }
 
 pub fn pattern_expectations(
@@ -105,17 +102,15 @@ pub fn pattern_expectations(
     interval: CycleInterval,
     offset: CycleTime,
     multiplier: CycleTime,
-) -> Result<NoteSequence, ExpectationError> {
+) -> Result<NoteSequence, PatternInterpreterError> {
     let cloned_pattern = arenas
         .get_pattern_arena()
-        .map(pattern, Clone::clone)
-        .map_err(ExpectationError::ArenaErr)?;
+        .map(pattern, Clone::clone)?;
 
     match &cloned_pattern {
         Pattern::Cat(multiple) | Pattern::Seq(multiple) => {
             let length =
-                CycleTime::checked_from_int(i32::from(multiple.length()))
-                    .map_err(ExpectationError::OverflowErr)?;
+                CycleTime::checked_from_int(i32::from(multiple.length()))?;
             let is_fast = matches!(cloned_pattern, Pattern::Seq(_));
             multiple_expectations(
                 interval,
@@ -164,30 +159,29 @@ pub fn pattern_expectations(
             })
             .unwrap(),
         Pattern::TimeCat(multiple) => {
-            let total_cycle_length = timed_step_iter(&multiple, arenas)
-                .map(|TimedStep(played_dur, _)| played_dur)
-                .sum::<Result<CycleTime, OverflowError>>()
-                .map_err(ExpectationError::OverflowErr)?;
+            let total_cycle_length =
+                timed_step_total_cycle_length(&multiple, arenas)?;
             let sim_duration =
-                CycleTime::checked_from_int(i32::from(multiple.length()))
-                    .map_err(ExpectationError::OverflowErr)?;
+                CycleTime::checked_from_int(i32::from(multiple.length()))?;
             let elems_with_props = || {
-                timed_step_iter(&multiple, arenas).map(
-                    |TimedStep(proportion, elem)| {
-                        Ok(ElemProps {
-                            elem,
-                            sim_duration: CycleTime::ONE,
-                            played_duration: proportion
-                                .mul(sim_duration)?
-                                .div(total_cycle_length)?,
-                        })
-                    },
-                )
+                timed_step_iter(&multiple, arenas).map(|opt_timed_step| {
+                    let TimedStep(proportion, elem) = opt_timed_step?;
+                    Result::<_, PatternInterpreterError>::Ok(ElemProps {
+                        elem,
+                        sim_duration: CycleTime::ONE,
+                        played_duration: proportion
+                            .mul(sim_duration)?
+                            .div(total_cycle_length)?,
+                    })
+                })
             };
             // Recalculate the played duration due to rounding errors.
-            let played_duration = elems_with_props()
-                .try_fold(CycleTime::ZERO, |acc, x| acc.add(x?.played_duration))
-                .map_err(ExpectationError::OverflowErr)?;
+            let played_duration =
+                elems_with_props().try_fold(CycleTime::ZERO, |acc, x| {
+                    Result::<_, PatternInterpreterError>::Ok(
+                        acc.add(x?.played_duration)?,
+                    )
+                })?;
 
             assert_ne!(played_duration, CycleTime::ZERO);
             multiple_expectations(
@@ -212,24 +206,22 @@ pub fn pattern_expectations(
             )
         }
         Pattern::Arrange(multiple) => {
-            let played_duration = timed_step_iter(&multiple, arenas)
-                .map(|TimedStep(played_dur, _)| played_dur)
-                .sum::<Result<CycleTime, OverflowError>>()
-                .map_err(ExpectationError::OverflowErr)?;
+            let played_duration =
+                timed_step_total_cycle_length(&multiple, arenas)?;
+            let elems_with_props = || {
+                timed_step_iter(&multiple, arenas).map(|opt_timed_step| {
+                    let TimedStep(played_duration, elem) = opt_timed_step?;
+                    Result::<_, PatternInterpreterError>::Ok(ElemProps {
+                        elem,
+                        sim_duration: played_duration,
+                        played_duration,
+                    })
+                })
+            };
             multiple_expectations(
                 interval,
                 ElemProps {
-                    elem: || {
-                        timed_step_iter(&multiple, arenas).map(
-                            |TimedStep(played_duration, elem)| {
-                                Ok(ElemProps {
-                                    elem,
-                                    sim_duration: played_duration,
-                                    played_duration,
-                                })
-                            },
-                        )
-                    },
+                    elem: elems_with_props,
                     sim_duration: played_duration,
                     played_duration,
                 },
@@ -266,23 +258,16 @@ pub fn pattern_expectations(
             |args| {
                 assert_eq!(args.elem, &note_unit);
                 let start = args.interval.start();
-                let floor_start = start
-                    .floor()
-                    .map_err(ExpectationError::OverflowErr)?;
+                let floor_start = start.floor()?;
                 let mut expected_note = Vec::new();
                 if start == floor_start {
                     expected_note.push(ScheduledExpectation {
                         start_time: args
                             .interval
                             .start()
-                            .add(args.offset)
-                            .map_err(ExpectationError::OverflowErr)?
-                            .div(args.multiplier)
-                            .map_err(ExpectationError::OverflowErr)?,
-                        duration: args
-                            .multiplier
-                            .recip()
-                            .map_err(ExpectationError::OverflowErr)?,
+                            .add(args.offset)?
+                            .div(args.multiplier)?,
+                        duration: args.multiplier.recip()?,
                         note_unit: note_unit.clone(),
                     });
                 }
