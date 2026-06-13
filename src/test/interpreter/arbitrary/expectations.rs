@@ -11,9 +11,10 @@ use crate::ast::CycleTime;
 use crate::ast::Pattern;
 use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::ast::pattern::interpreter::test_play_multiple;
 use crate::ast::time::OverflowError;
-use crate::ast::time::props::ElemProps;
+use crate::interpreter::elements::play_multiple as test_play_multiple;
+use crate::interpreter::props::ElemProps;
+use crate::interpreter::props::PlayElemArgs;
 use crate::mem::Arena;
 use crate::mem::ArenaError;
 use crate::mem::Index;
@@ -34,10 +35,7 @@ fn multiple_expectations<
     offset: CycleTime,
     multiplier: CycleTime,
     mut get_elem_expectations: impl FnMut(
-        &T,
-        CycleInterval,
-        CycleTime,
-        CycleTime,
+        PlayElemArgs<'_, T>,
     )
         -> Result<NoteSequence, ExpectationError>,
 ) -> Result<NoteSequence, ExpectationError> {
@@ -46,36 +44,30 @@ fn multiple_expectations<
 
     let mut result_sequence =
         Ok(NoteSequence { interval, offset, multiplier, expected: Vec::new() });
-    let append_sequence =
-        |elem: &T, sim_interval, sim_offset, sim_multiplier| {
-            let elem_sequence = get_elem_expectations(
-                elem,
-                sim_interval,
-                sim_offset,
-                sim_multiplier,
-            );
-            // Note that the simulated offsets may be different due to the
-            // alteration of elements, and the simulated multiplier is different
-            // if the sequence is fast.
-            match (&mut result_sequence, elem_sequence) {
-                (Ok(sequence), Ok(elem_sequence)) => {
-                    sequence
-                        .expected
-                        .extend(elem_sequence.expected);
-                    Ok(())
-                }
-                (_, Err(ExpectationError::ArenaErr(e))) => {
-                    // The error will be propagated in the return value.
-                    result_sequence = Err(ExpectationError::ArenaErr(e));
-                    Ok(())
-                }
-                (_, Err(ExpectationError::OverflowErr(e))) => Err(e),
-                (Err(_), Ok(_)) => {
-                    // The error has already been set.
-                    Ok(())
-                }
+    let append_sequence = |args: PlayElemArgs<'_, T>| {
+        let elem_sequence = get_elem_expectations(args);
+        // Note that the simulated offsets may be different due to the
+        // alteration of elements, and the simulated multiplier is different
+        // if the sequence is fast.
+        match (&mut result_sequence, elem_sequence) {
+            (Ok(sequence), Ok(elem_sequence)) => {
+                sequence
+                    .expected
+                    .extend(elem_sequence.expected);
+                Ok(())
             }
-        };
+            (_, Err(ExpectationError::ArenaErr(e))) => {
+                // The error will be propagated in the return value.
+                result_sequence = Err(ExpectationError::ArenaErr(e));
+                Ok(())
+            }
+            (_, Err(ExpectationError::OverflowErr(e))) => Err(e),
+            (Err(_), Ok(_)) => {
+                // The error has already been set.
+                Ok(())
+            }
+        }
+    };
     test_play_multiple(
         interval,
         total,
@@ -145,13 +137,13 @@ pub fn pattern_expectations(
                 is_fast,
                 offset,
                 multiplier,
-                |elem, sim_interval, sim_offset, sim_multiplier| {
+                |args| {
                     pattern_expectations(
-                        elem.clone(),
+                        args.elem.clone(),
                         arenas,
-                        sim_interval,
-                        sim_offset,
-                        sim_multiplier,
+                        args.interval,
+                        args.offset,
+                        args.multiplier,
                     )
                 },
             )
@@ -208,13 +200,13 @@ pub fn pattern_expectations(
                 true,
                 offset,
                 multiplier,
-                |elem, sim_interval, sim_offset, sim_multiplier| {
+                |args| {
                     pattern_expectations(
-                        elem.clone(),
+                        args.elem.clone(),
                         arenas,
-                        sim_interval,
-                        sim_offset,
-                        sim_multiplier,
+                        args.interval,
+                        args.offset,
+                        args.multiplier,
                     )
                 },
             )
@@ -244,13 +236,13 @@ pub fn pattern_expectations(
                 false,
                 offset,
                 multiplier,
-                |elem, sim_interval, sim_offset, sim_multiplier| {
+                |args| {
                     pattern_expectations(
-                        elem.clone(),
+                        args.elem.clone(),
                         arenas,
-                        sim_interval,
-                        sim_offset,
-                        sim_multiplier,
+                        args.interval,
+                        args.offset,
+                        args.multiplier,
                     )
                 },
             )
@@ -271,34 +263,34 @@ pub fn pattern_expectations(
             false,
             offset,
             multiplier,
-            |elem, sim_interval, sim_offset, sim_multiplier| {
-                assert_eq!(elem, &note_unit);
-                let played_note = if sim_interval.start()
-                    == sim_interval
-                        .start()
-                        .floor()
-                        .map_err(ExpectationError::OverflowErr)?
-                {
-                    vec![ScheduledExpectation {
-                        start_time: sim_interval
+            |args| {
+                assert_eq!(args.elem, &note_unit);
+                let start = args.interval.start();
+                let floor_start = start
+                    .floor()
+                    .map_err(ExpectationError::OverflowErr)?;
+                let mut expected_note = Vec::new();
+                if start == floor_start {
+                    expected_note.push(ScheduledExpectation {
+                        start_time: args
+                            .interval
                             .start()
-                            .add(sim_offset)
+                            .add(args.offset)
                             .map_err(ExpectationError::OverflowErr)?
-                            .div(sim_multiplier)
+                            .div(args.multiplier)
                             .map_err(ExpectationError::OverflowErr)?,
-                        duration: sim_multiplier
+                        duration: args
+                            .multiplier
                             .recip()
                             .map_err(ExpectationError::OverflowErr)?,
                         note_unit: note_unit.clone(),
-                    }]
-                } else {
-                    Vec::new()
-                };
+                    });
+                }
                 Ok(NoteSequence {
                     interval,
                     offset,
                     multiplier,
-                    expected: played_note,
+                    expected: expected_note,
                 })
             },
         ),

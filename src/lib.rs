@@ -11,6 +11,7 @@ extern crate alloc;
 
 #[macro_use]
 pub mod ast;
+pub mod interpreter;
 pub mod mem;
 pub mod synth;
 pub mod test;

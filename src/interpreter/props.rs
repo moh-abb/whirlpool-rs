@@ -1,3 +1,4 @@
+use crate::ast::CycleInterval;
 use crate::ast::CycleTime;
 
 /// A struct used to denote the simulation properties of each element in a
@@ -21,4 +22,14 @@ pub struct ElemProps<T> {
     pub elem: T,
     pub sim_duration: CycleTime,
     pub played_duration: CycleTime,
+}
+
+/// Represents the arguments that are passed into the `play_elem` function in
+/// [play_elements].
+#[derive(Debug)]
+pub struct PlayElemArgs<'a, T> {
+    pub elem: &'a T,
+    pub interval: CycleInterval,
+    pub offset: CycleTime,
+    pub multiplier: CycleTime,
 }

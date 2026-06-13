@@ -9,12 +9,11 @@ pub mod clone;
 pub mod cmp;
 pub mod drop;
 pub mod format_display;
-pub mod interpreter;
 pub mod note;
 mod refs;
 #[cfg(test)]
 pub mod string_display;
-mod visitor;
+pub mod visitor;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TimedStep(pub CycleTime, pub Index<Pattern>);

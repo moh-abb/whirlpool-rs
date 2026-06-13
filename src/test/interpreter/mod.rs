@@ -8,8 +8,9 @@ use crate::ast::CycleTime;
 use crate::ast::NoteUnit;
 use crate::ast::Pattern;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::ast::pattern::interpreter::Interpreter;
 use crate::ast::time::OverflowError;
+use crate::interpreter::Interpreter;
+use crate::interpreter::pattern::PatternInterpreter;
 use crate::mem::Index;
 use crate::synth::scheduler::MockUnitScheduler;
 use crate::synth::unit::SoundUnit;
@@ -54,7 +55,7 @@ fn test_expectations<
 pub trait TestSetupStrategy {
     fn setup_interpreter<Arenas, Scheduler, BorrowAdapter>(
         self,
-        interpreter: &mut Interpreter<Arenas, Scheduler, BorrowAdapter>,
+        interpreter: &mut PatternInterpreter<Arenas, Scheduler, BorrowAdapter>,
     );
 }
 
@@ -65,7 +66,7 @@ pub struct FullInterpreterSetup {
 impl TestSetupStrategy for FullInterpreterSetup {
     fn setup_interpreter<Arenas, Scheduler, BorrowAdapter>(
         self,
-        interpreter: &mut Interpreter<Arenas, Scheduler, BorrowAdapter>,
+        interpreter: &mut PatternInterpreter<Arenas, Scheduler, BorrowAdapter>,
     ) {
         interpreter.set_multiplier(self.multiplier);
         interpreter.set_offset(self.offset);
@@ -76,7 +77,7 @@ struct EmptyInterpreterSetup;
 impl TestSetupStrategy for EmptyInterpreterSetup {
     fn setup_interpreter<Arenas, Scheduler, BorrowAdapter>(
         self,
-        _: &mut Interpreter<Arenas, Scheduler, BorrowAdapter>,
+        _: &mut PatternInterpreter<Arenas, Scheduler, BorrowAdapter>,
     ) {
         // Does nothing.
     }
@@ -119,8 +120,11 @@ fn test_expectations_with_interpreter_setup_and_start_time<
         f(borrowed_scheduler)
     };
 
-    let mut interpreter =
-        Interpreter::new_with_refcell(head_index, arenas, &logging_scheduler);
+    let mut interpreter = PatternInterpreter::new_with_refcell(
+        head_index,
+        arenas,
+        &logging_scheduler,
+    );
     test_setup.setup_interpreter(&mut interpreter);
 
     // Advance the interpreter to the start position.

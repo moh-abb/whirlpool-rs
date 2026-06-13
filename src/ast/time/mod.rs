@@ -4,7 +4,6 @@ use fixed::types::extra::U12;
 use crate::ast::macros::compose_result;
 
 pub mod interval;
-pub mod props;
 mod traits;
 
 type Inner = FixedI32<U12>;
