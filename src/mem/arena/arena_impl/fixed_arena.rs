@@ -61,6 +61,10 @@ impl<T: ArenaItem> Arena<T> for FixedArena<T> {
         unreachable!("Should not call [Arena::take] on FixedArena")
     }
 
+    fn insert(&self, index: Index<T>, value: T) -> ArenaResult<()> {
+        unreachable!("Should not call [Arena::insert] on FixedArena")
+    }
+
     fn map<U>(
         &self,
         index: Index<T>,

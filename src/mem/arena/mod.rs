@@ -17,6 +17,8 @@ pub trait Arena<T: ArenaItem> {
 
     fn take(&self, index: Index<T>) -> ArenaResult<T>;
 
+    fn insert(&self, index: Index<T>, value: T) -> ArenaResult<()>;
+
     fn map<U>(
         &self,
         index: Index<T>,
