@@ -4,7 +4,13 @@ use crate::mem::Chain;
 use crate::mem::Index;
 use crate::mem::Multiple;
 
+pub mod traversal_state;
 pub mod visit_type;
+
+pub use traversal_state::TraversalState;
+pub use traversal_state::UncondTravState;
+pub use visit_type::VisitMut;
+pub use visit_type::VisitRef;
 
 /// Represents a structure which is linked to other elements such that:
 /// - It can have a parent which owns its children via a [Multiple]
