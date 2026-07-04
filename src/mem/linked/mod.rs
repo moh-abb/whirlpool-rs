@@ -4,6 +4,8 @@ use crate::mem::Chain;
 use crate::mem::Index;
 use crate::mem::Multiple;
 
+pub mod visit_type;
+
 /// Represents a structure which is linked to other elements such that:
 /// - It can have a parent which owns its children via a [Multiple]
 /// - It can have siblings which are referenced via a [Chain]
