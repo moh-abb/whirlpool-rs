@@ -4,10 +4,12 @@ use crate::mem::Chain;
 use crate::mem::Index;
 use crate::mem::Multiple;
 
+pub mod drop;
 pub mod traversal_state;
 pub mod visit_type;
 pub mod visitor;
 
+pub use drop::drop_linked;
 pub use traversal_state::TraversalState;
 pub use traversal_state::UncondTravState;
 pub use visit_type::VisitMut;
