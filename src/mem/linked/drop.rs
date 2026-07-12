@@ -2,9 +2,9 @@ use crate::mem::Arena;
 use crate::mem::ArenaResult;
 use crate::mem::Index;
 use crate::mem::linked::Linked;
+use crate::mem::linked::VisitRef;
 use crate::mem::linked::traversal_state::TraversalState;
 use crate::mem::linked::visit_linked;
-use crate::mem::linked::visit_type::VisitMut;
 
 struct DropTraversalState<'a, Arenas> {
     arenas: &'a Arenas,
@@ -15,12 +15,12 @@ impl<Node, Arenas> TraversalState<Node> for DropTraversalState<'_, Arenas>
 where
     Node: Linked<Node, Arenas>,
 {
-    type Visit = VisitMut;
+    type Visit = VisitRef;
     type Output = ();
 
-    fn enter_node(&mut self, _: &mut Node) -> Self::Output {}
+    fn enter_node(&mut self, _: &Node) -> Self::Output {}
 
-    fn exit_node(&mut self, cur_node: &mut Node) -> Self::Output {}
+    fn exit_node(&mut self, _: &Node) -> Self::Output {}
 
     fn post_enter(&mut self, _: Index<Node>) {}
 
@@ -29,7 +29,7 @@ where
         let take_result = Node::child_arena(self.arenas)
             .take(index)
             .map(|_| ());
-        self.result = self.result.or(take_result);
+        self.result = self.result.and(take_result);
     }
 }
 
