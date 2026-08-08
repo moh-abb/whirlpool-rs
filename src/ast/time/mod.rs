@@ -14,7 +14,7 @@ type Inner = FixedI32<U12>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CycleTime(Inner);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct OverflowError;
 
 macro_rules! checked {
