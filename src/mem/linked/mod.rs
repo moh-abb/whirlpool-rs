@@ -14,7 +14,6 @@ pub mod visitor;
 pub use cmp::cmp_linked;
 pub use drop::drop_linked;
 pub use traversal_state::TraversalState;
-pub use traversal_state::UncondTravState;
 pub use visit_type::VisitMut;
 pub use visit_type::VisitRef;
 pub use visitor::controlled_visit_linked;
