@@ -3,6 +3,7 @@ use crate::ast::CycleTime;
 mod borrow;
 pub mod elements;
 pub mod error;
+mod frame;
 pub mod pattern;
 pub mod props;
 pub mod scope;
