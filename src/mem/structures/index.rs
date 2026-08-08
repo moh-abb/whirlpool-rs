@@ -11,7 +11,7 @@ const INVALID_INDEX_VALUE: u16 = u16::MAX;
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct Index<T>(IndexInner, PhantomData<T>);
 
-impl<T: Debug> Debug for Index<T> {
+impl<T> Debug for Index<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Index({})", self.0)
     }
