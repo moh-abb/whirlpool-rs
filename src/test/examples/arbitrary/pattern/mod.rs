@@ -7,107 +7,112 @@ use proptest::prop_oneof;
 
 use crate::ast::CycleTime;
 use crate::ast::Pattern;
+use crate::ast::PatternNode;
 use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::ast::pattern::drop::MultiplePatternDropAdapter;
-use crate::ast::pattern::drop::MultipleTimedStepDropAdapter;
 use crate::ast::pattern::drop::PatternDropAdapter;
-use crate::ast::pattern::drop::TimedStepDropAdapter;
 use crate::mem::Arena;
-use crate::mem::Chain;
+use crate::mem::Cow;
 use crate::mem::Index;
 use crate::mem::Multiple;
-use crate::test::examples::arbitrary::pattern::silence::arb_pattern_leaf;
+use crate::test::examples::arbitrary::pattern::leaf::arb_pattern_leaf;
 use crate::test::examples::arbitrary::time::arb_positive_cycle_time;
 use crate::test::mem::arenas_to::ArenasTo;
+use crate::test::mem::linked::check_acyclic;
 
-mod silence;
-mod unit;
+mod leaf;
 
-fn pattern_to_time_cat<Arenas: PatternArenas + 'static>(
-    xs: Vec<ArenasTo<Arenas, Index<Pattern>>>,
+fn pattern_to_time_cat_or_arrange<Arenas: PatternArenas + 'static>(
+    xs: Vec<ArenasTo<Arenas, Index<PatternNode>>>,
     time_units: Vec<CycleTime>,
-    f: fn(Multiple<TimedStep>) -> Pattern,
-) -> ArenasTo<Arenas, Index<Pattern>> {
+    f: fn(CycleTime, Multiple<PatternNode>) -> Pattern,
+) -> ArenasTo<Arenas, Index<PatternNode>> {
+    let total_cycle_time = time_units
+        .iter()
+        .cloned()
+        .sum::<Result<CycleTime, _>>()
+        .expect("expected times to not overflow");
+
     ArenasTo::new(move |arenas: &Arenas| {
         let pattern_arena = arenas.get_pattern_arena();
-        let timed_step_arena = arenas.get_timed_step_arena();
-        let chain_arena = arenas.get_timed_step_chain_arena();
-        let mut multiple_adapter = xs
-            .iter()
+        let result_index = pattern_arena
+            .push(PatternNode::new(f(total_cycle_time, Multiple::new())))?;
+        let mut result_adapter =
+            PatternDropAdapter(Some(result_index.clone()), arenas);
+
+        let add_single_timed_step =
+            |x: ArenasTo<Arenas, _>, duration: &CycleTime| {
+                // Add the TimedStep to the result pattern.
+                // This is currently invalid as it has no child pattern.
+                let timed_step_index = Multiple::push_back(
+                    arenas,
+                    result_index.clone(),
+                    Cow::Owned(PatternNode::new(Pattern::TimedStep(
+                        TimedStep(*duration, Multiple::new()),
+                    ))),
+                )?;
+
+                // Obtain the arbitrary pattern which will form
+                // the TimedStep.
+                let pattern_index = x.call(arenas)?;
+
+                // Add the child pattern to the TimedStep.
+                Multiple::push_back(
+                    arenas,
+                    timed_step_index.clone(),
+                    Cow::Indexed(pattern_index),
+                )?;
+
+                Ok(())
+            };
+
+        xs.iter()
             .cloned()
             .zip(&time_units)
-            .try_fold(
-                MultipleTimedStepDropAdapter(
-                    Some(Multiple::new_empty()),
-                    arenas,
-                ),
-                |mut multiple_adapter, (x, duration)| {
-                    // Obtain the arbitrary pattern which will form
-                    // the TimedStep.
-                    let pattern_index = x.call(arenas)?;
+            .try_for_each(|(x, duration)| add_single_timed_step(x, duration))?;
 
-                    // Allocate the TimedStep.
-                    let mut pattern_adapter =
-                        PatternDropAdapter(Some(pattern_index.clone()), arenas);
-                    let timed_step_index = timed_step_arena
-                        .push(TimedStep(*duration, pattern_index))?;
-                    pattern_adapter.0.take();
-
-                    // Append to the Multiple<TimedStep>.
-                    let mut timed_step_adapter = TimedStepDropAdapter(
-                        Some(timed_step_index.clone()),
-                        arenas,
-                    );
-                    let timed_step_chain = Chain::new(timed_step_index);
-                    let chain_index = chain_arena.push(timed_step_chain)?;
-                    timed_step_adapter.0.take();
-
-                    let multiple = multiple_adapter.0.as_mut().unwrap();
-                    multiple.push_back(
-                        arenas.get_timed_step_chain_arena(),
-                        chain_index,
-                    );
-                    Ok(multiple_adapter)
-                },
-            )?;
-        let multiple = multiple_adapter.0.clone().unwrap();
-        let result = pattern_arena.push(f(multiple))?;
-        multiple_adapter.0.take();
-        Ok(result)
+        // Now take the result to stop it being dropped.
+        result_adapter.0.take();
+        Ok(result_index)
     })
 }
 
 fn pattern_to_multiple_pattern<Arenas: PatternArenas + 'static>(
-    xs: Vec<ArenasTo<Arenas, Index<Pattern>>>,
-    f: fn(Multiple<Pattern>) -> Pattern,
-) -> ArenasTo<Arenas, Index<Pattern>> {
+    xs: Vec<ArenasTo<Arenas, Index<PatternNode>>>,
+    f: fn(Multiple<PatternNode>) -> Pattern,
+) -> ArenasTo<Arenas, Index<PatternNode>> {
     ArenasTo::new(move |arenas: &Arenas| {
         let pattern_arena = arenas.get_pattern_arena();
-        let chain_arena = arenas.get_pattern_chain_arena();
-        let mut multiple_adapter = xs.iter().cloned().try_fold(
-            MultiplePatternDropAdapter(Some(Multiple::new_empty()), arenas),
-            |mut multiple_adapter, x| {
-                // Obtain the arbitrary pattern.
-                let pattern_index = x.call(arenas)?;
-                let mut item_adapter =
-                    PatternDropAdapter(Some(pattern_index.clone()), arenas);
+        let result_index =
+            pattern_arena.push(PatternNode::new(f(Multiple::new())))?;
+        let mut result_adapter =
+            PatternDropAdapter(Some(result_index.clone()), arenas);
 
-                // Append to the Multiple<Pattern>.
-                let chain_index =
-                    chain_arena.push(Chain::new(pattern_index))?;
-                item_adapter.0.take();
+        let add_single_pattern = |x: ArenasTo<Arenas, _>| {
+            // Obtain the arbitrary pattern which will form
+            // the TimedStep.
+            let pattern_index = x.call(arenas)?;
 
-                let multiple = multiple_adapter.0.as_mut().unwrap();
-                multiple
-                    .push_back(arenas.get_pattern_chain_arena(), chain_index);
-                Ok(multiple_adapter)
-            },
-        )?;
-        let multiple = multiple_adapter.0.clone().unwrap();
-        let result = pattern_arena.push(f(multiple))?;
-        multiple_adapter.0.take();
-        Ok(result)
+            // Add the child pattern to the result pattern.
+            Multiple::push_back(
+                arenas,
+                result_index.clone(),
+                Cow::Indexed(pattern_index),
+            )?;
+
+            Ok(())
+        };
+
+        xs.iter()
+            .cloned()
+            .try_for_each(add_single_pattern)?;
+
+        // Now take the result to stop it being dropped.
+        result_adapter.0.take();
+
+        check_acyclic(result_index.clone(), arenas);
+
+        Ok(result_index)
     })
 }
 
@@ -115,7 +120,7 @@ fn arb_pattern<Arenas: PatternArenas + 'static>(
     depth: u32,
     max_number_of_nodes: u32,
     items_per_collection: u32,
-) -> impl Strategy<Value = ArenasTo<Arenas, Index<Pattern>>> {
+) -> impl Strategy<Value = ArenasTo<Arenas, Index<PatternNode>>> {
     arb_pattern_leaf().prop_recursive(
         depth,
         max_number_of_nodes,
@@ -126,9 +131,15 @@ fn arb_pattern<Arenas: PatternArenas + 'static>(
                 Just(Pattern::Seq as fn(_) -> _),
                 Just(Pattern::Stack as fn(_) -> _),
             ];
+            let make_time_cat = |total_cycle_length, multiple| {
+                Pattern::TimeCat { total_cycle_length, multiple }
+            };
+            let make_arrange = |total_cycle_length, multiple| {
+                Pattern::Arrange { total_cycle_length, multiple }
+            };
             let timed_step_functions = prop_oneof![
-                Just(Pattern::TimeCat as fn(_) -> _),
-                Just(Pattern::Arrange as fn(_) -> _),
+                Just(make_time_cat as fn(_, _) -> _),
+                Just(make_arrange as fn(_, _) -> _),
             ];
             let time_units = prop::collection::vec(
                 arb_positive_cycle_time::<NonZeroU8>(),
@@ -144,10 +155,10 @@ fn arb_pattern<Arenas: PatternArenas + 'static>(
             )
                 .prop_map(
                     |(xs, opt_time_units, pattern_func, timed_step_func)| {
-                        if let Some(time_units) =
-                            opt_time_units.filter(|_| false)
+                        if let Some(time_units) = opt_time_units
+                            && false
                         {
-                            pattern_to_time_cat(
+                            pattern_to_time_cat_or_arrange(
                                 xs.clone(),
                                 time_units,
                                 timed_step_func,
@@ -162,11 +173,11 @@ fn arb_pattern<Arenas: PatternArenas + 'static>(
 }
 
 pub fn arb_small_pattern<Arenas: PatternArenas + 'static>()
--> impl Strategy<Value = ArenasTo<Arenas, Index<Pattern>>> {
+-> impl Strategy<Value = ArenasTo<Arenas, Index<PatternNode>>> {
     arb_pattern(5, 40, 7)
 }
 
 pub fn arb_large_pattern<Arenas: PatternArenas + 'static>()
--> impl Strategy<Value = ArenasTo<Arenas, Index<Pattern>>> {
+-> impl Strategy<Value = ArenasTo<Arenas, Index<PatternNode>>> {
     arb_pattern(8, 256, 10)
 }

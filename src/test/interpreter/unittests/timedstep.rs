@@ -63,9 +63,14 @@ fn play_nested_time_cats_with_elem_lengths(
             ),
         ]);
     }
+
+    let make_time_cat = |total_cycle_length, multiple| Pattern::TimeCat {
+        total_cycle_length,
+        multiple,
+    };
     let (arenas, head_index) = half_binary_tree_depth_two_with_timed_steps(
-        Pattern::TimeCat,
-        Pattern::TimeCat,
+        make_time_cat,
+        make_time_cat,
         root_elem_lengths,
         child_elem_lengths,
     );
@@ -141,8 +146,13 @@ fn play_linear_time_cat_with_elem_lengths(elem_lengths: [CycleTime; 4]) {
         }
         expected_schedule_actions.extend(elems);
     }
+
+    let make_time_cat = |total_cycle_length, multiple| Pattern::TimeCat {
+        total_cycle_length,
+        multiple,
+    };
     let (arenas, head_index) =
-        multiple_of_four_timed_steps(Pattern::TimeCat, elem_lengths);
+        multiple_of_four_timed_steps(make_time_cat, elem_lengths);
     test_expectations(&arenas, head_index, &expected_schedule_actions);
 }
 
@@ -223,9 +233,14 @@ fn can_play_nested_arranges() {
         (start_time(11), &single_action(10, NoteLetter::C)[..]),
         (start_time(12), &single_action(11, NoteLetter::C)[..]),
     ];
+
+    let make_arrange = |total_cycle_length, multiple| Pattern::Arrange {
+        total_cycle_length,
+        multiple,
+    };
     let (arenas, head_index) = half_binary_tree_depth_two_with_timed_steps(
-        Pattern::Arrange,
-        Pattern::Arrange,
+        make_arrange,
+        make_arrange,
         [CycleTime::ONE, CycleTime::unwrapped_from_int(2)],
         [CycleTime::ONE, CycleTime::ONE],
     );

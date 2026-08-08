@@ -1,0 +1,29 @@
+use proptest::arbitrary::any;
+use proptest::prop_oneof;
+use proptest::strategy::Just;
+use proptest::strategy::Strategy;
+
+use crate::ast::NoteUnit;
+use crate::ast::Pattern;
+use crate::ast::PatternNode;
+use crate::ast::pattern::arenas::PatternArenas;
+use crate::mem::Arena;
+use crate::mem::Index;
+use crate::test::mem::arenas_to::ArenasTo;
+
+pub fn arb_pattern_leaf<Arenas: PatternArenas + 'static>()
+-> impl Strategy<Value = ArenasTo<Arenas, Index<PatternNode>>> {
+    let value_strategy = prop_oneof![
+        Just(PatternNode::new(Pattern::Silence)),
+        any::<NoteUnit>()
+            .prop_map(Pattern::Note)
+            .prop_map(PatternNode::new)
+    ];
+    value_strategy.prop_map(move |value| {
+        ArenasTo::new(move |arenas: &Arenas| {
+            arenas
+                .get_pattern_arena()
+                .push(value.clone())
+        })
+    })
+}
