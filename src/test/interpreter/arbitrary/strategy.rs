@@ -37,7 +37,7 @@ fn prop_map_func<Arenas: PatternArenas + 'static>(
         match opt_expectations {
             Ok(expectations) => Ok(Ok((pattern, expectations))),
             Err(PatternInterpreterError::ArenaErr(e)) => Err(e),
-            Err(PatternInterpreterError::OverflowErr(e)) => Ok(Err(e)),
+            Err(PatternInterpreterError::Overflow(e)) => Ok(Err(e)),
         }
     })
 }
