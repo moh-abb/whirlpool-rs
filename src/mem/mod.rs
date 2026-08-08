@@ -10,6 +10,8 @@ pub mod structures;
 
 // Common re-exports
 
+use core::fmt::Debug;
+
 pub use alloc_types::*;
 pub use arena::Arena;
 pub use arena::ArenaItem;
@@ -24,8 +26,8 @@ pub use structures::chain::Chain;
 pub use structures::index::Index;
 pub use structures::multiple::Multiple;
 
-/// Asserts a unit [ArenaResult] is [Ok] when debug assertions are enabled.
-pub fn debug_unwrap(result: ArenaResult<()>) {
+/// Asserts a unit [Result] is [Ok] when debug assertions are enabled.
+pub fn debug_unwrap<Err: Debug>(result: Result<(), Err>) {
     if cfg!(debug_assertions) {
         result.unwrap()
     }
