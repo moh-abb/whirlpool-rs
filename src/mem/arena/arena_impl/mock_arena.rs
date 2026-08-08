@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use core::cell::RefCell;
 use core::fmt::Debug;
 use core::ops::Deref;

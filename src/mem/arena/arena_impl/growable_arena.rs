@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use crate::mem::Arena;
 use crate::mem::ArenaError;
 use crate::mem::ArenaItem;
