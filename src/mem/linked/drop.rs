@@ -1,4 +1,5 @@
 use crate::mem::Arena;
+use crate::mem::ArenaError;
 use crate::mem::ArenaResult;
 use crate::mem::Index;
 use crate::mem::linked::Linked;
@@ -8,7 +9,6 @@ use crate::mem::linked::visit_linked;
 
 struct DropTraversalState<'a, Arenas> {
     arenas: &'a Arenas,
-    result: ArenaResult<()>,
 }
 
 impl<Node, Arenas> TraversalState<Node> for DropTraversalState<'_, Arenas>
@@ -17,19 +17,20 @@ where
 {
     type Visit = VisitRef;
     type Output = ();
+    type Error = ArenaError;
 
-    fn enter_node(&mut self, _: &Node) -> Self::Output {}
+    fn enter_node(&mut self, _: &Node) -> Result<Self::Output, Self::Error> {
+        Ok(())
+    }
 
-    fn exit_node(&mut self, _: &Node) -> Self::Output {}
+    fn exit_node(&mut self, _: &Node) -> Result<Self::Output, Self::Error> {
+        Ok(())
+    }
 
-    fn post_enter(&mut self, _: Index<Node>) {}
-
-    fn post_exit(&mut self, index: Index<Node>) {
-        // Remove the item from the arena.
-        let take_result = Node::child_arena(self.arenas)
+    fn post_exit(&mut self, index: Index<Node>) -> Result<(), Self::Error> {
+        Node::child_arena(self.arenas)
             .take(index)
-            .map(|_| ());
-        self.result = self.result.and(take_result);
+            .map(|_| ())
     }
 }
 
@@ -50,7 +51,6 @@ pub fn drop_linked<Node, Arenas>(
 where
     Node: Linked<Node, Arenas>,
 {
-    let start_state = DropTraversalState { arenas, result: Ok(()) };
-    let final_state = visit_linked(start_index, start_state, arenas)?;
-    final_state.result
+    let mut start_state = DropTraversalState { arenas };
+    visit_linked(start_index, &mut start_state, arenas)
 }
