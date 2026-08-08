@@ -2,6 +2,7 @@ pub mod pattern;
 pub mod time;
 
 pub use pattern::Pattern;
+pub use pattern::PatternNode;
 pub use pattern::TimedStep;
 pub use pattern::note::Note;
 pub use pattern::note::NoteFrequency;
