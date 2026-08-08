@@ -3,15 +3,17 @@ use core::ops::ControlFlow::Break;
 use core::ops::ControlFlow::Continue;
 use core::ops::Deref;
 
-use crate::mem::ArenaResult;
 use crate::mem::Index;
 use crate::mem::Multiple;
 use crate::mem::linked::Linked;
+use crate::mem::linked::TraversalState;
 use crate::mem::linked::VisitMut;
 use crate::mem::linked::VisitRef;
-use crate::mem::linked::TraversalState;
-use crate::mem::linked::UncondTravState;
-use crate::mem::linked::visit_type::VisitType;
+use crate::mem::linked::traversal_state::UncondTravState;
+use crate::mem::linked::visit_type::private::SealedVisitType;
+
+#[cfg(debug_assertions)]
+const MAX_ITERATION_COUNT: usize = 100_000;
 
 enum CurrentTraversalState<Node> {
     EnterNode(Index<Node>),
@@ -34,57 +36,51 @@ use CurrentTraversalState::ExitNode;
 /// enumerated in BFS order from A, will be traversed as:
 /// enter A, enter B, enter D, exit D, enter E, exit E, exit B, enter C,
 /// enter F, exit F, enter G, exit G, exit C, exit A.
-pub fn visit_linked<Node, Arenas, State>(
+pub fn visit_linked<TravState, Node, Arenas>(
     start_index: Index<Node>,
-    start_state: State,
+    start_state: &mut TravState,
     arenas: &Arenas,
-) -> ArenaResult<State>
+) -> Result<(), TravState::Error>
 where
     Node: Linked<Node, Arenas>,
-    State: TraversalState<Node, Visit = VisitRef>,
+    TravState: TraversalState<Node, Visit = VisitRef, Output = ()>,
 {
-    let final_state = uncond_visit_linked(start_index, start_state, arenas)?;
-    Ok(final_state.state)
+    uncond_visit_linked(start_index, start_state, arenas)
 }
 
 /// Similar to [visit_linked], but allows for modification during traversal.
 /// Note that changing the links between nodes will also change the order of
 /// traversal accordingly.
-pub fn visit_linked_mut<Node, Arenas, State>(
+pub fn visit_linked_mut<TravState, Node, Arenas>(
     start_index: Index<Node>,
-    start_state: State,
+    state: &mut TravState,
     arenas: &Arenas,
-) -> ArenaResult<State>
+) -> Result<(), TravState::Error>
 where
     Node: Linked<Node, Arenas>,
-    State: TraversalState<Node, Visit = VisitMut>,
+    TravState: TraversalState<Node, Visit = VisitMut, Output = ()>,
 {
-    let final_state = uncond_visit_linked(start_index, start_state, arenas)?;
-    Ok(final_state.state)
+    uncond_visit_linked(start_index, state, arenas)
 }
 
 fn uncond_visit_linked<TravState, Node, Arenas>(
     start_index: Index<Node>,
-    start_state: TravState,
+    state: &mut TravState,
     arenas: &Arenas,
-) -> ArenaResult<TravState>
+) -> Result<(), TravState::Error>
 where
     Node: Linked<Node, Arenas>,
     TravState: TraversalState<Node, Output = ()>,
 {
-    let UncondTravState(output_state) = controlled_visit_linked(
-        start_index,
-        UncondTravState(start_state),
-        arenas,
-    )?;
-    Ok(output_state)
+    let mut uncond_state = UncondTravState(state);
+    controlled_visit_linked(start_index, &mut uncond_state, arenas)
 }
 
 fn enter_node<TravState, Node, Arenas>(
     node: Index<Node>,
-    trav_state: &mut TravState,
+    state: &mut TravState,
     arenas: &Arenas,
-) -> ArenaResult<ControlFlow<(), CurrentTraversalState<Node>>>
+) -> Result<ControlFlow<(), CurrentTraversalState<Node>>, TravState::Error>
 where
     Node: Linked<Node, Arenas>,
     TravState: TraversalState<Node, Output = bool>,
@@ -92,16 +88,24 @@ where
     let arena = <Node as Linked<_, _>>::child_arena(arenas);
 
     // Enter the current node
-    let next_state =
+    let opt_next_state =
         TravState::Visit::arena_map(arena, node.clone(), |cur_node: _| {
-            let (success, cur_node) =
+            let continue_enter = |node: Index<Node>| {
+                Result::<_, TravState::Error>::Ok(Continue(EnterNode(node)))
+            };
+            let continue_exit = |node: Index<Node>| {
+                Result::<_, TravState::Error>::Ok(Continue(ExitNode(node)))
+            };
+
+            let (opt_success, cur_node) =
                 TravState::Visit::with_ref(cur_node, |node| {
-                    trav_state.enter_node(node)
+                    state.enter_node(node)
                 });
+            let success = opt_success?;
             // If requested, exit the current node and continue
             // traversal.
             if !success {
-                return Continue(ExitNode(node.clone()));
+                return continue_exit(node.clone());
             }
             // Get the first child, if there are any children
             let opt_first_child =
@@ -110,20 +114,21 @@ where
                     .flatten();
             let Some(child) = opt_first_child else {
                 // No children, so can only exit the node
-                return Continue(ExitNode(node.clone()));
+                return continue_exit(node.clone());
             };
             // Continue with the first child
-            Continue(EnterNode(child))
-        })?;
-    trav_state.post_enter(node);
+            continue_enter(child)
+        });
+    let next_state = opt_next_state??;
+    state.post_enter(node)?;
     Ok(next_state)
 }
 
 fn exit_node<TravState, Node, Arenas>(
     node: Index<Node>,
-    trav_state: &mut TravState,
+    state: &mut TravState,
     arenas: &Arenas,
-) -> ArenaResult<ControlFlow<(), CurrentTraversalState<Node>>>
+) -> Result<ControlFlow<(), CurrentTraversalState<Node>>, TravState::Error>
 where
     Node: Linked<Node, Arenas>,
     TravState: TraversalState<Node, Output = bool>,
@@ -132,16 +137,24 @@ where
 
     // On exit, if there is a sibling, traverse to it, or else exit
     // the current node.
-    let next_state =
+    let opt_next_state =
         TravState::Visit::arena_map(arena, node.clone(), |cur_node: _| {
+            let continue_enter = |node: Index<Node>| {
+                Result::<_, TravState::Error>::Ok(Continue(EnterNode(node)))
+            };
+            let continue_exit = |node: Index<Node>| {
+                Result::<_, TravState::Error>::Ok(Continue(ExitNode(node)))
+            };
+
             // Check if we should exit early
-            let (success, cur_node) =
+            let (opt_success, cur_node): (Result<_, TravState::Error>, _) =
                 TravState::Visit::with_ref(cur_node, |node| {
-                    trav_state.exit_node(node)
+                    state.exit_node(node)
                 });
+            let success = opt_success?;
             if !success {
                 // Indicate to reenter the current node.
-                return Continue(EnterNode(node.clone()));
+                return continue_enter(node.clone());
             }
             // Get the next sibling node, if there is one.
             let opt_next = cur_node
@@ -150,17 +163,18 @@ where
                 .next();
             // Try and move to the next sibling
             let Some(next) = opt_next else {
-                // No next sibling, so can only move to the parent.
+                // No next sibling, so can only move to exit the parent.
                 // If there is no parent, then traversal finishes.
                 let Some(parent) = cur_node.get_parent().clone() else {
-                    return Break(());
+                    return Ok(Break(()));
                 };
-                return Continue(EnterNode(parent));
+                return continue_exit(parent);
             };
             // Continue with the next sibling
-            Continue(EnterNode(next))
-        })?;
-    trav_state.post_exit(node);
+            continue_enter(next)
+        });
+    let next_state = opt_next_state??;
+    state.post_exit(node)?;
     Ok(next_state)
 }
 
@@ -175,9 +189,9 @@ where
 /// the same as [visit_linked].
 pub fn controlled_visit_linked<TravState, Node, Arenas>(
     start_index: Index<Node>,
-    start_state: TravState,
+    state: &mut TravState,
     arenas: &Arenas,
-) -> ArenaResult<TravState>
+) -> Result<(), TravState::Error>
 where
     Node: Linked<Node, Arenas>,
     TravState: TraversalState<Node, Output = bool>,
@@ -187,18 +201,31 @@ where
     // or up (exiting nodes) in the tree.
     // The traversal state's output (the boolean) then dictates what the next
     // FSM state will be.
-    let mut trav_state = start_state;
     let mut fsm_state = EnterNode(start_index);
+
+    #[cfg(debug_assertions)]
+    let mut cur_iters = 0;
+
+    #[cfg(debug_assertions)]
+    let mut update_iter = || {
+        if cur_iters > MAX_ITERATION_COUNT {
+            panic!("Reached max iteration count")
+        }
+        cur_iters += 1;
+    };
 
     loop {
         let opt_next_fsm_state = match fsm_state {
-            EnterNode(node) => enter_node(node, &mut trav_state, arenas)?,
-            ExitNode(node) => exit_node(node, &mut trav_state, arenas)?,
+            EnterNode(node) => enter_node(node, state, arenas)?,
+            ExitNode(node) => exit_node(node, state, arenas)?,
         };
         match opt_next_fsm_state {
             Continue(next_fsm_state) => fsm_state = next_fsm_state,
-            Break(()) => return Ok(trav_state),
+            Break(()) => return Ok(()),
         }
+
+        #[cfg(debug_assertions)]
+        update_iter()
     }
 }
 
@@ -207,30 +234,40 @@ where
 /// The two nodes are entered and exited in tandem, assuming the callbacks
 /// in `TravState` return true.
 /// This is useful for implementing ordering between two arenas.
-pub(super) fn controlled_visit_two_linked<TravState, Node, ArenasX, ArenasY>(
+pub(super) fn controlled_visit_two_linked<TravState, Node, AX, AY>(
     start_index_x: Index<Node>,
     start_index_y: Index<Node>,
-    start_state: TravState,
-    arenas_x: &ArenasX,
-    arenas_y: &ArenasY,
-) -> ArenaResult<TravState>
+    state: &mut TravState,
+    arenas_x: &AX,
+    arenas_y: &AY,
+) -> Result<(), TravState::Error>
 where
-    Node: Linked<Node, ArenasX>,
-    Node: Linked<Node, ArenasY>,
+    Node: Linked<Node, AX>,
+    Node: Linked<Node, AY>,
     TravState: TraversalState<Node, Output = bool>,
 {
-    let mut trav_state = start_state;
     let mut fsm_state_x = EnterNode(start_index_x);
     let mut fsm_state_y = EnterNode(start_index_y);
 
+    #[cfg(debug_assertions)]
+    let mut cur_iters = 0;
+
+    #[cfg(debug_assertions)]
+    let mut update_iter = || {
+        if cur_iters > MAX_ITERATION_COUNT {
+            panic!("Reached max iteration count")
+        }
+        cur_iters += 1;
+    };
+
     loop {
         let opt_next_fsm_state_x = match fsm_state_x {
-            EnterNode(node_x) => enter_node(node_x, &mut trav_state, arenas_x)?,
-            ExitNode(node_x) => exit_node(node_x, &mut trav_state, arenas_x)?,
+            EnterNode(node_x) => enter_node(node_x, state, arenas_x)?,
+            ExitNode(node_x) => exit_node(node_x, state, arenas_x)?,
         };
         let opt_next_fsm_state_y = match fsm_state_y {
-            EnterNode(node_y) => enter_node(node_y, &mut trav_state, arenas_y)?,
-            ExitNode(node_y) => exit_node(node_y, &mut trav_state, arenas_y)?,
+            EnterNode(node_y) => enter_node(node_y, state, arenas_y)?,
+            ExitNode(node_y) => exit_node(node_y, state, arenas_y)?,
         };
 
         match (opt_next_fsm_state_x, opt_next_fsm_state_y) {
@@ -238,7 +275,10 @@ where
                 fsm_state_x = next_fsm_state_x;
                 fsm_state_y = next_fsm_state_y;
             }
-            (Break(()), _) | (_, Break(())) => return Ok(trav_state),
+            (Break(()), _) | (_, Break(())) => return Ok(()),
         }
+
+        #[cfg(debug_assertions)]
+        update_iter()
     }
 }

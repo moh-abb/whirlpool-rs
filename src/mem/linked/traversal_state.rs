@@ -1,5 +1,7 @@
+use crate::mem::ArenaError;
 use crate::mem::Index;
 use crate::mem::linked::visit_type::VisitType;
+use crate::mem::linked::visit_type::private::SealedVisitType;
 
 /// The traversal state (with a strategy that allows for potential control
 /// over movement within the linked structure).
@@ -25,52 +27,62 @@ where
 {
     type Visit;
     type Output;
+    type Error: From<ArenaError>;
 
     fn enter_node(
         &mut self,
-        cur_node: <Self::Visit as VisitType>::Ref<'_, Node>,
-    ) -> Self::Output;
+        cur_node: <Self::Visit as SealedVisitType>::Ref<'_, Node>,
+    ) -> Result<Self::Output, Self::Error>;
 
     fn exit_node(
         &mut self,
-        cur_node: <Self::Visit as VisitType>::Ref<'_, Node>,
-    ) -> Self::Output;
+        cur_node: <Self::Visit as SealedVisitType>::Ref<'_, Node>,
+    ) -> Result<Self::Output, Self::Error>;
 
-    fn post_enter(&mut self, index: Index<Node>) {}
+    fn post_enter(&mut self, _: Index<Node>) -> Result<(), Self::Error> {
+        Ok(())
+    }
 
-    fn post_exit(&mut self, index: Index<Node>) {}
+    fn post_exit(&mut self, _: Index<Node>) -> Result<(), Self::Error> {
+        Ok(())
+    }
 }
 
-pub struct UncondTravState<TravState>(pub TravState);
+pub(super) struct UncondTravState<'a, TravState>(pub &'a mut TravState);
 
-impl<Node, TravState> TraversalState<Node> for UncondTravState<TravState>
+impl<Node, TravState> TraversalState<Node> for UncondTravState<'_, TravState>
 where
     TravState: TraversalState<Node, Output = ()>,
 {
     type Visit = TravState::Visit;
     type Output = bool;
+    type Error = TravState::Error;
 
     fn enter_node(
         &mut self,
-        cur_node: <Self::Visit as VisitType>::Ref<'_, Node>,
-    ) -> Self::Output {
-        self.0.enter_node(cur_node);
-        true
+        cur_node: <Self::Visit as SealedVisitType>::Ref<'_, Node>,
+    ) -> Result<Self::Output, Self::Error> {
+        self.0.enter_node(cur_node)?;
+        Ok(true)
     }
 
     fn exit_node(
         &mut self,
-        cur_node: <Self::Visit as VisitType>::Ref<'_, Node>,
-    ) -> Self::Output {
-        self.0.exit_node(cur_node);
-        true
+        cur_node: <Self::Visit as SealedVisitType>::Ref<'_, Node>,
+    ) -> Result<Self::Output, Self::Error> {
+        self.0.exit_node(cur_node)?;
+        Ok(true)
     }
 
-    fn post_enter(&mut self, index: Index<Node>) {
-        self.0.post_enter(index)
+    fn post_enter(&mut self, index: Index<Node>) -> Result<(), Self::Error> {
+        self.0
+            .post_enter(index)
+            .map_err(Into::into)
     }
 
-    fn post_exit(&mut self, index: Index<Node>) {
-        self.0.post_exit(index)
+    fn post_exit(&mut self, index: Index<Node>) -> Result<(), Self::Error> {
+        self.0
+            .post_exit(index)
+            .map_err(Into::into)
     }
 }
