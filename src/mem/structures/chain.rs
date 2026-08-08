@@ -12,6 +12,14 @@ impl<T> Chain<T> {
     pub const fn new() -> Self {
         Self { prev: None, next: None }
     }
+
+    pub fn prev(&self) -> Option<Index<T>> {
+        self.prev.clone()
+    }
+
+    pub fn next(&self) -> Option<Index<T>> {
+        self.next.clone()
+    }
 }
 
 impl<T> Clone for Chain<T> {
