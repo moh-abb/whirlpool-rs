@@ -14,5 +14,8 @@ pub type EvaluateResult<Error> =
 pub trait EvaluateFrame {
     type Error;
 
-    fn step(&mut self) -> EvaluateResult<Self::Error>;
+    fn step(
+        &mut self,
+        scheduler: &mut impl UnitScheduler,
+    ) -> EvaluateResult<Self::Error>;
 }
