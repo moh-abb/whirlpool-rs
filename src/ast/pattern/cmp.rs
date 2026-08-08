@@ -1,196 +1,89 @@
 use core::cmp::Ordering;
-use core::iter::once;
-use core::ops::ControlFlow;
 
 use crate::ast::Pattern;
+use crate::ast::PatternNode;
 use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::pattern_discriminant;
-use crate::ast::pattern::refs::PatternOrdRef;
-use crate::ast::pattern::refs::combine_iters;
-use crate::mem::Arena;
-use crate::mem::ArenaResult;
 use crate::mem::Index;
-use crate::mem::Multiple;
-use crate::mem::cmp::cmp_in_arenas;
-use crate::mem::cmp::refs::NextOrdRefs;
-use crate::mem::cmp::refs::OrdRefs;
+use crate::mem::linked::cmp_linked;
 
-fn multiple_pattern_iter(
-    multiple: Multiple<Pattern>,
-    arenas: &impl PatternArenas,
-) -> impl Iterator<Item = ArenaResult<PatternOrdRef>> {
-    multiple
-        .checked_iter(arenas.get_pattern_chain_arena())
-        .map(|result| result.map(PatternOrdRef::Pattern))
-}
-
-fn multiple_timed_step_iter(
-    multiple: Multiple<TimedStep>,
-    arenas: &impl PatternArenas,
-) -> impl Iterator<Item = ArenaResult<PatternOrdRef>> {
-    multiple
-        .checked_iter(arenas.get_timed_step_chain_arena())
-        .map(|result| result.map(PatternOrdRef::TimedStep))
-}
-
-impl<ArenasX: PatternArenas, ArenasY: PatternArenas> OrdRefs<ArenasX, ArenasY>
-    for Index<Pattern>
-{
-    type OrdRefType = PatternOrdRef;
-
-    fn start_refs(
-        start_x: Self,
-        start_y: Self,
-    ) -> (Self::OrdRefType, Self::OrdRefType) {
-        (PatternOrdRef::Pattern(start_x), PatternOrdRef::Pattern(start_y))
-    }
-
-    fn process_ref<'a>(
-        reference_x: Self::OrdRefType,
-        reference_y: Self::OrdRefType,
-        arenas_x: &'a ArenasX,
-        arenas_y: &'a ArenasY,
-    ) -> ArenaResult<
-        ControlFlow<Ordering, impl NextOrdRefs<'a, ArenasX, ArenasY, Self>>,
-    > {
-        let break_value = |ordering: Ordering| Ok(ControlFlow::Break(ordering));
-
-        let process_patterns = |[index_x, index_y]: [Index<Pattern>; 2]| {
-            let cloned_x = arenas_x
-                .get_pattern_arena()
-                .map(index_x, Clone::clone)?;
-            let cloned_y = arenas_y
-                .get_pattern_arena()
-                .map(index_y, Clone::clone)?;
-
-            let [discr_x, discr_y] =
-                [&cloned_x, &cloned_y].map(pattern_discriminant);
-            if discr_x != discr_y {
-                return break_value(discr_x.cmp(&discr_y));
-            }
-            let iter = match (cloned_x, cloned_y) {
-                (Pattern::Cat(multiple_x), Pattern::Cat(multiple_y))
-                | (Pattern::Seq(multiple_x), Pattern::Seq(multiple_y))
-                | (Pattern::Stack(multiple_x), Pattern::Stack(multiple_y)) => {
-                    let [len_x, len_y] =
-                        [&multiple_x, &multiple_y].map(Multiple::length);
-                    if len_x != len_y {
-                        return break_value(len_x.cmp(&len_y));
-                    }
-
-                    let iter = multiple_pattern_iter(multiple_x, arenas_x)
-                        .zip(multiple_pattern_iter(multiple_y, arenas_y));
-
-                    combine_iters(Some(iter), None)
-                }
-                (
-                    Pattern::TimeCat(multiple_x),
-                    Pattern::TimeCat(multiple_y),
-                )
-                | (
-                    Pattern::Arrange(multiple_x),
-                    Pattern::Arrange(multiple_y),
-                ) => {
-                    let [len_x, len_y] =
-                        [&multiple_x, &multiple_y].map(Multiple::length);
-                    if len_x != len_y {
-                        return break_value(discr_x.cmp(&discr_y));
-                    }
-
-                    let iter = multiple_timed_step_iter(multiple_x, arenas_x)
-                        .zip(multiple_timed_step_iter(multiple_y, arenas_y));
-
-                    combine_iters(None, Some(iter))
-                }
-                (Pattern::Note(note_unit_x), Pattern::Note(note_unit_y)) => {
-                    return break_value(note_unit_x.cmp(&note_unit_y));
-                }
-                (Pattern::Silence, Pattern::Silence) => {
-                    return break_value(Ordering::Equal);
-                }
-                _ => unreachable!(),
-            };
-
-            Ok(ControlFlow::Continue(combine_iters(Some(iter), None)))
-        };
-
-        match (reference_x, reference_y) {
-            (
-                PatternOrdRef::Pattern(index_x),
-                PatternOrdRef::Pattern(index_y),
-            ) => process_patterns([index_x, index_y]),
-            (
-                PatternOrdRef::TimedStep(index_x),
-                PatternOrdRef::TimedStep(index_y),
-            ) => {
-                let TimedStep(x_dur, x_pat) = arenas_x
-                    .get_timed_step_arena()
-                    .map(index_x, Clone::clone)?;
-                let TimedStep(y_dur, y_pat) = arenas_y
-                    .get_timed_step_arena()
-                    .map(index_y, Clone::clone)?;
-
-                if x_dur != y_dur {
-                    return break_value(x_dur.cmp(&y_dur));
-                }
-
-                let pattern_to_iter = |pattern_index| {
-                    once(pattern_index)
-                        .map(PatternOrdRef::Pattern)
-                        .map(Ok)
-                };
-                let iter = pattern_to_iter(x_pat).zip(pattern_to_iter(y_pat));
-
-                Ok(ControlFlow::Continue(combine_iters(None, Some(iter))))
-            }
-            _ => unreachable!(),
+/// Compares two [PatternNode]s on a surface level, without considering nesting
+/// between the nodes' children.
+fn cmp_pattern_nodes(node_x: &PatternNode, node_y: &PatternNode) -> Ordering {
+    let pattern_x = &node_x.pattern;
+    let pattern_y = &node_y.pattern;
+    let cmp_discriminant =
+        pattern_discriminant(pattern_x).cmp(&pattern_discriminant(pattern_y));
+    // We only need to handle the cases where there is extra data attached
+    // to the Pattern separately.
+    match (pattern_x, pattern_y) {
+        (
+            Pattern::TimedStep(TimedStep(time_x, _)),
+            Pattern::TimedStep(TimedStep(time_y, _)),
+        ) => {
+            // Comparison will continue with the singular child
+            time_x.cmp(time_y)
+        }
+        (Pattern::Note(note_x), Pattern::Note(note_y)) => note_x.cmp(note_y),
+        _ => {
+            // Comparison will continue with the chidren (or none for Silence)
+            cmp_discriminant
         }
     }
 }
 
+#[derive(Debug)]
+enum ArenaXorY<'a, ArenasX, ArenasY> {
+    X(&'a ArenasX),
+    Y(&'a ArenasY),
+}
+
 /// Used to compare two [Pattern]s, possibly from two different arenas.
 #[derive(Debug)]
-pub struct PatternOrdAdapter<'a, Arenas1, Arenas2> {
-    index: Index<Pattern>,
-    arenas: Result<&'a Arenas1, &'a Arenas2>,
+pub struct PatternOrdAdapter<'a, ArenasX, ArenasY> {
+    index: Index<PatternNode>,
+    arenas: ArenaXorY<'a, ArenasX, ArenasY>,
 }
 
-impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas>
-    PatternOrdAdapter<'a, Arenas1, Arenas2>
+impl<'a, ArenasX: PatternArenas, ArenasY: PatternArenas>
+    PatternOrdAdapter<'a, ArenasX, ArenasY>
 {
     #[allow(unused)]
-    pub fn new_left(index: Index<Pattern>, arenas: &'a Arenas1) -> Self {
-        Self { index, arenas: Ok(arenas) }
+    pub fn new_left(index: Index<PatternNode>, arenas: &'a ArenasX) -> Self {
+        Self { index, arenas: ArenaXorY::X(arenas) }
     }
 
     #[allow(unused)]
-    pub fn new_right(index: Index<Pattern>, arenas: &'a Arenas2) -> Self {
-        Self { index, arenas: Err(arenas) }
-    }
-}
-
-impl<'a, Arenas: PatternArenas> PatternOrdAdapter<'a, Arenas, Arenas> {
-    #[allow(unused)]
-    pub fn new(index: Index<Pattern>, arenas: &'a Arenas) -> Self {
-        Self { index, arenas: Ok(arenas) }
+    pub fn new_right(index: Index<PatternNode>, arenas: &'a ArenasY) -> Self {
+        Self { index, arenas: ArenaXorY::Y(arenas) }
     }
 }
 
 /// Implementation of Ord for `Index<Pattern>`'s adapter
-impl<'a, Arenas1: PatternArenas, Arenas2: PatternArenas> Ord
-    for PatternOrdAdapter<'a, Arenas1, Arenas2>
+impl<'a, ArenasX: PatternArenas, ArenasY: PatternArenas> Ord
+    for PatternOrdAdapter<'a, ArenasX, ArenasY>
 {
     fn cmp(&self, other: &Self) -> Ordering {
-        let i1 = self.index.clone();
-        let i2 = other.index.clone();
-        let ordering_result = match (self.arenas, other.arenas) {
-            (Ok(a1), Ok(a2)) => cmp_in_arenas(i1, i2, a1, a2),
-            (Ok(a1), Err(a2)) => cmp_in_arenas(i1, i2, a1, a2),
-            (Err(a1), Ok(a2)) => cmp_in_arenas(i1, i2, a1, a2),
-            (Err(a1), Err(a2)) => cmp_in_arenas(i1, i2, a1, a2),
+        let opt_comparison_result = match (&self.arenas, &other.arenas) {
+            (&ArenaXorY::X(arenas_x), &ArenaXorY::Y(arenas_y)) => cmp_linked(
+                self.index.clone(),
+                other.index.clone(),
+                arenas_x,
+                arenas_y,
+                cmp_pattern_nodes,
+                PatternNode::clone,
+            ),
+            _ => panic!(
+                "Need to use new_left for left hand side \
+                and new_right for right hand side"
+            ),
         };
-        ordering_result.unwrap()
+
+        let cmp_result = opt_comparison_result.unwrap_or_else(|err| {
+            panic!("Error encountered while comparing patterns: {err:?}")
+        });
+        cmp_result
     }
 }
 
