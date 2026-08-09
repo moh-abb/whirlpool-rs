@@ -13,11 +13,14 @@ use crate::mem::Index;
 use crate::synth::scheduler::UnitScheduler;
 
 #[derive(derive_more::From, Debug)]
-pub enum InterpreterFrame<'a, Arenas: PatternArenas> {
+enum FrameInner<'a, Arenas: PatternArenas> {
     Query(QueryFrame),
     Concat(ConcatFrame<'a, Arenas>),
     Leaf(LeafFrame),
 }
+
+#[derive(Debug)]
+pub struct InterpreterFrame<'a, Arenas: PatternArenas>(FrameInner<'a, Arenas>);
 
 /// Indicates the result of interpreting one frame.
 /// If we return `Err(err)` then this indicates that interpreting has failed
@@ -34,7 +37,7 @@ pub type InterpreterResult<'a, Arenas> = PatternInterpreterResult<
     >,
 >;
 
-pub trait EvaluateFrame<'a, Arenas: PatternArenas> {
+pub(super) trait EvaluateFrame<'a, Arenas: PatternArenas> {
     fn step(
         &mut self,
         scheduler: &mut impl UnitScheduler,
@@ -43,14 +46,14 @@ pub trait EvaluateFrame<'a, Arenas: PatternArenas> {
 }
 
 #[derive(Debug)]
-pub struct QueryFrame {
+pub(super) struct QueryFrame {
     play_args: PlayElemArgs<Index<PatternNode>>,
 }
 
-pub fn query_frame<'a, Arenas: PatternArenas>(
+pub(super) fn query_frame<'a, Arenas: PatternArenas>(
     play_args: PlayElemArgs<Index<PatternNode>>,
 ) -> InterpreterFrame<'a, Arenas> {
-    (QueryFrame { play_args }).into()
+    InterpreterFrame((QueryFrame { play_args }).into())
 }
 
 impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
@@ -61,10 +64,11 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
     ) -> InterpreterResult<'a, Arenas> {
         let index = self.play_args.elem.clone();
         let play_args = self.play_args.clone().map(|_| ());
-        let cloned_node = arenas
+        let cloned_pattern = arenas
             .get_pattern_arena()
-            .map(index, Clone::clone)?;
-        let next_frame: InterpreterFrame<'_, _> = match &cloned_node.pattern {
+            .map(index, Clone::clone)?
+            .pattern;
+        let next_frame: FrameInner<'_, _> = match &cloned_pattern {
             Pattern::Cat(multiple) => {
                 ConcatFrame::cat_frame(multiple, arenas, play_args)?.into()
             }
@@ -103,7 +107,7 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
             Pattern::Silence => LeafFrame::silence()?.into(),
         };
         // Indicate to pop this frame and push the next frame.
-        Ok(ControlFlow::Break(Some(next_frame)))
+        Ok(ControlFlow::Break(Some(InterpreterFrame(next_frame))))
     }
 }
 
@@ -116,24 +120,24 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
         arenas: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
         // TODO: Automatically delegate this step.
-        match self {
-            InterpreterFrame::Query(frame) => frame.step(scheduler, arenas),
-            InterpreterFrame::Concat(ConcatFrame::CatOrSeq(frame)) => {
+        match &mut self.0 {
+            FrameInner::Query(frame) => frame.step(scheduler, arenas),
+            FrameInner::Concat(ConcatFrame::CatOrSeq(frame)) => {
                 frame.step(scheduler, arenas)
             }
-            InterpreterFrame::Concat(ConcatFrame::Stack(frame)) => {
+            FrameInner::Concat(ConcatFrame::Stack(frame)) => {
                 frame.step(scheduler, arenas)
             }
-            InterpreterFrame::Concat(ConcatFrame::TimeCat(frame)) => {
+            FrameInner::Concat(ConcatFrame::TimeCat(frame)) => {
                 frame.step(scheduler, arenas)
             }
-            InterpreterFrame::Concat(ConcatFrame::Arrange(frame)) => {
+            FrameInner::Concat(ConcatFrame::Arrange(frame)) => {
                 frame.step(scheduler, arenas)
             }
-            InterpreterFrame::Leaf(LeafFrame::Note(frame)) => {
+            FrameInner::Leaf(LeafFrame::Note(frame)) => {
                 frame.step(scheduler, arenas)
             }
-            InterpreterFrame::Leaf(LeafFrame::Silence(frame)) => {
+            FrameInner::Leaf(LeafFrame::Silence(frame)) => {
                 frame.step(scheduler, arenas)
             }
         }
