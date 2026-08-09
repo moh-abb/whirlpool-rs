@@ -428,12 +428,12 @@ pub fn play_multiple_elements<
     T: Debug + Clone,
     Iter: Iterator<Item = PlayElementsResult<ElemProps<T>>>,
 >(
-    mut interval: CycleInterval,
-    total: ElemProps<impl Fn() -> Iter>,
+    play_args: PlayElemArgs<ElemProps<impl Fn() -> Iter>>,
     is_fast: bool,
-    mut offset: CycleTime,
-    mut multiplier: CycleTime,
 ) -> PlayElementsResult<PlayMultiple<T, Iter>> {
+    let PlayElemArgs { elem: total, mut interval, mut offset, mut multiplier } =
+        play_args;
+
     check_elem_lengths(&total.elem, total.sim_duration, total.played_duration);
     if cfg!(debug_assertions) {
         let calculated_sim_duration =
