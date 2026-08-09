@@ -18,6 +18,7 @@ use crate::ast::CycleTime;
 /// is played for a full cycle (hence all elements are simulated over
 /// `multiple_length` cycles), but needs to be scaled according to the length
 /// in the [TimedStep] giving a factor of `timed_step_duration / total_length`.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ElemProps<T> {
     pub elem: T,
     pub sim_duration: CycleTime,
@@ -26,9 +27,17 @@ pub struct ElemProps<T> {
 
 /// Represents the arguments that are passed into the `play_elem` function in
 /// [play_elements].
-#[derive(Debug)]
-pub struct PlayElemArgs<'a, T> {
-    pub elem: &'a T,
+///
+/// - `interval` is the cycle time (start inclusive, end exclusive) to play
+///   any given units.
+/// - `offset` is used to add or subtract an offset to the start time of units
+///   played.
+/// - `multiplier` is used to scale down the duration of notes; i.e., a
+///   multiplier of two will result in played units having a duration of one
+///   half.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PlayElemArgs<T> {
+    pub elem: T,
     pub interval: CycleInterval,
     pub offset: CycleTime,
     pub multiplier: CycleTime,
