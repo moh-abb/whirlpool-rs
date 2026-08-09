@@ -14,8 +14,10 @@ use crate::interpreter::frame::EvaluateFrame;
 use crate::interpreter::frame::InterpreterFrame;
 use crate::interpreter::frame::query_frame;
 use crate::interpreter::props::PlayElemArgs;
+use crate::mem::Arena;
 use crate::mem::Index;
-use crate::mem::Vec;
+use crate::mem::Stack;
+use crate::mem::structures::stack::StackChain;
 use crate::synth::scheduler::UnitScheduler;
 
 /// An interpreter of [Pattern]s, which keeps track of a current time and
@@ -141,6 +143,7 @@ where
     Scheduler: UnitScheduler,
     SchedulerBorrow: BorrowAdapter<Scheduler>,
     FrameArenaBorrow: BorrowAdapter<FrameArena>,
+    FrameArena: Arena<StackChain<InterpreterFrame<'a, Arenas>>>,
 {
     type Output = Result<(), PatternInterpreterError>;
 
@@ -150,25 +153,24 @@ where
         // The time should be monotonically increasing.
         debug_assert!(next_time >= self.cur_time);
         let mut borrowed_scheduler = self.scheduler.try_borrow_mut()?;
-
-        // TODO: Replace this with stack-allocated version
-        // Perhaps we need to have the stack be part of the interpreter?
-        let mut frames = Vec::<InterpreterFrame<'a, Arenas>>::new();
+        let mut borrowed_arena = self.frame_arena.try_borrow_mut()?;
+        let mut frames = Stack::new(borrowed_arena.deref_mut());
         // Add the start simulation arguments for the pattern.
         frames.push(query_frame(PlayElemArgs {
             elem: self.pattern_index.clone(),
             interval: CycleInterval::new(self.cur_time, next_time),
             offset: self.base_offset,
             multiplier: self.base_multiplier,
-        }));
+        }))?;
 
-        loop {
-            let Some(last_frame) = frames.last_mut() else {
-                break;
+        let mut yield_step_result = || loop {
+            let opt_step_result = frames.map_mut(|frame| {
+                frame.step(borrowed_scheduler.deref_mut(), self.arenas)
+            })?;
+            let Some(step_result) = opt_step_result else {
+                break Ok(());
             };
-            let step_result =
-                last_frame.step(borrowed_scheduler.deref_mut(), self.arenas)?;
-            let opt_new_frame = match step_result {
+            let opt_new_frame = match step_result? {
                 ControlFlow::Break(opt_new_frame) => {
                     frames.pop();
                     opt_new_frame
@@ -176,8 +178,13 @@ where
                 ControlFlow::Continue(opt_new_frame) => opt_new_frame,
             };
             if let Some(new_frame) = opt_new_frame {
-                frames.push(new_frame);
+                frames.push(new_frame)?;
             }
+        };
+
+        if let Err(err) = yield_step_result() {
+            frames.clear()?;
+            return Err(err);
         }
 
         self.cur_time = next_time;

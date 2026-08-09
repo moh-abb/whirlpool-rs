@@ -1,11 +1,13 @@
 use crate::ast::time::OverflowError;
 use crate::mem::ArenaError;
+use crate::mem::structures::stack::StackError;
 
 /// Represents the error type when interpreting a [Pattern].
 #[derive(derive_more::From, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PatternInterpreterError {
     ArenaErr(ArenaError),
-    Overflow(OverflowError),
+    OverflowErr(OverflowError),
+    StackErr(StackError),
     MultipleEmpty,
     ExpectedTimedStep,
     ExpectedNormalPattern,
