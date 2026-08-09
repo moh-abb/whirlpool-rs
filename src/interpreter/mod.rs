@@ -8,7 +8,6 @@ mod frame;
 mod leaf;
 pub mod pattern;
 pub mod props;
-pub mod scope;
 
 pub trait Interpreter {
     type Output;
