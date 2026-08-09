@@ -1,12 +1,13 @@
+use core::cmp::Ordering;
+
 use crate::mem::Arena;
 use crate::mem::ArenaError;
-use crate::mem::ArenaItem;
 use crate::mem::Index;
 
 /// An arena-based Stack that is implemented via a singly-linked-list structure.
 pub struct Stack<'a, T, A> {
     last_item: Option<Index<StackChain<T>>>,
-    size: usize,
+    size: u16,
     arena: &'a mut A,
 }
 
@@ -19,10 +20,32 @@ pub enum StackError {
 pub type StackResult<T> = Result<T, StackError>;
 
 /// Stores one unit of the linked item in a stack.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug)]
 pub struct StackChain<T> {
+    /// Used to uniquely identify the item in the arena.
+    index: Index<Self>,
     item: T,
     prev: Option<Index<Self>>,
+}
+
+impl<T> PartialEq for StackChain<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.index.eq(&other.index)
+    }
+}
+
+impl<T> Eq for StackChain<T> {}
+
+impl<T> PartialOrd for StackChain<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T> Ord for StackChain<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.index.cmp(&other.index)
+    }
 }
 
 impl<'a, T, A> Stack<'a, T, A> {
@@ -30,7 +53,7 @@ impl<'a, T, A> Stack<'a, T, A> {
         Self { last_item: None, size: 0, arena }
     }
 
-    pub const fn size(&self) -> usize {
+    pub const fn size(&self) -> u16 {
         self.size
     }
 
@@ -41,15 +64,23 @@ impl<'a, T, A> Stack<'a, T, A> {
 
 impl<'a, T, A> Stack<'a, T, A>
 where
-    T: ArenaItem,
     A: Arena<StackChain<T>>,
 {
     pub fn push(&mut self, item: T) -> StackResult<()> {
-        let index = self
-            .arena
-            .push(StackChain { item, prev: self.last_item.take() })?;
-        self.last_item = Some(index);
+        let index = self.arena.push(StackChain {
+            item,
+            prev: self.last_item.take(),
+            index: Index::new_invalid(),
+        })?;
+        self.last_item = Some(index.clone());
+        // Set the index in the arena to point to itself.
+        let update_chain = |stack_chain: &mut StackChain<T>| {
+            stack_chain.index = index.clone();
+        };
+        self.arena
+            .map_mut(index.clone(), update_chain)?;
         self.size = self.size.wrapping_add(1);
+
         Ok(())
     }
 
@@ -59,7 +90,7 @@ where
             None => return Ok(None),
         };
 
-        let StackChain { item, prev } = self.arena.take(index)?;
+        let StackChain { item, prev, .. } = self.arena.take(index)?;
         self.last_item = prev;
         self.size = self.size.wrapping_sub(1);
 
@@ -81,7 +112,7 @@ where
 
         let res = self
             .arena
-            .map(index, |StackChain { item, prev: _ }| func(item))?;
+            .map(index, |StackChain { item, .. }| func(item))?;
 
         Ok(Some(res))
     }
@@ -97,7 +128,7 @@ where
 
         let res = self
             .arena
-            .map_mut(index, |StackChain { item, prev: _ }| func(item))?;
+            .map_mut(index, |StackChain { item, .. }| func(item))?;
 
         Ok(Some(res))
     }
@@ -105,7 +136,7 @@ where
 
 impl<'a, T, A> Stack<'a, T, A>
 where
-    T: ArenaItem + Clone,
+    T: Clone,
     A: Arena<StackChain<T>>,
 {
     pub fn clone_last(&self) -> StackResult<Option<T>> {
