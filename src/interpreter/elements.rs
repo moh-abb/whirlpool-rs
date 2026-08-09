@@ -52,6 +52,7 @@ fn play_intersection<T: Debug>(
     }))
 }
 
+#[derive(Debug)]
 struct OuterIterData {
     played_start: CycleTime,
     interval: CycleInterval,
@@ -66,7 +67,7 @@ type OuterIter<T, Iter> = iter::Scan<
     fn(
         &mut OuterIterData,
         PatternInterpreterResult<ElemProps<T>>,
-    ) -> Option<RepIterData<T>>,
+    ) -> Option<PatternInterpreterResult<RepIterData<T>>>,
 >;
 
 fn make_outer_iter<T, Iter>(
@@ -142,7 +143,7 @@ where
         },
     };
 
-    let scan_func =
+    let scan_func: fn(&mut _, _) -> _ =
         |state: &mut OuterIterData,
          opt_cur: PatternInterpreterResult<ElemProps<T>>| {
             let yield_reps = || {
@@ -229,10 +230,7 @@ where
                 })
             };
 
-            match yield_reps() {
-                Ok(_) => todo!(),
-                Err(_) => todo!(),
-            }
+            Some(yield_reps())
         };
 
     total
@@ -240,6 +238,7 @@ where
         .scan(start_outer_iter, scan_func)
 }
 
+#[derive(Debug)]
 struct RepIterData<T> {
     outer: OuterIterData,
     rep_start: CycleTime,
@@ -323,11 +322,14 @@ fn make_reps_iter<T: Debug + Clone>(
     rep_indices.scan(rep_iter_data, scan_func)
 }
 
-pub struct PlayMultiple<T, Iter>(PlayMultipleIter<T, Iter>);
+#[derive(Debug)]
+pub struct PlayMultiple<T, Iter>(PlayMultipleIter<T, Iter>)
+where
+    Iter: Iterator<Item = PatternInterpreterResult<ElemProps<T>>>;
 
 type PlayMultipleIter<T, Iter> = iter::FilterMap<
     iter::FlatMap<
-        OuterIter<T, Iter>,
+        iter::Flatten<OuterIter<T, Iter>>,
         RepsIter<T>,
         fn(RepIterData<T>) -> RepsIter<T>,
     >,
@@ -343,15 +345,16 @@ where
     T: Debug + Clone,
     Iter: Iterator<Item = PatternInterpreterResult<ElemProps<T>>>,
 {
-    let filter_args = |opt_args| match opt_args {
+    let filter_args: fn(_) -> _ = |opt_args| match opt_args {
         Ok(Some(intersection)) => Some(Ok(intersection)),
         Ok(None) => None,
         Err(err) => Some(Err(err)),
     };
 
     outer_iter
+        .flatten()
         .flat_map(make_reps_iter as fn(_) -> _)
-        .filter_map(filter_args as fn(_) -> _)
+        .filter_map(filter_args)
 }
 
 impl<T, Iter> Iterator for PlayMultiple<T, Iter>
@@ -433,17 +436,7 @@ pub fn play_multiple_elements<
     let PlayElemArgs { elem: total, mut interval, mut offset, mut multiplier } =
         play_args;
 
-    check_elem_lengths(&total.elem, total.sim_duration, total.played_duration);
-    if cfg!(debug_assertions) {
-        let calculated_sim_duration =
-            sum_cycle_length((total.elem)(), |x| x.sim_duration)?;
-
-        let calculated_played_duration =
-            sum_cycle_length((total.elem)(), |x| x.played_duration)?;
-
-        debug_assert_eq!(calculated_sim_duration, total.sim_duration);
-        debug_assert_eq!(calculated_played_duration, total.played_duration);
-    }
+    check_elem_lengths(&total.elem, total.sim_duration, total.played_duration)?;
 
     let total_props = ElemProps {
         elem: (total.elem)(),

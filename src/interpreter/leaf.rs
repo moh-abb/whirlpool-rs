@@ -13,11 +13,13 @@ use crate::interpreter::props::PlayElemArgs;
 use crate::synth::scheduler::UnitScheduler;
 use crate::synth::unit::SoundUnit;
 
+#[derive(derive_more::From, Debug)]
 pub enum LeafFrame {
     Note(NoteFrame),
     Silence(SilenceFrame),
 }
 
+#[derive(Debug)]
 pub struct NoteFrame(
     PlayMultiple<
         NoteUnit,
@@ -45,7 +47,7 @@ impl NoteFrame {
     }
 }
 
-impl<'a, Arenas> EvaluateFrame<'a, Arenas> for NoteFrame {
+impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for NoteFrame {
     fn step(
         &mut self,
         scheduler: &mut impl UnitScheduler,
@@ -74,9 +76,10 @@ impl<'a, Arenas> EvaluateFrame<'a, Arenas> for NoteFrame {
     }
 }
 
+#[derive(Debug)]
 pub struct SilenceFrame;
 
-impl<'a, Arenas> EvaluateFrame<'a, Arenas> for SilenceFrame {
+impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for SilenceFrame {
     fn step(
         &mut self,
         _: &mut impl UnitScheduler,

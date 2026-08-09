@@ -23,7 +23,8 @@ use crate::mem::Multiple;
 use crate::mem::structures::multiple;
 use crate::synth::scheduler::UnitScheduler;
 
-pub enum ConcatFrame<'a, Arenas> {
+#[derive(derive_more::From, Debug)]
+pub enum ConcatFrame<'a, Arenas: PatternArenas> {
     CatOrSeq(CatOrSeqFrame<'a, Arenas>),
     Stack(StackFrame<'a, Arenas>),
     TimeCat(TimeCatFrame<'a, Arenas>),
@@ -37,13 +38,15 @@ type CatOrSeqIter<'a, Arenas> = iter::Map<
     ) -> PatternInterpreterResult<ElemProps<Index<PatternNode>>>,
 >;
 
-pub struct CatOrSeqFrame<'a, Arenas>(
+#[derive(Debug)]
+pub struct CatOrSeqFrame<'a, Arenas: PatternArenas>(
     PlayMultiple<Index<PatternNode>, CatOrSeqIter<'a, Arenas>>,
 );
 
 type StackIter<'a, Arenas> =
     multiple::IterChecked<'a, PatternNode, PatternNode, Arenas>;
 
+#[derive(Debug)]
 pub struct StackFrame<'a, Arenas>(PlayElemArgs<()>, StackIter<'a, Arenas>);
 
 impl<'a, Arenas: PatternArenas> CatOrSeqFrame<'a, Arenas> {
@@ -105,7 +108,8 @@ type TimeCatIter<'a, Arenas> = iter::Scan<
     ) -> Option<PatternInterpreterResult<ElemProps<Index<PatternNode>>>>,
 >;
 
-pub struct TimeCatFrame<'a, Arenas>(
+#[derive(Debug)]
+pub struct TimeCatFrame<'a, Arenas: PatternArenas>(
     PlayMultiple<Index<PatternNode>, TimeCatIter<'a, Arenas>>,
 );
 
@@ -158,13 +162,7 @@ impl<'a, Arenas: PatternArenas> TimeCatFrame<'a, Arenas> {
         let multiple_length =
             CycleTime::checked_from_int(i32::from(multiple.length()))?;
 
-        let total_props = ElemProps {
-            elem: (),
-            sim_duration: multiple_length,
-            played_duration: total_cycle_length,
-        };
-
-        let scan_func: fn(_, _) -> _ =
+        let scan_func: fn(&mut _, _) -> _ =
             |state: &mut (CycleTime, CycleTime, &'a Arenas), opt_index| {
                 let &(total_length, multiple_length, arenas) = &*state;
 
@@ -216,7 +214,8 @@ type ArrangeIter<'a, Arenas> = iter::Scan<
     ) -> Option<PatternInterpreterResult<ElemProps<Index<PatternNode>>>>,
 >;
 
-pub struct ArrangeFrame<'a, Arenas>(
+#[derive(Debug)]
+pub struct ArrangeFrame<'a, Arenas: PatternArenas>(
     PlayMultiple<Index<PatternNode>, ArrangeIter<'a, Arenas>>,
 );
 
@@ -236,23 +235,20 @@ impl<'a, Arenas: PatternArenas> ArrangeFrame<'a, Arenas> {
             timed_step_total_cycle_length(&multiple, arenas),
         );
 
-        let total_props = ElemProps {
-            elem: (),
-            sim_duration: total_cycle_length,
-            played_duration: total_cycle_length,
-        };
+        let scan_func: fn(&mut _, _) -> _ =
+            |state: &mut &'a Arenas, opt_index| {
+                let &arenas = &*state;
 
-        let scan_func: fn(_, _) -> _ = |state: &mut &'a Arenas, opt_index| {
-            let &arenas = &*state;
+                let make_sim_elem = |elem_length, child_index| {
+                    Ok(ElemProps {
+                        elem: child_index,
+                        sim_duration: elem_length,
+                        played_duration: elem_length,
+                    })
+                };
 
-            let make_sim_elem = |elem_length, child_index| ElemProps {
-                elem: child_index,
-                sim_duration: elem_length,
-                played_duration: elem_length,
+                Some(make_sim_elem_in_arenas(arenas, opt_index, make_sim_elem))
             };
-
-            Some(make_sim_elem_in_arenas(arenas, opt_index, make_sim_elem))
-        };
 
         let get_elements = || {
             multiple
@@ -337,7 +333,7 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
         _: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
         match self.0.next() {
-            None => Ok(ControlFlow::Break(())),
+            None => Ok(ControlFlow::Break(None)),
             Some(Err(err)) => Err(err),
             Some(Ok(args)) => {
                 Ok(ControlFlow::Continue(Some(query_frame(args))))
@@ -356,7 +352,7 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
     ) -> InterpreterResult<'a, Arenas> {
         let checked_iter = &mut self.1;
         match checked_iter.next() {
-            None => Ok(ControlFlow::Break(())),
+            None => Ok(ControlFlow::Break(None)),
             Some(Err(err)) => Err(err.into()),
             Some(Ok(index)) => {
                 let args = self.0.clone();
@@ -377,7 +373,7 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
         _: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
         match self.0.next() {
-            None => Ok(ControlFlow::Break(())),
+            None => Ok(ControlFlow::Break(None)),
             Some(Err(err)) => Err(err),
             Some(Ok(args)) => {
                 Ok(ControlFlow::Continue(Some(query_frame(args))))
@@ -395,7 +391,7 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
         _: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
         match self.0.next() {
-            None => Ok(ControlFlow::Break(())),
+            None => Ok(ControlFlow::Break(None)),
             Some(Err(err)) => Err(err),
             Some(Ok(args)) => {
                 Ok(ControlFlow::Continue(Some(query_frame(args))))

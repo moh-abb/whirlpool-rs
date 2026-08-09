@@ -4,6 +4,7 @@ use crate::ast::Pattern;
 use crate::ast::PatternNode;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::interpreter::concat::ConcatFrame;
+use crate::interpreter::error::PatternInterpreterError;
 use crate::interpreter::error::PatternInterpreterResult;
 use crate::interpreter::leaf::LeafFrame;
 use crate::interpreter::props::PlayElemArgs;
@@ -11,8 +12,8 @@ use crate::mem::Arena;
 use crate::mem::Index;
 use crate::synth::scheduler::UnitScheduler;
 
-#[derive(derive_more::From, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum InterpreterFrame<'a, Arenas> {
+#[derive(derive_more::From, Debug)]
+pub enum InterpreterFrame<'a, Arenas: PatternArenas> {
     Query(QueryFrame),
     Concat(ConcatFrame<'a, Arenas>),
     Leaf(LeafFrame),
@@ -28,7 +29,7 @@ pub type InterpreterResult<'a, Arenas> = PatternInterpreterResult<
     ControlFlow<(), Option<InterpreterFrame<'a, Arenas>>>,
 >;
 
-pub trait EvaluateFrame<'a, Arenas> {
+pub trait EvaluateFrame<'a, Arenas: PatternArenas> {
     fn step(
         &mut self,
         scheduler: &mut impl UnitScheduler,
@@ -36,14 +37,15 @@ pub trait EvaluateFrame<'a, Arenas> {
     ) -> InterpreterResult<'a, Arenas>;
 }
 
+#[derive(Debug)]
 pub struct QueryFrame {
     play_args: PlayElemArgs<Index<PatternNode>>,
 }
 
-pub fn query_frame<'a, Arenas>(
+pub fn query_frame<'a, Arenas: PatternArenas>(
     play_args: PlayElemArgs<Index<PatternNode>>,
 ) -> InterpreterFrame<'a, Arenas> {
-    InterpreterFrame::Query(QueryFrame { play_args })
+    (QueryFrame { play_args }).into()
 }
 
 impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
