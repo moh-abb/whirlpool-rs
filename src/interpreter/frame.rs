@@ -24,9 +24,14 @@ pub enum InterpreterFrame<'a, Arenas: PatternArenas> {
 /// with the given error. Otherwise, `Ok(Continue(None))` indicates to
 /// continue stepping without pushing any more frames onto the stack, and
 /// `Ok(Continue(Some(frame)))` indicates that `frame` should be pushed onto
-/// the stack.
+/// the stack. Likewise, `Break(None)` is a normal break (exit from the current
+/// frame), while `Break(Some(frame))` indicates to exit and remove this frame
+/// and push the next frame to replace it.
 pub type InterpreterResult<'a, Arenas> = PatternInterpreterResult<
-    ControlFlow<(), Option<InterpreterFrame<'a, Arenas>>>,
+    ControlFlow<
+        Option<InterpreterFrame<'a, Arenas>>,
+        Option<InterpreterFrame<'a, Arenas>>,
+    >,
 >;
 
 pub trait EvaluateFrame<'a, Arenas: PatternArenas> {
@@ -55,7 +60,7 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
         arenas: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
         let index = self.play_args.elem.clone();
-        let play_args = self.play_args.map(|_| ());
+        let play_args = self.play_args.clone().map(|_| ());
         let cloned_node = arenas
             .get_pattern_arena()
             .map(index, Clone::clone)?;
@@ -87,13 +92,18 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
                 )?
                 .into()
             }
-            Pattern::TimedStep(timed_step) => todo!(),
+            Pattern::TimedStep(_) => {
+                // We shouldn't be querying a timed step without using the
+                // parent TimeCat or Arrange.
+                return Err(PatternInterpreterError::ExpectedNormalPattern);
+            }
             Pattern::Note(note_unit) => {
                 LeafFrame::note_frame(note_unit, play_args)?.into()
             }
-            Pattern::Silence => LeafFrame::silence().into(),
+            Pattern::Silence => LeafFrame::silence()?.into(),
         };
-        todo!()
+        // Indicate to pop this frame and push the next frame.
+        Ok(ControlFlow::Break(Some(next_frame)))
     }
 }
 
@@ -108,8 +118,24 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
         // TODO: Automatically delegate this step.
         match self {
             InterpreterFrame::Query(frame) => frame.step(scheduler, arenas),
-            InterpreterFrame::Concat(frame) => frame.step(scheduler, arenas),
-            InterpreterFrame::Leaf(frame) => frame.step(scheduler, arenas),
+            InterpreterFrame::Concat(ConcatFrame::CatOrSeq(frame)) => {
+                frame.step(scheduler, arenas)
+            }
+            InterpreterFrame::Concat(ConcatFrame::Stack(frame)) => {
+                frame.step(scheduler, arenas)
+            }
+            InterpreterFrame::Concat(ConcatFrame::TimeCat(frame)) => {
+                frame.step(scheduler, arenas)
+            }
+            InterpreterFrame::Concat(ConcatFrame::Arrange(frame)) => {
+                frame.step(scheduler, arenas)
+            }
+            InterpreterFrame::Leaf(LeafFrame::Note(frame)) => {
+                frame.step(scheduler, arenas)
+            }
+            InterpreterFrame::Leaf(LeafFrame::Silence(frame)) => {
+                frame.step(scheduler, arenas)
+            }
         }
     }
 }

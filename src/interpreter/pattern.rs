@@ -1,57 +1,68 @@
 use core::cell::RefCell;
-use core::iter;
 use core::marker::PhantomData;
+use core::ops::ControlFlow;
 use core::ops::DerefMut;
 
 use crate::ast::CycleInterval;
 use crate::ast::CycleTime;
-use crate::ast::NoteUnit;
-use crate::ast::Pattern;
-use crate::ast::TimedStep;
+use crate::ast::PatternNode;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::ast::pattern::visitor::PatternVisitor;
-use crate::ast::pattern::visitor::timed_step_iter;
-use crate::ast::pattern::visitor::visit_pattern;
-use crate::ast::time::OverflowError;
 use crate::interpreter::Interpreter;
 use crate::interpreter::borrow::BorrowAdapter;
-use crate::interpreter::elements::play_multiple;
-use crate::interpreter::elements::sum_cycle_length;
-use crate::interpreter::elements::timed_step_total_cycle_length;
 use crate::interpreter::error::PatternInterpreterError;
-use crate::interpreter::props::ElemProps;
+use crate::interpreter::frame::EvaluateFrame;
+use crate::interpreter::frame::InterpreterFrame;
+use crate::interpreter::frame::query_frame;
 use crate::interpreter::props::PlayElemArgs;
 use crate::mem::Index;
-use crate::mem::Multiple;
+use crate::mem::Vec;
 use crate::synth::scheduler::UnitScheduler;
-use crate::synth::unit::SoundUnit;
 
 /// An interpreter of [Pattern]s, which keeps track of a current time and
 /// plays units (traversing the [Pattern]'s tree) when new units are
 /// encountered.
-pub struct PatternInterpreter<'a, Arenas, Scheduler, B> {
-    pattern: Index<Pattern>,
+pub struct PatternInterpreter<
+    'a,
+    Arenas,
+    Scheduler,
+    FrameArena,
+    SchedulerBorrow,
+    FrameArenaBorrow,
+> {
+    pattern_index: Index<PatternNode>,
     arenas: &'a Arenas,
-    borrow_adapter: B,
+    scheduler: SchedulerBorrow,
+    frame_arena: FrameArenaBorrow,
     cur_time: CycleTime,
     base_multiplier: CycleTime,
     base_offset: CycleTime,
-    phantom: PhantomData<Scheduler>,
+    phantom: PhantomData<(Scheduler, FrameArena)>,
 }
 
-impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler>
-    PatternInterpreter<'a, Arenas, Scheduler, &'a mut Scheduler>
+impl<'a, Arenas, Scheduler, FrameArena>
+    PatternInterpreter<
+        'a,
+        Arenas,
+        Scheduler,
+        FrameArena,
+        &'a mut Scheduler,
+        &'a mut FrameArena,
+    >
 {
+    /// Constructs an interpreter with the given root index, arenas (to
+    /// traverse the pattern structure), scheduler, and starting scope.
     #[allow(unused)]
     pub fn new(
-        pattern: Index<Pattern>,
+        pattern_index: Index<PatternNode>,
         arenas: &'a Arenas,
         scheduler: &'a mut Scheduler,
+        frame_arena: &'a mut FrameArena,
     ) -> Self {
         Self {
-            pattern,
+            pattern_index,
             arenas,
-            borrow_adapter: scheduler,
+            scheduler,
+            frame_arena,
             cur_time: CycleTime::ZERO,
             base_multiplier: CycleTime::ONE,
             base_offset: CycleTime::ZERO,
@@ -60,19 +71,30 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler>
     }
 }
 
-impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler>
-    PatternInterpreter<'a, Arenas, Scheduler, &'a RefCell<Scheduler>>
+impl<'a, Arenas, Scheduler, FrameArena>
+    PatternInterpreter<
+        'a,
+        Arenas,
+        Scheduler,
+        FrameArena,
+        &'a RefCell<Scheduler>,
+        &'a RefCell<FrameArena>,
+    >
 {
+    /// Like [Self::new], but with a [RefCell] to allow for a mock scheduler
+    /// and mock scope.
     #[allow(unused)]
     pub fn new_with_refcell(
-        pattern: Index<Pattern>,
+        pattern_index: Index<PatternNode>,
         arenas: &'a Arenas,
         scheduler: &'a RefCell<Scheduler>,
+        frame_arena: &'a RefCell<FrameArena>,
     ) -> Self {
         Self {
-            pattern,
+            pattern_index,
             arenas,
-            borrow_adapter: scheduler,
+            scheduler,
+            frame_arena,
             cur_time: CycleTime::ZERO,
             base_multiplier: CycleTime::ONE,
             base_offset: CycleTime::ZERO,
@@ -81,7 +103,16 @@ impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler>
     }
 }
 
-impl<'a, Arenas, S, Borrow> PatternInterpreter<'a, Arenas, S, Borrow> {
+impl<'a, Arenas, Scheduler, FrameArena, SchedulerBorrow, FrameArenaBorrow>
+    PatternInterpreter<
+        'a,
+        Arenas,
+        Scheduler,
+        FrameArena,
+        SchedulerBorrow,
+        FrameArenaBorrow,
+    >
+{
     #[cfg(test)]
     #[allow(unused)]
     pub fn set_multiplier(&mut self, multiplier: CycleTime) {
@@ -95,283 +126,61 @@ impl<'a, Arenas, S, Borrow> PatternInterpreter<'a, Arenas, S, Borrow> {
     }
 }
 
-impl<'a, Arenas: PatternArenas, S: UnitScheduler, Borrow: BorrowAdapter<S>>
-    Interpreter for PatternInterpreter<'a, Arenas, S, Borrow>
+impl<'a, Arenas, Scheduler, FrameArena, SchedulerBorrow, FrameArenaBorrow>
+    Interpreter
+    for PatternInterpreter<
+        'a,
+        Arenas,
+        Scheduler,
+        FrameArena,
+        SchedulerBorrow,
+        FrameArenaBorrow,
+    >
+where
+    Arenas: PatternArenas,
+    Scheduler: UnitScheduler,
+    SchedulerBorrow: BorrowAdapter<Scheduler>,
+    FrameArenaBorrow: BorrowAdapter<FrameArena>,
 {
-    type Output = Result<(), OverflowError>;
+    type Output = Result<(), PatternInterpreterError>;
 
     #[allow(unused)]
     #[must_use]
     fn update_time(&mut self, next_time: CycleTime) -> Self::Output {
         // The time should be monotonically increasing.
         debug_assert!(next_time >= self.cur_time);
-        let mut borrowed_scheduler = self.borrow_adapter.borrow_mut();
-        let visitor = InterpreterVisitor {
-            arenas: self.arenas,
+        let mut borrowed_scheduler = self.scheduler.try_borrow_mut()?;
+
+        // TODO: Replace this with stack-allocated version
+        // Perhaps we need to have the stack be part of the interpreter?
+        let mut frames = Vec::<InterpreterFrame<'a, Arenas>>::new();
+        // Add the start simulation arguments for the pattern.
+        frames.push(query_frame(PlayElemArgs {
+            elem: self.pattern_index.clone(),
             interval: CycleInterval::new(self.cur_time, next_time),
             offset: self.base_offset,
             multiplier: self.base_multiplier,
-            inner: RefCell::new(VisitorInner {
-                scheduler: borrowed_scheduler.deref_mut(),
-            }),
-        };
-        visit_pattern(&visitor, self.pattern.clone());
-        self.cur_time = next_time;
-        Ok(())
-    }
-}
+        }));
 
-/// A visitor used to traverse a given [Pattern].
-/// - `arenas` is a reference to the arenas where a given [Pattern] is stored.
-/// - `interval` is the cycle time (start inclusive, end exclusive) to play
-///   any given units.
-/// - `multiplier` is used to scale down the duration of notes; i.e., play
-///   units faster.
-/// - `offset` is used to add an offset to the start time of units played.
-/// - `inner` contains the `Player` from which units will be scheduled.
-struct InterpreterVisitor<'a, Arenas, Scheduler> {
-    arenas: &'a Arenas,
-    interval: CycleInterval,
-    offset: CycleTime,
-    multiplier: CycleTime,
-    inner: RefCell<VisitorInner<'a, Scheduler>>,
-}
-
-impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler>
-    InterpreterVisitor<'a, Arenas, Scheduler>
-{
-    fn play_elem_func(
-        &self,
-    ) -> impl FnMut(
-        PlayElemArgs<'_, Index<Pattern>>,
-    ) -> Result<(), PatternInterpreterError> {
-        |args| {
-            let mut inner_mut = self.inner.borrow_mut();
-            let visitor = InterpreterVisitor {
-                arenas: self.arenas,
-                interval: args.interval,
-                offset: args.offset,
-                multiplier: args.multiplier,
-                inner: RefCell::new(VisitorInner {
-                    scheduler: inner_mut.scheduler,
-                }),
+        loop {
+            let Some(last_frame) = frames.last_mut() else {
+                break;
             };
-            visit_pattern(&visitor, args.elem.clone())??;
-            Ok(())
-        }
-    }
-
-    fn map_cat_or_seq(
-        &self,
-        multiple: Multiple<Pattern>,
-        is_fast: bool,
-    ) -> Result<(), PatternInterpreterError> {
-        if multiple.is_empty() {
-            panic!("Cannot play empty multiple patterns");
-        }
-
-        let make_sim_elem = |elem: Index<Pattern>| {
-            Ok(ElemProps {
-                elem,
-                sim_duration: CycleTime::ONE,
-                played_duration: CycleTime::ONE,
-            })
-        };
-        let length = CycleTime::checked_from_int(i32::from(multiple.length()))?;
-        let get_elements = || {
-            multiple
-                .iter(self.arenas.get_pattern_chain_arena())
-                .map(make_sim_elem)
-        };
-        play_multiple(
-            self.interval,
-            ElemProps {
-                elem: get_elements,
-                sim_duration: length,
-                played_duration: length,
-            },
-            is_fast,
-            self.offset,
-            self.multiplier,
-            self.play_elem_func(),
-        )
-    }
-}
-
-struct VisitorInner<'a, Scheduler> {
-    scheduler: &'a mut Scheduler,
-}
-
-impl<'a, Arenas: PatternArenas, Scheduler: UnitScheduler> PatternVisitor
-    for InterpreterVisitor<'a, Arenas, Scheduler>
-{
-    type Output = Result<(), PatternInterpreterError>;
-    type PatternOutput = Result<(), PatternInterpreterError>;
-
-    fn get_arenas(&self) -> &impl PatternArenas {
-        self.arenas
-    }
-
-    fn map_pattern(
-        &self,
-        _pattern_index: Index<Pattern>,
-        pattern_output: Self::PatternOutput,
-    ) -> Self::Output {
-        pattern_output
-    }
-
-    fn map_cat(&self, multiple: Multiple<Pattern>) -> Self::PatternOutput {
-        self.map_cat_or_seq(multiple, false)
-    }
-
-    fn map_seq(&self, multiple: Multiple<Pattern>) -> Self::PatternOutput {
-        self.map_cat_or_seq(multiple, true)
-    }
-
-    fn map_stack(&self, multiple: Multiple<Pattern>) -> Self::PatternOutput {
-        // Plays each of the patterns in parallel.
-
-        if multiple.is_empty() {
-            panic!("Cannot play empty multiple patterns");
-        }
-
-        multiple
-            .checked_iter(self.arenas.get_pattern_chain_arena())
-            .try_for_each(|pattern_index| {
-                visit_pattern(self, pattern_index?)??;
-                Ok(())
-            })
-    }
-
-    fn map_time_cat(
-        &self,
-        multiple: Multiple<TimedStep>,
-    ) -> Self::PatternOutput {
-        if multiple.is_empty() {
-            panic!("Cannot play empty multiple patterns");
-        }
-
-        let multiple_length =
-            CycleTime::checked_from_int(i32::from(multiple.length()))?;
-        // TODO: Store the total length to reduce repeated calculation
-        let total_cycle_length =
-            timed_step_total_cycle_length(&multiple, self.arenas)?;
-        // If we have a [TimeCat], then we simulate over each one cycle in the
-        // [Multiple] and then scale each element individually by its
-        // proportion of the total; e.g. TimeCat([1, "A"], [2, "B"], [3, "C"])
-        // will have element lengths 1*3/6, 2*3/6, 3*3/6
-        // (which adds to 3, the number of elements).
-        let get_scaled_length = |elem_length: CycleTime| {
-            elem_length
-                .mul(multiple_length)?
-                .div(total_cycle_length)
-        };
-        let make_sim_elem = |opt_timed_step| {
-            let TimedStep(elem_length, pattern) = opt_timed_step?;
-            Result::<_, PatternInterpreterError>::Ok(ElemProps {
-                elem: pattern,
-                sim_duration: CycleTime::ONE,
-                played_duration: get_scaled_length(elem_length)?,
-            })
-        };
-        let get_elements =
-            || timed_step_iter(self.arenas, &multiple).map(make_sim_elem);
-        // Due to fixed point rounding errors, recalculate the total length
-        // after calculating the scaled length of each element.
-        let played_duration =
-            sum_cycle_length(get_elements(), |x| x.played_duration)?;
-        play_multiple(
-            self.interval,
-            ElemProps {
-                elem: get_elements,
-                sim_duration: multiple_length,
-                played_duration,
-            },
-            true,
-            self.offset,
-            self.multiplier,
-            self.play_elem_func(),
-        )
-    }
-
-    fn map_arrange(
-        &self,
-        multiple: Multiple<TimedStep>,
-    ) -> Self::PatternOutput {
-        if multiple.is_empty() {
-            panic!("Cannot play empty multiple patterns");
-        }
-
-        // TODO: Store the total length to reduce repeated calculation
-        let total_cycle_length =
-            timed_step_total_cycle_length(&multiple, self.arenas)?;
-        let make_sim_elem = |opt_timed_step| {
-            let TimedStep(elem_length, pattern) = opt_timed_step?;
-            Result::<_, PatternInterpreterError>::Ok(ElemProps {
-                elem: pattern,
-                sim_duration: elem_length,
-                played_duration: elem_length,
-            })
-        };
-        // If we have an [Arrange], then we simulate over all the cycles in
-        // the pattern and so the played length is `total_cycle_length`.
-        let get_elements =
-            || timed_step_iter(self.arenas, &multiple).map(make_sim_elem);
-        play_multiple(
-            self.interval,
-            ElemProps {
-                elem: get_elements,
-                sim_duration: total_cycle_length,
-                played_duration: total_cycle_length,
-            },
-            false,
-            self.offset,
-            self.multiplier,
-            self.play_elem_func(),
-        )
-    }
-
-    fn map_note_unit(&self, unit: NoteUnit) -> Self::PatternOutput {
-        let unit_duration = self.multiplier.recip()?;
-        let sound_unit = SoundUnit::new(unit, unit_duration);
-        let get_elements = || {
-            iter::once(ElemProps {
-                elem: sound_unit.clone(),
-                sim_duration: CycleTime::ONE,
-                played_duration: CycleTime::ONE,
-            })
-            .map(Ok)
-        };
-        play_multiple(
-            self.interval,
-            ElemProps {
-                elem: get_elements,
-                sim_duration: CycleTime::ONE,
-                played_duration: CycleTime::ONE,
-            },
-            false,
-            self.offset,
-            self.multiplier,
-            |args| {
-                debug_assert_eq!(args.elem, &sound_unit);
-                // Only play if aligned to single cycle
-                let start = args.interval.start();
-                if start != start.floor()? {
-                    return Ok(());
+            let step_result =
+                last_frame.step(borrowed_scheduler.deref_mut(), self.arenas)?;
+            let opt_new_frame = match step_result {
+                ControlFlow::Break(opt_new_frame) => {
+                    frames.pop();
+                    opt_new_frame
                 }
-                let scaled_start = start
-                    .add(args.offset)?
-                    .div(args.multiplier)?;
-                self.inner
-                    .borrow_mut()
-                    .scheduler
-                    .add(args.elem.clone(), scaled_start);
-                Ok(())
-            },
-        )
-    }
+                ControlFlow::Continue(opt_new_frame) => opt_new_frame,
+            };
+            if let Some(new_frame) = opt_new_frame {
+                frames.push(new_frame);
+            }
+        }
 
-    fn map_silence(&self) -> Self::PatternOutput {
+        self.cur_time = next_time;
         Ok(())
     }
 }

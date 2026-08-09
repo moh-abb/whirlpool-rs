@@ -3,6 +3,7 @@ use core::ops::ControlFlow;
 
 use crate::ast::CycleTime;
 use crate::ast::NoteUnit;
+use crate::ast::pattern::arenas::PatternArenas;
 use crate::interpreter::elements::PlayMultiple;
 use crate::interpreter::elements::play_multiple_elements;
 use crate::interpreter::error::PatternInterpreterResult;
@@ -54,7 +55,7 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for NoteFrame {
         _: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
         match self.0.next() {
-            None => Ok(ControlFlow::Break(())),
+            None => Ok(ControlFlow::Break(None)),
             Some(Err(err)) => Err(err),
             Some(Ok(args)) => {
                 // We could potentially cache the scheduled sound unit if this
@@ -85,7 +86,7 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for SilenceFrame {
         _: &mut impl UnitScheduler,
         _: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
-        Ok(ControlFlow::Break(()))
+        Ok(ControlFlow::Break(None))
     }
 }
 
