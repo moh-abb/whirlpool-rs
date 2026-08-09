@@ -13,7 +13,7 @@ pub struct Stack<'a, T, A> {
 }
 
 /// The error type when pushing/popping/accessing a stack item.
-#[derive(derive_more::From, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(derive_more::From, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum StackError {
     ArenaErr(ArenaError),
 }
