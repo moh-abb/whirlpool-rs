@@ -57,13 +57,6 @@ impl<T: ArenaItem + Clone> Arena<T> for ArenaMocker<T> {
         Ok(slot.borrow_mut().take().unwrap())
     }
 
-    fn insert(&self, index: Index<T>, value: T) -> ArenaResult<()> {
-        let mut inner = self.0.borrow_mut();
-        let slot = inner.get_mut_slot(index)?;
-        let _ = slot.borrow_mut().insert(value);
-        Ok(())
-    }
-
     fn map<U>(
         &self,
         index: Index<T>,

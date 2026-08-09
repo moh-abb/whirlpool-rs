@@ -16,10 +16,6 @@ impl<'a, T: ArenaItem, A: Arena<T>> Arena<T> for &'a mut A {
         A::take(*self, index)
     }
 
-    fn insert(&self, index: Index<T>, value: T) -> ArenaResult<()> {
-        A::insert(*self, index, value)
-    }
-
     fn map<U>(
         &self,
         index: Index<T>,

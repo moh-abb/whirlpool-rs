@@ -70,10 +70,6 @@ impl<T: ArenaItem> Arena<T> for GrowableArena<T> {
         self.0.take(index)
     }
 
-    fn insert(&self, index: Index<T>, value: T) -> ArenaResult<()> {
-        self.0.insert(index, value)
-    }
-
     fn map<U>(
         &self,
         index: Index<T>,

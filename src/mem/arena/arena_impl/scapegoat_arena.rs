@@ -61,10 +61,6 @@ impl<T: ArenaItem, const N: usize> Arena<T> for ScapegoatArena<T, N> {
         self.0.take(index)
     }
 
-    fn insert(&self, index: Index<T>, value: T) -> ArenaResult<()> {
-        self.0.insert(index, value)
-    }
-
     fn map<U>(
         &self,
         index: Index<T>,

@@ -116,16 +116,6 @@ impl<T: ArenaItem> Arena<T> for FixableArena<T> {
         }
     }
 
-    fn insert(&self, index: Index<T>, value: T) -> ArenaResult<()> {
-        if !self.mutable {
-            unreachable!(
-                "Should not call [Arena::insert] on FixableArena while immutable"
-            )
-        } else {
-            self.arena.insert(index, value)
-        }
-    }
-
     fn map<U>(
         &self,
         index: Index<T>,
