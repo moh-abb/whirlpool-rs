@@ -409,7 +409,16 @@ where
             sum_cycle_length(get_iter(), |x| x.played_duration)?;
 
         debug_assert_eq!(calculated_sim_duration, sim_duration);
-        debug_assert_eq!(calculated_played_duration, played_duration);
+
+        // Leave a little tolerance for `TimeCat`'s played durations.
+        let abs_diff = |x: CycleTime, y: CycleTime| {
+            if x <= y { y - x } else { x - y }
+        };
+        let tolerance =
+            CycleTime::EPSILON.mul(CycleTime::checked_from_int(2)?)?;
+        debug_assert!(
+            abs_diff(calculated_played_duration, played_duration) <= tolerance
+        );
     }
 
     Ok(())
