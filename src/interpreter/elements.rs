@@ -262,7 +262,7 @@ type RepsIter<T> = iter::Scan<
 fn make_reps_iter<T: Debug + Clone>(
     rep_iter_data: RepIterData<T>,
 ) -> RepsIter<T> {
-    let rep_indices = (rep_iter_data.first_rep..=rep_iter_data.last_rep);
+    let rep_indices = rep_iter_data.first_rep..=rep_iter_data.last_rep;
     let scan_func = |state: &mut RepIterData<T>, rep_index| {
         let mut yield_intersections = || {
             let rep = CycleTime::checked_from_int(rep_index)?;
