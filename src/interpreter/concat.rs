@@ -198,7 +198,7 @@ impl<'a, Arenas: PatternArenas> TimeCatFrame<'a, Arenas> {
         let args_with_iterator = play_args.map(|()| ElemProps {
             elem: get_elements,
             sim_duration: multiple_length,
-            played_duration: total_cycle_length,
+            played_duration: multiple_length,
         });
         let frame = Self(play_multiple_elements(args_with_iterator, true)?);
         Ok(frame)
@@ -261,7 +261,7 @@ impl<'a, Arenas: PatternArenas> ArrangeFrame<'a, Arenas> {
             sim_duration: total_cycle_length,
             played_duration: total_cycle_length,
         });
-        let frame = Self(play_multiple_elements(args_with_iterator, true)?);
+        let frame = Self(play_multiple_elements(args_with_iterator, false)?);
         Ok(frame)
     }
 }

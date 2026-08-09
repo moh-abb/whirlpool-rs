@@ -205,8 +205,6 @@ where
                     .mul(state.total.played_duration)?
                     .add(state.played_start)?;
 
-                state.played_start = elem_interval.end();
-
                 let outer_data_without_iter = OuterIterData {
                     played_start: state.played_start,
                     interval: state.interval,
@@ -218,6 +216,8 @@ where
                     offset: state.offset,
                     total_multiplier: state.total_multiplier,
                 };
+
+                state.played_start = elem_interval.end();
 
                 PatternInterpreterResult::Ok(RepIterData {
                     outer: outer_data_without_iter,
