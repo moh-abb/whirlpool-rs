@@ -3,6 +3,7 @@ use core::ops::ControlFlow;
 use crate::ast::Pattern;
 use crate::ast::PatternNode;
 use crate::ast::pattern::arenas::PatternArenas;
+use crate::interpreter::concat::ConcatFrame;
 use crate::interpreter::error::PatternInterpreterResult;
 use crate::interpreter::props::PlayElemArgs;
 use crate::mem::Arena;
@@ -11,6 +12,7 @@ use crate::synth::scheduler::UnitScheduler;
 
 pub enum InterpreterFrame<'a, Arenas> {
     Query(QueryFrame),
+    Concat(ConcatFrame<'a, Arenas>),
 }
 
 /// Indicates the result of interpreting one frame.
@@ -48,13 +50,20 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
         arenas: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
         let index = self.play_args.elem.clone();
+        let play_args = self.play_args.map(|_| ());
         let cloned_node = arenas
             .get_pattern_arena()
             .map(index, Clone::clone)?;
         let opt_next_frame = match &cloned_node.pattern {
-            Pattern::Cat(multiple) => todo!(),
-            Pattern::Seq(multiple) => todo!(),
-            Pattern::Stack(multiple) => todo!(),
+            Pattern::Cat(multiple) => {
+                Some(ConcatFrame::cat_frame(multiple, arenas, play_args)?)
+            }
+            Pattern::Seq(multiple) => {
+                Some(ConcatFrame::seq_frame(multiple, arenas, play_args)?)
+            }
+            Pattern::Stack(multiple) => {
+                Some(ConcatFrame::stack_frame(multiple, arenas, play_args)?)
+            }
             Pattern::TimeCat { total_cycle_length, multiple } => todo!(),
             Pattern::Arrange { total_cycle_length, multiple } => todo!(),
             Pattern::TimedStep(timed_step) => todo!(),
