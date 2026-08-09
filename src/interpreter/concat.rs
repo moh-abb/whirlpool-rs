@@ -2,10 +2,13 @@ use core::iter;
 use core::ops::ControlFlow;
 
 use crate::ast::CycleTime;
+use crate::ast::Pattern;
 use crate::ast::PatternNode;
+use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::interpreter::elements::PlayMultiple;
 use crate::interpreter::elements::play_multiple_elements;
+use crate::interpreter::elements::timed_step_total_cycle_length;
 use crate::interpreter::error::PatternInterpreterError;
 use crate::interpreter::error::PatternInterpreterResult;
 use crate::interpreter::frame::EvaluateFrame;
@@ -13,6 +16,7 @@ use crate::interpreter::frame::InterpreterResult;
 use crate::interpreter::frame::query_frame;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
+use crate::mem::Arena;
 use crate::mem::ArenaResult;
 use crate::mem::Index;
 use crate::mem::Multiple;
@@ -22,6 +26,7 @@ use crate::synth::scheduler::UnitScheduler;
 pub enum ConcatFrame<'a, Arenas> {
     CatOrSeq(CatOrSeqFrame<'a, Arenas>),
     Stack(StackFrame<'a, Arenas>),
+    TimeCat(TimeCatFrame<'a, Arenas>),
 }
 
 type CatOrSeqIter<'a, Arenas> = iter::Map<
@@ -90,6 +95,111 @@ impl<'a, Arenas: PatternArenas> StackFrame<'a, Arenas> {
     }
 }
 
+type TimeCatIter<'a, Arenas> = iter::Scan<
+    multiple::IterChecked<'a, PatternNode, PatternNode, Arenas>,
+    (CycleTime, CycleTime, &'a Arenas),
+    fn(
+        &mut (CycleTime, CycleTime, &'a Arenas),
+        ArenaResult<Index<PatternNode>>,
+    ) -> Option<PatternInterpreterResult<ElemProps<Index<PatternNode>>>>,
+>;
+
+pub struct TimeCatFrame<'a, Arenas>(
+    PlayMultiple<Index<PatternNode>, TimeCatIter<'a, Arenas>>,
+);
+
+impl<'a, Arenas: PatternArenas> TimeCatFrame<'a, Arenas> {
+    fn new(
+        multiple: &Multiple<PatternNode>,
+        &total_cycle_length: &CycleTime,
+        arenas: &'a Arenas,
+        play_args: PlayElemArgs<()>,
+    ) -> PatternInterpreterResult<Self> {
+        if multiple.is_empty() {
+            return Err(PatternInterpreterError::MultipleEmpty);
+        }
+
+        debug_assert_eq!(
+            Ok(total_cycle_length),
+            timed_step_total_cycle_length(&multiple, arenas),
+        );
+
+        let multiple_length =
+            CycleTime::checked_from_int(i32::from(multiple.length()))?;
+
+        let total_props = ElemProps {
+            elem: (),
+            sim_duration: multiple_length,
+            played_duration: total_cycle_length,
+        };
+
+        let scan_func: fn(_, _) -> _ =
+            |state: &mut (CycleTime, CycleTime, &'a Arenas), opt_index| {
+                let &(total_length, multiple_length, arenas) = &*state;
+
+                // If we have a [TimeCat], then we simulate over each one cycle
+                // in the [Multiple] and then scale each element individually
+                // by its proportion of the total;
+                // e.g. TimeCat([1, "A"], [2, "B"], [3, "C"])
+                // will have element lengths 1*3/6, 2*3/6, 3*3/6
+                // (which adds to 3, the number of elements).
+                let get_scaled_length = |elem_length: CycleTime| {
+                    elem_length
+                        .mul(multiple_length)?
+                        .div(total_length)
+                };
+
+                let make_sim_elem = |elem_length, child_index| {
+                    Result::<_, PatternInterpreterError>::Ok(ElemProps {
+                        elem: child_index,
+                        sim_duration: CycleTime::ONE,
+                        played_duration: get_scaled_length(elem_length)?,
+                    })
+                };
+
+                let yield_elem_props = || {
+                    let cloned_pattern = arenas
+                        .get_pattern_arena()
+                        .map(opt_index?, Clone::clone)?
+                        .pattern;
+                    let Pattern::TimedStep(timed_step) = cloned_pattern else {
+                        return Err(PatternInterpreterError::ExpectedTimedStep);
+                    };
+                    let TimedStep(elem_length, multiple) = timed_step.clone();
+                    if multiple.length() > 1 {
+                        return Err(
+                            PatternInterpreterError::OverOneChildInTimedStep,
+                        );
+                    }
+                    let child = multiple.start().ok_or(
+                        PatternInterpreterError::ExpectedNonemptyTimedStep,
+                    )?;
+
+                    PatternInterpreterResult::Ok(make_sim_elem(
+                        elem_length,
+                        child,
+                    )?)
+                };
+
+                Some(yield_elem_props())
+            };
+
+        let get_elements = || {
+            multiple
+                .checked_iter(arenas)
+                .scan((total_cycle_length, multiple_length, arenas), scan_func)
+        };
+
+        let args_with_iterator = play_args.map(|()| ElemProps {
+            elem: get_elements,
+            sim_duration: multiple_length,
+            played_duration: total_cycle_length,
+        });
+        let frame = Self(play_multiple_elements(args_with_iterator, true)?);
+        Ok(frame)
+    }
+}
+
 impl<'a, Arenas: PatternArenas> ConcatFrame<'a, Arenas> {
     pub fn cat_frame(
         multiple: &Multiple<PatternNode>,
@@ -117,6 +227,20 @@ impl<'a, Arenas: PatternArenas> ConcatFrame<'a, Arenas> {
         play_args: PlayElemArgs<()>,
     ) -> PatternInterpreterResult<Self> {
         Ok(Self::Stack(StackFrame::new(multiple, arenas, play_args)?))
+    }
+
+    pub fn time_cat_frame(
+        multiple: &Multiple<PatternNode>,
+        total_cycle_length: &CycleTime,
+        arenas: &'a Arenas,
+        play_args: PlayElemArgs<()>,
+    ) -> PatternInterpreterResult<Self> {
+        Ok(Self::TimeCat(TimeCatFrame::new(
+            multiple,
+            total_cycle_length,
+            arenas,
+            play_args,
+        )?))
     }
 }
 
@@ -155,6 +279,24 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
                 Ok(ControlFlow::Continue(Some(query_frame(
                     args.map(|()| index),
                 ))))
+            }
+        }
+    }
+}
+
+impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
+    for TimeCatFrame<'a, Arenas>
+{
+    fn step(
+        &mut self,
+        _: &mut impl UnitScheduler,
+        _: &'a Arenas,
+    ) -> InterpreterResult<'a, Arenas> {
+        match self.0.next() {
+            None => Ok(ControlFlow::Break(())),
+            Some(Err(err)) => Err(err),
+            Some(Ok(args)) => {
+                Ok(ControlFlow::Continue(Some(query_frame(args))))
             }
         }
     }

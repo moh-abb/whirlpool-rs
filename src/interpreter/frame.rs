@@ -67,7 +67,15 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
             Pattern::Stack(multiple) => {
                 ConcatFrame::stack_frame(multiple, arenas, play_args)?.into()
             }
-            Pattern::TimeCat { total_cycle_length, multiple } => todo!(),
+            Pattern::TimeCat { total_cycle_length, multiple } => {
+                ConcatFrame::time_cat_frame(
+                    multiple,
+                    total_cycle_length,
+                    arenas,
+                    play_args,
+                )?
+                .into()
+            }
             Pattern::Arrange { total_cycle_length, multiple } => todo!(),
             Pattern::TimedStep(timed_step) => todo!(),
             Pattern::Note(note_unit) => {

@@ -9,6 +9,8 @@ pub enum PatternInterpreterError {
     MultipleEmpty,
     ExpectedTimedStep,
     ExpectedNormalPattern,
+    OverOneChildInTimedStep,
+    ExpectedNonemptyTimedStep,
 }
 
 pub type PatternInterpreterResult<T> = Result<T, PatternInterpreterError>;
