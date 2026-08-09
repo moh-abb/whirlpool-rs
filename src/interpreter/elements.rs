@@ -9,12 +9,11 @@ use crate::ast::PatternNode;
 use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::interpreter::error::PatternInterpreterError;
+use crate::interpreter::error::PatternInterpreterResult;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
 use crate::mem::Arena;
 use crate::mem::Multiple;
-
-pub type PlayElementsResult<T> = Result<T, PatternInterpreterError>;
 
 #[inline]
 fn play_intersection<T: Debug>(
@@ -24,7 +23,7 @@ fn play_intersection<T: Debug>(
     sim_interval: CycleInterval,
     elem_offset: CycleTime,
     elem_multiplier: CycleTime,
-) -> PlayElementsResult<Option<PlayElemArgs<T>>> {
+) -> PatternInterpreterResult<Option<PlayElemArgs<T>>> {
     // `rep_intersection` should fit completely inside `rep_interval`.
     debug_assert_eq!(
         rep_intersection.intersection(rep_interval),
@@ -66,7 +65,7 @@ type OuterIter<T, Iter> = iter::Scan<
     OuterIterData,
     fn(
         &mut OuterIterData,
-        PlayElementsResult<ElemProps<T>>,
+        PatternInterpreterResult<ElemProps<T>>,
     ) -> Option<RepIterData<T>>,
 >;
 
@@ -78,7 +77,7 @@ fn make_outer_iter<T, Iter>(
 ) -> OuterIter<T, Iter>
 where
     T: Debug + Clone,
-    Iter: Iterator<Item = PlayElementsResult<ElemProps<T>>>,
+    Iter: Iterator<Item = PatternInterpreterResult<ElemProps<T>>>,
 {
     // Cat and similar patterns play alternating elements.
     // This is achieved by looking at the "repetitions" of each element.
@@ -145,7 +144,7 @@ where
 
     let scan_func =
         |state: &mut OuterIterData,
-         opt_cur: PlayElementsResult<ElemProps<T>>| {
+         opt_cur: PatternInterpreterResult<ElemProps<T>>| {
             let yield_reps = || {
                 let cur = opt_cur?;
                 // INV: played_start == P(i - 1)
@@ -219,7 +218,7 @@ where
                     total_multiplier: state.total_multiplier,
                 };
 
-                PlayElementsResult::Ok(RepIterData {
+                PatternInterpreterResult::Ok(RepIterData {
                     outer: outer_data_without_iter,
                     rep_start,
                     first_rep: first_rep.to_int(),
@@ -257,7 +256,7 @@ type RepsIter<T> = iter::Scan<
     fn(
         &mut RepIterData<T>,
         i32,
-    ) -> Option<PlayElementsResult<Option<PlayElemArgs<T>>>>,
+    ) -> Option<PatternInterpreterResult<Option<PlayElemArgs<T>>>>,
 >;
 
 fn make_reps_iter<T: Debug + Clone>(
@@ -333,8 +332,8 @@ type PlayMultipleIter<T, Iter> = iter::FilterMap<
         fn(RepIterData<T>) -> RepsIter<T>,
     >,
     fn(
-        PlayElementsResult<Option<PlayElemArgs<T>>>,
-    ) -> Option<PlayElementsResult<PlayElemArgs<T>>>,
+        PatternInterpreterResult<Option<PlayElemArgs<T>>>,
+    ) -> Option<PatternInterpreterResult<PlayElemArgs<T>>>,
 >;
 
 fn make_play_multiple<T, Iter>(
@@ -342,7 +341,7 @@ fn make_play_multiple<T, Iter>(
 ) -> PlayMultipleIter<T, Iter>
 where
     T: Debug + Clone,
-    Iter: Iterator<Item = PlayElementsResult<ElemProps<T>>>,
+    Iter: Iterator<Item = PatternInterpreterResult<ElemProps<T>>>,
 {
     let filter_args = |opt_args| match opt_args {
         Ok(Some(intersection)) => Some(Ok(intersection)),
@@ -358,9 +357,9 @@ where
 impl<T, Iter> Iterator for PlayMultiple<T, Iter>
 where
     T: Debug + Clone,
-    Iter: Iterator<Item = PlayElementsResult<ElemProps<T>>>,
+    Iter: Iterator<Item = PatternInterpreterResult<ElemProps<T>>>,
 {
-    type Item = PlayElementsResult<PlayElemArgs<T>>;
+    type Item = PatternInterpreterResult<PlayElemArgs<T>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
@@ -370,7 +369,7 @@ where
 pub fn timed_step_total_cycle_length(
     multiple: &Multiple<PatternNode>,
     arenas: &impl PatternArenas,
-) -> PlayElementsResult<CycleTime> {
+) -> PatternInterpreterResult<CycleTime> {
     sum_cycle_length(
         multiple
             .checked_iter(arenas)
@@ -395,9 +394,9 @@ fn check_elem_lengths<T, Iter>(
     get_iter: impl Fn() -> Iter,
     sim_duration: CycleTime,
     played_duration: CycleTime,
-) -> PlayElementsResult<()>
+) -> PatternInterpreterResult<()>
 where
-    Iter: Iterator<Item = PlayElementsResult<ElemProps<T>>>,
+    Iter: Iterator<Item = PatternInterpreterResult<ElemProps<T>>>,
 {
     if cfg!(debug_assertions) {
         let calculated_sim_duration =
@@ -414,9 +413,9 @@ where
 }
 
 pub fn sum_cycle_length<T>(
-    mut iter: impl Iterator<Item = PlayElementsResult<T>>,
+    mut iter: impl Iterator<Item = PatternInterpreterResult<T>>,
     mut f: impl FnMut(T) -> CycleTime,
-) -> PlayElementsResult<CycleTime> {
+) -> PatternInterpreterResult<CycleTime> {
     iter.try_fold(CycleTime::ZERO, |acc, x| {
         let time = f(x?);
         Ok(acc.add(time)?)
@@ -426,11 +425,11 @@ pub fn sum_cycle_length<T>(
 #[inline]
 pub fn play_multiple_elements<
     T: Debug + Clone,
-    Iter: Iterator<Item = PlayElementsResult<ElemProps<T>>>,
+    Iter: Iterator<Item = PatternInterpreterResult<ElemProps<T>>>,
 >(
     play_args: PlayElemArgs<ElemProps<impl Fn() -> Iter>>,
     is_fast: bool,
-) -> PlayElementsResult<PlayMultiple<T, Iter>> {
+) -> PatternInterpreterResult<PlayMultiple<T, Iter>> {
     let PlayElemArgs { elem: total, mut interval, mut offset, mut multiplier } =
         play_args;
 

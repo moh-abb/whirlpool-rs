@@ -7,3 +7,5 @@ pub enum PatternInterpreterError {
     ArenaErr(ArenaError),
     OverflowErr(OverflowError),
 }
+
+pub type PatternInterpreterResult<T> = Result<T, PatternInterpreterError>;
