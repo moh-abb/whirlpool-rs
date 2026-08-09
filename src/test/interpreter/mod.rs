@@ -9,10 +9,12 @@ use crate::ast::NoteUnit;
 use crate::ast::PatternNode;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::interpreter::Interpreter;
+use crate::interpreter::frame::InterpreterFrame;
 use crate::interpreter::pattern::PatternInterpreter;
 use crate::mem::Arena;
 use crate::mem::GrowableArena;
 use crate::mem::Index;
+use crate::mem::structures::stack::StackChain;
 use crate::synth::scheduler::MockUnitScheduler;
 use crate::synth::unit::SoundUnit;
 use crate::test::interpreter::logging::LoggingScheduler;
@@ -139,10 +141,12 @@ fn test_expectations_with_interpreter_setup<
 }
 
 fn test_expectations_with_interpreter_setup_and_start_time<
+    'a,
+    Arenas: PatternArenas,
     ExpectationsAtTime: IntoIterator<Item = impl Borrow<ScheduledExpectation>> + Clone,
     Expectations: IntoIterator<Item = impl Borrow<(CycleTime, ExpectationsAtTime)>> + Clone,
 >(
-    arenas: &impl PatternArenas,
+    arenas: &'a Arenas,
     head_index: Index<PatternNode>,
     start_time: CycleTime,
     expected_schedule_actions: Expectations,
@@ -157,7 +161,8 @@ fn test_expectations_with_interpreter_setup_and_start_time<
         f(borrowed_scheduler)
     };
 
-    let mut frame_arena = GrowableArena::<()>::new();
+    let mut frame_arena =
+        GrowableArena::<StackChain<InterpreterFrame<'_, Arenas>>>::new();
     let frame_arena_refcell = RefCell::new(&mut frame_arena);
     debug_assert_eq!(frame_arena_refcell.borrow().size(), 0);
 
@@ -226,5 +231,5 @@ fn test_expectations_with_interpreter_setup_and_start_time<
         with_mock_scheduler(&|player| player.checkpoint());
     }
 
-    debug_assert_eq!(frame_arena.size(), 0);
+    debug_assert_eq!(frame_arena_refcell.borrow().size(), 0);
 }

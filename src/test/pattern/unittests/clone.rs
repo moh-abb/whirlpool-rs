@@ -58,7 +58,7 @@ fn test_clone_with_no_subpatterns(orig_pattern: Pattern) {
         .expect_push()
         .once()
         .with(predicate::always())
-        .return_once_st(move |value| {
+        .returning_st(move |value| {
             fill_slot(&first_cloned_slot, value);
             Ok(cloned_index())
         });
@@ -67,11 +67,11 @@ fn test_clone_with_no_subpatterns(orig_pattern: Pattern) {
     pattern_mocker
         .expect_get_slot()
         .with(predicate::eq(cloned_index()))
-        .return_once_st(move |_| Ok(second_cloned_slot));
+        .returning_st(move |_| Ok(second_cloned_slot.clone()));
     pattern_mocker
         .expect_get_mut_slot()
         .with(predicate::eq(cloned_index()))
-        .return_once_st(move |_| Ok(third_cloned_slot));
+        .returning_st(move |_| Ok(third_cloned_slot.clone()));
     mem::drop(pattern_mocker);
 
     let mut orig_adapter =
