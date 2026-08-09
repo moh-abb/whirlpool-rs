@@ -41,7 +41,7 @@ impl private::SealedVisitType for VisitRef {
 
     fn with_ref<'a, T, Node: ArenaItem>(
         ref_type: Self::Ref<'a, Node>,
-        func: impl FnOnce(Self::Ref<'_, Node>) -> T,
+        func: impl FnOnce(&Node) -> T,
     ) -> (T, Self::Ref<'a, Node>) {
         (func(ref_type), ref_type)
     }
@@ -49,7 +49,7 @@ impl private::SealedVisitType for VisitRef {
     fn arena_map<T, Node: ArenaItem>(
         arena: &impl Arena<Node>,
         index: Index<Node>,
-        func: impl FnOnce(Self::Ref<'_, Node>) -> T,
+        func: impl FnOnce(&Node) -> T,
     ) -> ArenaResult<T> {
         arena.map(index, func)
     }
@@ -60,7 +60,7 @@ impl private::SealedVisitType for VisitMut {
 
     fn with_ref<'a, T, Node: ArenaItem>(
         ref_type: Self::Ref<'a, Node>,
-        func: impl FnOnce(Self::Ref<'_, Node>) -> T,
+        func: impl FnOnce(&mut Node) -> T,
     ) -> (T, Self::Ref<'a, Node>) {
         (func(ref_type), ref_type)
     }
@@ -68,7 +68,7 @@ impl private::SealedVisitType for VisitMut {
     fn arena_map<T, Node: ArenaItem>(
         arena: &impl Arena<Node>,
         index: Index<Node>,
-        func: impl FnOnce(Self::Ref<'_, Node>) -> T,
+        func: impl FnOnce(&mut Node) -> T,
     ) -> ArenaResult<T> {
         arena.map_mut(index, func)
     }

@@ -1,9 +1,8 @@
+use alloc::rc::Rc;
+use core::cell::RefCell;
 use core::mem;
 
 use mockall::predicate;
-use spin::Lazy;
-use spin::Mutex;
-use spin::rwlock::RwLock;
 
 use crate::ast::CycleTime;
 use crate::ast::NoteLetter;
@@ -21,30 +20,24 @@ use crate::mem::Multiple;
 use crate::test::pattern::arenas::GrowableArenas;
 use crate::test::pattern::arenas::PatternArenaMocker;
 
-type Slot<T> = Lazy<RwLock<Option<T>>>;
-const fn empty_slot<T>() -> Slot<T> {
-    Slot::new(|| RwLock::new(None))
+type Slot<T> = Rc<RefCell<Option<T>>>;
+fn empty_slot<T>() -> Slot<T> {
+    Rc::new(RefCell::new(None))
 }
 fn fill_slot<T>(slot: &Slot<T>, value: T) {
-    let mut slot_inner = slot.write();
+    let mut slot_inner = slot.borrow_mut();
     assert!(slot_inner.is_none());
     let _ = slot_inner.insert(value);
 }
 
 fn test_clone_with_no_subpatterns(orig_pattern: Pattern) {
-    static TEST_MUTEX: Mutex<()> = Mutex::new(());
-    static PATTERN_SLOT: Slot<PatternNode> = empty_slot();
-    static CLONED_SLOT: Slot<PatternNode> = empty_slot();
-    // Acquire the mutex for unique access to the slots.
-    let _guard = TEST_MUTEX.lock();
-
-    // Clear the slots.
-    let _ = PATTERN_SLOT.write().take();
-    let _ = CLONED_SLOT.write().take();
+    // Start with empty slots.
+    let pattern_slot: Slot<PatternNode> = empty_slot();
+    let cloned_slot: Slot<PatternNode> = empty_slot();
 
     // Set the initial pattern value.
     fill_slot(
-        &PATTERN_SLOT,
+        &pattern_slot,
         PatternNode {
             parent: None,
             sibling_chain: Chain::new(),
@@ -59,25 +52,26 @@ fn test_clone_with_no_subpatterns(orig_pattern: Pattern) {
     pattern_mocker
         .expect_get_slot()
         .with(predicate::eq(pattern_index()))
-        .returning(move |_| Ok(PATTERN_SLOT.read()));
+        .returning_st(move |_| Ok(pattern_slot.clone()));
+    let first_cloned_slot = cloned_slot.clone();
     pattern_mocker
-        .expect_alloc()
+        .expect_push()
         .once()
         .with(predicate::always())
-        .return_once(move |value| {
-            let mut slot = CLONED_SLOT.write();
-            assert!(slot.is_none());
-            let _ = slot.insert(value);
+        .return_once_st(move |value| {
+            fill_slot(&first_cloned_slot, value);
             Ok(cloned_index())
         });
+    let second_cloned_slot = cloned_slot.clone();
+    let third_cloned_slot = cloned_slot.clone();
     pattern_mocker
         .expect_get_slot()
         .with(predicate::eq(cloned_index()))
-        .returning(|_| Ok(CLONED_SLOT.read()));
+        .return_once_st(move |_| Ok(second_cloned_slot));
     pattern_mocker
         .expect_get_mut_slot()
         .with(predicate::eq(cloned_index()))
-        .returning(|_| Ok(CLONED_SLOT.write()));
+        .return_once_st(move |_| Ok(third_cloned_slot));
     mem::drop(pattern_mocker);
 
     let mut orig_adapter =
@@ -94,9 +88,6 @@ fn test_clone_with_no_subpatterns(orig_pattern: Pattern) {
     assert_eq!(_pattern_index, pattern_index());
 
     mock_arenas.0.borrow_mut().checkpoint();
-
-    // Explicitly drop the guard to allow other threads to run the test as well.
-    mem::drop(_guard);
 }
 
 #[test]

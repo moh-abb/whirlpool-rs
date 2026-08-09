@@ -4,8 +4,8 @@ use crate::mem::Index;
 pub mod arena_impl;
 pub mod error;
 
-pub trait ArenaItem: Ord + 'static {}
-impl<T> ArenaItem for T where T: Ord + 'static {}
+pub trait ArenaItem: Ord {}
+impl<T> ArenaItem for T where T: Ord {}
 
 /// A trait to represent a simple arena, where items can be inserted, appended
 /// (allocated), deleted (taken), and queried for occupied status based on an

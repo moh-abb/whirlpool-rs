@@ -44,7 +44,6 @@ impl<T, M: IndexableMap<T>> IndexableMapArena<T, M> {
 
     /// Performs the given mutable action,
     /// using the arena's next index and map fields.
-    #[allow(unused)]
     #[must_use]
     pub fn with_inner_mut<U>(
         &self,

@@ -1,40 +1,26 @@
 #![cfg(test)]
 
+use alloc::rc::Rc;
 use core::cell::RefCell;
 use core::fmt::Debug;
-use core::ops::Deref;
 use core::ops::DerefMut;
-
-use spin::RwLockReadGuard;
-use spin::RwLockWriteGuard;
 
 use crate::mem::Arena;
 use crate::mem::ArenaItem;
 use crate::mem::ArenaResult;
 use crate::mem::Index;
 
-#[mockall::automock(
-    type Ref<'a> = RwLockReadGuard<'a,  Option<T>>;
-    type Mut<'a> = RwLockWriteGuard<'a, Option< T>>;
-)]
-pub trait ArenaAdapter<T: ArenaItem>: Debug {
-    type Ref<'a>: Deref<Target = Option<T>>
-    where
-        Self: 'a;
-    type Mut<'a>: DerefMut<Target = Option<T>>
-    where
-        Self: 'a;
+type Slot<T> = Rc<RefCell<Option<T>>>;
 
+#[mockall::automock]
+pub trait ArenaAdapter<T: ArenaItem>: Debug {
     fn size(&self) -> usize;
 
-    fn alloc(&mut self, value: T) -> ArenaResult<Index<T>>;
+    fn push(&mut self, value: T) -> ArenaResult<Index<T>>;
 
-    fn get_slot<'a>(&'a self, index: Index<T>) -> ArenaResult<Self::Ref<'a>>;
+    fn get_slot(&self, index: Index<T>) -> ArenaResult<Slot<T>>;
 
-    fn get_mut_slot<'a>(
-        &'a mut self,
-        index: Index<T>,
-    ) -> ArenaResult<Self::Mut<'a>>;
+    fn get_mut_slot<'a>(&mut self, index: Index<T>) -> ArenaResult<Slot<T>>;
 }
 
 #[derive(Debug)]
@@ -62,19 +48,19 @@ impl<T: ArenaItem + Clone> Arena<T> for ArenaMocker<T> {
     }
 
     fn push(&self, value: T) -> ArenaResult<Index<T>> {
-        self.0.borrow_mut().alloc(value)
+        self.0.borrow_mut().push(value)
     }
 
     fn take(&self, index: Index<T>) -> ArenaResult<T> {
         let mut inner = self.0.borrow_mut();
-        let mut slot = inner.get_mut_slot(index)?;
-        Ok(slot.take().unwrap())
+        let slot = inner.get_mut_slot(index)?;
+        Ok(slot.borrow_mut().take().unwrap())
     }
 
     fn insert(&self, index: Index<T>, value: T) -> ArenaResult<()> {
         let mut inner = self.0.borrow_mut();
-        let mut slot = inner.get_mut_slot(index)?;
-        let _ = slot.insert(value);
+        let slot = inner.get_mut_slot(index)?;
+        let _ = slot.borrow_mut().insert(value);
         Ok(())
     }
 
@@ -85,7 +71,7 @@ impl<T: ArenaItem + Clone> Arena<T> for ArenaMocker<T> {
     ) -> ArenaResult<U> {
         let inner = self.0.borrow();
         let slot = inner.get_slot(index)?;
-        Ok(func(slot.as_ref().unwrap()))
+        Ok(func(slot.borrow().as_ref().unwrap()))
     }
 
     fn map_mut<U>(
@@ -94,7 +80,7 @@ impl<T: ArenaItem + Clone> Arena<T> for ArenaMocker<T> {
         func: impl FnOnce(&mut T) -> U,
     ) -> ArenaResult<U> {
         let mut inner = self.0.borrow_mut();
-        let mut slot = inner.get_mut_slot(index)?;
-        Ok(func(slot.as_mut().unwrap()))
+        let slot = inner.get_mut_slot(index)?;
+        Ok(func(slot.borrow_mut().as_mut().unwrap()))
     }
 }
