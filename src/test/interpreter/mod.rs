@@ -6,11 +6,12 @@ use mockall::predicate;
 
 use crate::ast::CycleTime;
 use crate::ast::NoteUnit;
-use crate::ast::Pattern;
+use crate::ast::PatternNode;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::ast::time::OverflowError;
 use crate::interpreter::Interpreter;
 use crate::interpreter::pattern::PatternInterpreter;
+use crate::mem::Arena;
+use crate::mem::GrowableArena;
 use crate::mem::Index;
 use crate::synth::scheduler::MockUnitScheduler;
 use crate::synth::unit::SoundUnit;
@@ -41,7 +42,7 @@ fn test_expectations<
     Expectations: IntoIterator<Item = &'b (CycleTime, ExpectationsAtTime)> + Clone,
 >(
     arenas: &'a impl PatternArenas,
-    head_index: Index<Pattern>,
+    head_index: Index<PatternNode>,
     expected_schedule_actions: Expectations,
 ) {
     test_expectations_with_interpreter_setup(
@@ -53,9 +54,21 @@ fn test_expectations<
 }
 
 pub trait TestSetupStrategy {
-    fn setup_interpreter<Arenas, Scheduler, BorrowAdapter>(
+    fn setup_interpreter<
+        Arenas,
+        Scheduler,
+        FrameArena,
+        SchedulerBorrow,
+        FrameArenaBorrow,
+    >(
         self,
-        interpreter: &mut PatternInterpreter<Arenas, Scheduler, BorrowAdapter>,
+        interpreter: &mut PatternInterpreter<
+            Arenas,
+            Scheduler,
+            FrameArena,
+            SchedulerBorrow,
+            FrameArenaBorrow,
+        >,
     );
 }
 
@@ -64,9 +77,21 @@ pub struct FullInterpreterSetup {
     pub multiplier: CycleTime,
 }
 impl TestSetupStrategy for FullInterpreterSetup {
-    fn setup_interpreter<Arenas, Scheduler, BorrowAdapter>(
+    fn setup_interpreter<
+        Arenas,
+        Scheduler,
+        FrameArena,
+        SchedulerBorrow,
+        FrameArenaBorrow,
+    >(
         self,
-        interpreter: &mut PatternInterpreter<Arenas, Scheduler, BorrowAdapter>,
+        interpreter: &mut PatternInterpreter<
+            Arenas,
+            Scheduler,
+            FrameArena,
+            SchedulerBorrow,
+            FrameArenaBorrow,
+        >,
     ) {
         interpreter.set_multiplier(self.multiplier);
         interpreter.set_offset(self.offset);
@@ -75,9 +100,21 @@ impl TestSetupStrategy for FullInterpreterSetup {
 
 struct EmptyInterpreterSetup;
 impl TestSetupStrategy for EmptyInterpreterSetup {
-    fn setup_interpreter<Arenas, Scheduler, BorrowAdapter>(
+    fn setup_interpreter<
+        Arenas,
+        Scheduler,
+        FrameArena,
+        SchedulerBorrow,
+        FrameArenaBorrow,
+    >(
         self,
-        _: &mut PatternInterpreter<Arenas, Scheduler, BorrowAdapter>,
+        _: &mut PatternInterpreter<
+            Arenas,
+            Scheduler,
+            FrameArena,
+            SchedulerBorrow,
+            FrameArenaBorrow,
+        >,
     ) {
         // Does nothing.
     }
@@ -88,7 +125,7 @@ fn test_expectations_with_interpreter_setup<
     Expectations: IntoIterator<Item = impl Borrow<(CycleTime, ExpectationsAtTime)>> + Clone,
 >(
     arenas: &impl PatternArenas,
-    head_index: Index<Pattern>,
+    head_index: Index<PatternNode>,
     expected_schedule_actions: Expectations,
     test_setup: impl TestSetupStrategy,
 ) {
@@ -106,7 +143,7 @@ fn test_expectations_with_interpreter_setup_and_start_time<
     Expectations: IntoIterator<Item = impl Borrow<(CycleTime, ExpectationsAtTime)>> + Clone,
 >(
     arenas: &impl PatternArenas,
-    head_index: Index<Pattern>,
+    head_index: Index<PatternNode>,
     start_time: CycleTime,
     expected_schedule_actions: Expectations,
     test_setup: impl TestSetupStrategy,
@@ -120,10 +157,15 @@ fn test_expectations_with_interpreter_setup_and_start_time<
         f(borrowed_scheduler)
     };
 
+    let mut frame_arena = GrowableArena::<()>::new();
+    let frame_arena_refcell = RefCell::new(&mut frame_arena);
+    debug_assert_eq!(frame_arena_refcell.borrow().size(), 0);
+
     let mut interpreter = PatternInterpreter::new_with_refcell(
         head_index,
         arenas,
         &logging_scheduler,
+        &frame_arena_refcell,
     );
     test_setup.setup_interpreter(&mut interpreter);
 
@@ -132,11 +174,14 @@ fn test_expectations_with_interpreter_setup_and_start_time<
     logging_scheduler
         .borrow_mut()
         .set_inner_enabled(false);
+
     interpreter
         .update_time(start_time)
-        .unwrap_or_else(|OverflowError| {
-            panic!("Overflowed when updating start time {start_time:?}")
+        .unwrap_or_else(|err| {
+            panic!("Encountered error when updating start time to {start_time:?}: {err:?}")
         });
+    debug_assert_eq!(frame_arena_refcell.borrow().size(), 0,);
+
     logging_scheduler
         .borrow_mut()
         .set_inner_enabled(true);
@@ -144,7 +189,7 @@ fn test_expectations_with_interpreter_setup_and_start_time<
     // Enable printing log messages, if desired.
     logging_scheduler
         .borrow_mut()
-        .set_logging(false);
+        .set_logging(true);
     let expect_note_unit = |expectation: ScheduledExpectation| {
         let ScheduledExpectation { start_time, duration, note_unit } =
             expectation;
@@ -174,9 +219,12 @@ fn test_expectations_with_interpreter_setup_and_start_time<
             .for_each(|e| expect_note_unit(e.borrow().clone()));
         interpreter
             .update_time(*next_cycle_time)
-            .unwrap_or_else(|OverflowError| {
-                panic!("Overflowed when updating start time {start_time:?}")
+            .unwrap_or_else(|err| {
+                panic!("Encountered error when updating to time {next_cycle_time:?}: {err:?}")
             });
+
         with_mock_scheduler(&|player| player.checkpoint());
     }
+
+    debug_assert_eq!(frame_arena.size(), 0);
 }
