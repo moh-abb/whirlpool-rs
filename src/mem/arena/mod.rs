@@ -13,9 +13,9 @@ impl<T> ArenaItem for T where T: Ord {}
 pub trait Arena<T: ArenaItem> {
     fn size(&self) -> usize;
 
-    fn push(&self, value: T) -> ArenaResult<Index<T>>;
+    fn push(&mut self, value: T) -> ArenaResult<Index<T>>;
 
-    fn take(&self, index: Index<T>) -> ArenaResult<T>;
+    fn take(&mut self, index: Index<T>) -> ArenaResult<T>;
 
     fn map<U>(
         &self,
@@ -24,7 +24,7 @@ pub trait Arena<T: ArenaItem> {
     ) -> ArenaResult<U>;
 
     fn map_mut<U>(
-        &self,
+        &mut self,
         index: Index<T>,
         func: impl FnOnce(&mut T) -> U,
     ) -> ArenaResult<U>;
