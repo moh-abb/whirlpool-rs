@@ -42,3 +42,14 @@ pub struct PlayElemArgs<T> {
     pub offset: CycleTime,
     pub multiplier: CycleTime,
 }
+
+impl<T> PlayElemArgs<T> {
+    pub fn map<U>(self, func: impl FnOnce(T) -> U) -> PlayElemArgs<U> {
+        PlayElemArgs {
+            elem: func(self.elem),
+            interval: self.interval,
+            offset: self.offset,
+            multiplier: self.multiplier,
+        }
+    }
+}
