@@ -1,5 +1,3 @@
-use core::marker::PhantomData;
-
 use crate::mem::Arena;
 use crate::mem::ArenaError;
 use crate::mem::ArenaItem;
@@ -46,46 +44,50 @@ where
     T: ArenaItem,
     A: Arena<StackChain<T>>,
 {
-    pub fn push(&mut self, arena: &mut A, item: T) -> StackResult<()> {
-        let index =
-            arena.push(StackChain { item, prev: self.last_item.take() })?;
+    pub fn push(&mut self, item: T) -> StackResult<()> {
+        let index = self
+            .arena
+            .push(StackChain { item, prev: self.last_item.take() })?;
         self.last_item = Some(index);
         self.size = self.size.wrapping_add(1);
         Ok(())
     }
 
-    pub fn pop(&mut self, arena: &mut A) -> StackResult<Option<T>> {
+    pub fn pop(&mut self) -> StackResult<Option<T>> {
         let index = match self.last_item.take() {
             Some(index) => index,
             None => return Ok(None),
         };
 
-        let StackChain { item, prev } = arena.take(index)?;
+        let StackChain { item, prev } = self.arena.take(index)?;
         self.last_item = prev;
         self.size = self.size.wrapping_sub(1);
 
         Ok(Some(item))
     }
 
-    pub fn map<U>(
-        &self,
-        arena: &A,
-        func: impl FnOnce(&T) -> U,
-    ) -> StackResult<Option<U>> {
+    pub fn clear(&mut self) -> StackResult<()> {
+        while let Some(_) = self.pop()? {
+            // Loop.
+        }
+        Ok(())
+    }
+
+    pub fn map<U>(&self, func: impl FnOnce(&T) -> U) -> StackResult<Option<U>> {
         let index = match self.last_item.clone() {
             Some(index) => index,
             None => return Ok(None),
         };
 
-        let res =
-            arena.map(index, |StackChain { item, prev: _ }| func(item))?;
+        let res = self
+            .arena
+            .map(index, |StackChain { item, prev: _ }| func(item))?;
 
         Ok(Some(res))
     }
 
     pub fn map_mut<U>(
         &mut self,
-        arena: &A,
         func: impl FnOnce(&mut T) -> U,
     ) -> StackResult<Option<U>> {
         let index = match self.last_item.clone() {
@@ -93,8 +95,9 @@ where
             None => return Ok(None),
         };
 
-        let res =
-            arena.map_mut(index, |StackChain { item, prev: _ }| func(item))?;
+        let res = self
+            .arena
+            .map_mut(index, |StackChain { item, prev: _ }| func(item))?;
 
         Ok(Some(res))
     }
@@ -105,7 +108,7 @@ where
     T: ArenaItem + Clone,
     A: Arena<StackChain<T>>,
 {
-    pub fn clone_last(&self, arena: &A) -> StackResult<Option<T>> {
-        self.map(arena, Clone::clone)
+    pub fn clone_last(&self) -> StackResult<Option<T>> {
+        self.map(Clone::clone)
     }
 }
