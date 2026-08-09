@@ -5,14 +5,17 @@ use crate::ast::PatternNode;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::interpreter::concat::ConcatFrame;
 use crate::interpreter::error::PatternInterpreterResult;
+use crate::interpreter::leaf::LeafFrame;
 use crate::interpreter::props::PlayElemArgs;
 use crate::mem::Arena;
 use crate::mem::Index;
 use crate::synth::scheduler::UnitScheduler;
 
+#[derive(derive_more::From, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum InterpreterFrame<'a, Arenas> {
     Query(QueryFrame),
     Concat(ConcatFrame<'a, Arenas>),
+    Leaf(LeafFrame),
 }
 
 /// Indicates the result of interpreting one frame.
@@ -54,21 +57,24 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
         let cloned_node = arenas
             .get_pattern_arena()
             .map(index, Clone::clone)?;
-        let opt_next_frame = match &cloned_node.pattern {
+        let next_frame: InterpreterFrame<'_, _> = match &cloned_node.pattern {
             Pattern::Cat(multiple) => {
-                Some(ConcatFrame::cat_frame(multiple, arenas, play_args)?)
+                ConcatFrame::cat_frame(multiple, arenas, play_args)?.into()
             }
             Pattern::Seq(multiple) => {
-                Some(ConcatFrame::seq_frame(multiple, arenas, play_args)?)
+                ConcatFrame::seq_frame(multiple, arenas, play_args)?.into()
             }
             Pattern::Stack(multiple) => {
-                Some(ConcatFrame::stack_frame(multiple, arenas, play_args)?)
+                ConcatFrame::stack_frame(multiple, arenas, play_args)?.into()
             }
             Pattern::TimeCat { total_cycle_length, multiple } => todo!(),
             Pattern::Arrange { total_cycle_length, multiple } => todo!(),
             Pattern::TimedStep(timed_step) => todo!(),
-            Pattern::Note(note_unit) => todo!(),
-            Pattern::Silence => todo!(),
+            Pattern::Note(note_unit) => {
+                LeafFrame::note_frame(note_unit, play_args)?.into()
+            }
+            Pattern::Silence => LeafFrame::silence().into(),
         };
+        todo!()
     }
 }
