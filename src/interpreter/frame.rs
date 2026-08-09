@@ -94,3 +94,20 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
         todo!()
     }
 }
+
+impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
+    for InterpreterFrame<'a, Arenas>
+{
+    fn step(
+        &mut self,
+        scheduler: &mut impl UnitScheduler,
+        arenas: &'a Arenas,
+    ) -> InterpreterResult<'a, Arenas> {
+        // TODO: Automatically delegate this step.
+        match self {
+            InterpreterFrame::Query(frame) => frame.step(scheduler, arenas),
+            InterpreterFrame::Concat(frame) => frame.step(scheduler, arenas),
+            InterpreterFrame::Leaf(frame) => frame.step(scheduler, arenas),
+        }
+    }
+}
