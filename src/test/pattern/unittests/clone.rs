@@ -25,9 +25,6 @@ type Slot<T> = Lazy<RwLock<Option<T>>>;
 const fn empty_slot<T>() -> Slot<T> {
     Slot::new(|| RwLock::new(None))
 }
-const fn empty_slot_array<T, const N: usize>() -> [Slot<T>; N] {
-    [const { empty_slot() }; N]
-}
 fn fill_slot<T>(slot: &Slot<T>, value: T) {
     let mut slot_inner = slot.write();
     assert!(slot_inner.is_none());

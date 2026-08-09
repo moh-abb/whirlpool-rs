@@ -172,6 +172,7 @@ fn arb_pattern<Arenas: PatternArenas + 'static>(
     )
 }
 
+#[allow(unused)]
 pub fn arb_small_pattern<Arenas: PatternArenas + 'static>()
 -> impl Strategy<Value = ArenasTo<Arenas, Index<PatternNode>>> {
     arb_pattern(5, 40, 7)

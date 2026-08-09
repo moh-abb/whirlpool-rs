@@ -21,6 +21,7 @@ const MAX_MULTIPLIER: CycleTime = CycleTime::unwrapped_from_int(1 << 4);
 /// (with the duration substantially less than the start time),
 /// we would expect to require 4 + 6 + 9 = 19 bits of precision.
 /// This should fit within the 20 integer bits provided by [CycleTime].
+#[allow(unused)]
 pub fn arb_interval_offset_and_multiplier()
 -> impl Strategy<Value = (CycleInterval, CycleTime, CycleTime)> {
     let arb_start_time = arb_positive_cycle_time::<NonZeroU16>().prop_filter(
