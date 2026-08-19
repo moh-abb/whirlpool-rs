@@ -29,7 +29,7 @@ struct DisplayTraversalState<'a, 'b> {
 #[derive(Debug, derive_more::From)]
 pub enum DisplayError {
     ArenaErr(ArenaError),
-    FormatErr(core::fmt::Error),
+    FormatErr(fmt::Error),
 }
 
 impl<'a, 'b> TraversalState<PatternNode> for DisplayTraversalState<'a, 'b> {
@@ -91,7 +91,7 @@ fn visit_and_display_pattern<'a, 'b>(
 impl<'a, Arenas: PatternArenas> fmt::Display
     for PatternDisplayAdapter<'a, Arenas>
 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> core::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         debug_unwrap(visit_and_display_pattern(
             self.index.clone(),
             self.arenas,

@@ -25,7 +25,7 @@ impl<T: ArenaItem> Cow<T> {
 
     pub fn map_mut<U>(
         &mut self,
-        arena: &impl Arena<T>,
+        arena: &mut impl Arena<T>,
         func: impl FnOnce(&mut T) -> U,
     ) -> ArenaResult<U> {
         match self {

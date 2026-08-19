@@ -11,10 +11,10 @@ use crate::ast::PatternNode;
 use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::drop::PatternDropAdapter;
-use crate::mem::Arena;
 use crate::mem::Cow;
 use crate::mem::Index;
 use crate::mem::Multiple;
+use crate::mem::arena::arena_impl::shared_arena::SharedArena;
 use crate::test::examples::arbitrary::pattern::leaf::arb_pattern_leaf;
 use crate::test::examples::arbitrary::time::arb_positive_cycle_time;
 use crate::test::mem::arenas_to::ArenasTo;
@@ -33,19 +33,24 @@ fn pattern_to_time_cat_or_arrange<Arenas: PatternArenas + 'static>(
         .sum::<Result<CycleTime, _>>()
         .expect("expected times to not overflow");
 
-    ArenasTo::new(move |arenas: &Arenas| {
-        let pattern_arena = arenas.get_pattern_arena();
-        let result_index = pattern_arena
+    ArenasTo::new(move |arenas: &mut Arenas| {
+        let result_index = arenas
             .push(PatternNode::new(f(total_cycle_time, Multiple::new())))?;
-        let mut result_adapter =
-            PatternDropAdapter(Some(result_index.clone()), arenas);
+        let shared_arena = SharedArena::new(arenas);
+        let mut result_adapter = PatternDropAdapter(
+            Some(result_index.clone()),
+            shared_arena.make_ref(),
+        );
 
         let add_single_timed_step =
             |x: ArenasTo<Arenas, _>, duration: &CycleTime| {
                 // Add the TimedStep to the result pattern.
                 // This is currently invalid as it has no child pattern.
+                let mut shared_ref_1 = shared_arena.make_ref();
+                let mut shared_ref_2 = shared_arena.make_ref();
                 let timed_step_index = Multiple::push_back(
-                    arenas,
+                    &mut shared_ref_1,
+                    &mut shared_ref_2,
                     result_index.clone(),
                     Cow::Owned(PatternNode::new(Pattern::TimedStep(
                         TimedStep(*duration, Multiple::new()),
@@ -54,11 +59,12 @@ fn pattern_to_time_cat_or_arrange<Arenas: PatternArenas + 'static>(
 
                 // Obtain the arbitrary pattern which will form
                 // the TimedStep.
-                let pattern_index = x.call(arenas)?;
-
+                let pattern_index =
+                    shared_arena.with_inner_mut(|arenas| x.call(arenas))??;
                 // Add the child pattern to the TimedStep.
                 Multiple::push_back(
-                    arenas,
+                    &mut shared_ref_1,
+                    &mut shared_ref_2,
                     timed_step_index.clone(),
                     Cow::Indexed(pattern_index),
                 )?;
@@ -81,21 +87,26 @@ fn pattern_to_multiple_pattern<Arenas: PatternArenas + 'static>(
     xs: Vec<ArenasTo<Arenas, Index<PatternNode>>>,
     f: fn(Multiple<PatternNode>) -> Pattern,
 ) -> ArenasTo<Arenas, Index<PatternNode>> {
-    ArenasTo::new(move |arenas: &Arenas| {
-        let pattern_arena = arenas.get_pattern_arena();
-        let result_index =
-            pattern_arena.push(PatternNode::new(f(Multiple::new())))?;
-        let mut result_adapter =
-            PatternDropAdapter(Some(result_index.clone()), arenas);
+    ArenasTo::new(move |arenas: &mut Arenas| {
+        let result_index = arenas.push(PatternNode::new(f(Multiple::new())))?;
+        let shared_arena = SharedArena::new(arenas);
+        let mut result_adapter = PatternDropAdapter(
+            Some(result_index.clone()),
+            shared_arena.make_ref(),
+        );
 
         let add_single_pattern = |x: ArenasTo<Arenas, _>| {
             // Obtain the arbitrary pattern which will form
             // the TimedStep.
-            let pattern_index = x.call(arenas)?;
+            let pattern_index =
+                shared_arena.with_inner_mut(|arenas| x.call(arenas))??;
 
             // Add the child pattern to the result pattern.
+            let mut shared_ref_1 = shared_arena.make_ref();
+            let mut shared_ref_2 = shared_arena.make_ref();
             Multiple::push_back(
-                arenas,
+                &mut shared_ref_1,
+                &mut shared_ref_2,
                 result_index.clone(),
                 Cow::Indexed(pattern_index),
             )?;
@@ -109,6 +120,7 @@ fn pattern_to_multiple_pattern<Arenas: PatternArenas + 'static>(
 
         // Now take the result to stop it being dropped.
         result_adapter.0.take();
+        drop(result_adapter);
 
         check_acyclic(result_index.clone(), arenas);
 

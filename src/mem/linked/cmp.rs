@@ -1,6 +1,8 @@
 use core::cmp::Ordering;
 
+use crate::mem::Arena;
 use crate::mem::ArenaError;
+use crate::mem::ArenaItem;
 use crate::mem::ArenaResult;
 use crate::mem::Index;
 use crate::mem::linked::Linked;
@@ -31,6 +33,7 @@ struct OrdHandler<Node, CmpF, CopyF> {
 
 impl<Node, CmpF, CopyF> TraversalState<Node> for OrdHandler<Node, CmpF, CopyF>
 where
+    Node: ArenaItem,
     CopyF: FnMut(&Node) -> Node,
     CmpF: FnMut(&Node, &Node) -> Ordering,
 {
@@ -96,17 +99,19 @@ where
 /// between the two structures.
 /// Note that this also uses a cloning function in order to save a temporary
 /// copy of the `Node` to use during traversal.
-pub fn cmp_linked<Node, ArenasX, ArenasY>(
+pub fn cmp_linked<Node, ArenaX, ArenaY>(
     start_index_x: Index<Node>,
     start_index_y: Index<Node>,
-    arenas_x: &ArenasX,
-    arenas_y: &ArenasY,
+    arena_x: &ArenaX,
+    arena_y: &ArenaY,
     cmp_func: impl FnMut(&Node, &Node) -> Ordering,
     copy_func: impl FnMut(&Node) -> Node,
 ) -> ArenaResult<Ordering>
 where
-    Node: Linked<Node, ArenasX>,
-    Node: Linked<Node, ArenasY>,
+    ArenaX: Arena<Node>,
+    ArenaY: Arena<Node>,
+    Node: Linked<Node, ArenaX, ArenaX>,
+    Node: Linked<Node, ArenaY, ArenaY>,
 {
     let mut state = OrdHandler {
         cmp_func,
@@ -119,8 +124,8 @@ where
         start_index_x,
         start_index_y,
         &mut state,
-        arenas_x,
-        arenas_y,
+        arena_x,
+        arena_y,
     )?;
     Ok(state.result)
 }

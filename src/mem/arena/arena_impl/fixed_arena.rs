@@ -81,11 +81,11 @@ impl<T: ArenaItem> FixableArena<T> {
 }
 
 impl<T: ArenaItem> Arena<T> for FixableArena<T> {
-    fn size(&self) -> usize {
+    fn size(&self) -> ArenaResult<usize> {
         self.arena.size()
     }
 
-    fn push(&self, value: T) -> ArenaResult<Index<T>> {
+    fn push(&mut self, value: T) -> ArenaResult<Index<T>> {
         if !self.mutable {
             panic!(
                 "Should not call [Arena::push] on FixableArena while immutable"
@@ -106,7 +106,7 @@ impl<T: ArenaItem> Arena<T> for FixableArena<T> {
         }
     }
 
-    fn take(&self, index: Index<T>) -> ArenaResult<T> {
+    fn take(&mut self, index: Index<T>) -> ArenaResult<T> {
         if !self.mutable {
             panic!(
                 "Should not call [Arena::take] on FixableArena while immutable"
@@ -125,7 +125,7 @@ impl<T: ArenaItem> Arena<T> for FixableArena<T> {
     }
 
     fn map_mut<U>(
-        &self,
+        &mut self,
         index: Index<T>,
         func: impl FnOnce(&mut T) -> U,
     ) -> ArenaResult<U> {

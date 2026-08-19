@@ -21,6 +21,8 @@ impl<'r, 'a, T, A> Clone for SharedArenaRef<'r, 'a, T, A> {
     }
 }
 
+impl<'r, 'a, T, A> Copy for SharedArenaRef<'r, 'a, T, A> {}
+
 impl<'a, T, A> SharedArena<'a, T, A>
 where
     T: ArenaItem,
@@ -33,24 +35,20 @@ where
     pub fn make_ref<'r>(&'r self) -> SharedArenaRef<'r, 'a, T, A> {
         SharedArenaRef(self)
     }
-}
 
-impl<'r, 'a, T, A> SharedArenaRef<'r, 'a, T, A> {
-    fn with_inner<U>(&self, func: impl FnOnce(&A) -> U) -> ArenaResult<U> {
+    pub fn with_inner<U>(&self, func: impl FnOnce(&A) -> U) -> ArenaResult<U> {
         let borrowed = self
-            .0
             .0
             .try_borrow()
             .map_err(|_| ArenaError::InvalidBorrow)?;
         Ok(func(borrowed.deref()))
     }
 
-    fn with_inner_mut<U>(
-        &mut self,
+    pub fn with_inner_mut<U>(
+        &self,
         func: impl FnOnce(&mut A) -> U,
     ) -> ArenaResult<U> {
         let mut borrowed = self
-            .0
             .0
             .try_borrow_mut()
             .map_err(|_| ArenaError::InvalidBorrow)?;
@@ -63,16 +61,19 @@ where
     T: ArenaItem,
     A: Arena<T>,
 {
-    fn size(&self) -> usize {
-        todo!()
+    fn size(&self) -> ArenaResult<usize> {
+        self.0
+            .with_inner_mut(|arena| arena.size())?
     }
 
     fn push(&mut self, value: T) -> ArenaResult<Index<T>> {
-        self.with_inner_mut(|arena| arena.push(value))?
+        self.0
+            .with_inner_mut(|arena| arena.push(value))?
     }
 
     fn take(&mut self, index: Index<T>) -> ArenaResult<T> {
-        self.with_inner_mut(|arena| arena.take(index))?
+        self.0
+            .with_inner_mut(|arena| arena.take(index))?
     }
 
     fn map<U>(
@@ -80,7 +81,8 @@ where
         index: Index<T>,
         func: impl FnOnce(&T) -> U,
     ) -> ArenaResult<U> {
-        self.with_inner(|arena| arena.map(index, func))?
+        self.0
+            .with_inner(|arena| arena.map(index, func))?
     }
 
     fn map_mut<U>(
@@ -88,6 +90,7 @@ where
         index: Index<T>,
         func: impl FnOnce(&mut T) -> U,
     ) -> ArenaResult<U> {
-        self.with_inner_mut(|arena| arena.map_mut(index, func))?
+        self.0
+            .with_inner_mut(|arena| arena.map_mut(index, func))?
     }
 }

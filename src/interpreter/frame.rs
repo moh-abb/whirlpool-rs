@@ -8,7 +8,6 @@ use crate::interpreter::error::PatternInterpreterError;
 use crate::interpreter::error::PatternInterpreterResult;
 use crate::interpreter::leaf::LeafFrame;
 use crate::interpreter::props::PlayElemArgs;
-use crate::mem::Arena;
 use crate::mem::Index;
 use crate::synth::scheduler::UnitScheduler;
 
@@ -64,10 +63,7 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
     ) -> InterpreterResult<'a, Arenas> {
         let index = self.play_args.elem.clone();
         let play_args = self.play_args.clone().map(|_| ());
-        let cloned_pattern = arenas
-            .get_pattern_arena()
-            .map(index, Clone::clone)?
-            .pattern;
+        let cloned_pattern = arenas.map(index, Clone::clone)?.pattern;
         let next_frame: FrameInner<'_, _> = match &cloned_pattern {
             Pattern::Cat(multiple) => {
                 ConcatFrame::cat_frame(multiple, arenas, play_args)?.into()

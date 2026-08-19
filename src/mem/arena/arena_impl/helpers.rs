@@ -1,6 +1,4 @@
-use core::cell::RefCell;
 use core::marker::PhantomData;
-use core::ops::DerefMut;
 
 use crate::mem::Arena;
 use crate::mem::ArenaError;
@@ -27,7 +25,7 @@ pub trait IndexableMap<T> {
 
 /// An adapter for implementing [Arena] with a backing [IndexableMap] field.
 #[derive(Debug)]
-pub struct IndexableMapArena<T, M>(RefCell<IMInner<T, M>>);
+pub struct IndexableMapArena<T, M>(IMInner<T, M>);
 
 #[derive(Debug)]
 struct IMInner<T, M> {
@@ -39,7 +37,7 @@ struct IMInner<T, M> {
 impl<T, M: IndexableMap<T>> IndexableMapArena<T, M> {
     /// Creates an arena with the given [IndexableMap] backing field.
     pub fn new(map: M) -> Self {
-        Self(RefCell::new(IMInner { next_index: 0, map, phantom: PhantomData }))
+        Self(IMInner { next_index: 0, map, phantom: PhantomData })
     }
 
     /// Performs the given mutable action,
@@ -47,25 +45,18 @@ impl<T, M: IndexableMap<T>> IndexableMapArena<T, M> {
     #[allow(unused)]
     #[must_use]
     pub fn with_inner_mut<U>(
-        &self,
+        &mut self,
         f: impl FnOnce(&mut u16, &mut M) -> U,
     ) -> ArenaResult<U> {
-        let mut inner = self
-            .0
-            .try_borrow_mut()
-            .map_err(|_| ArenaError::InvalidBorrow)?;
-        let IMInner { next_index, map, phantom: _ } = inner.deref_mut();
-        Ok(f(next_index, map))
+        Ok(f(&mut self.0.next_index, &mut self.0.map))
     }
 
     fn with_mut_slot<U>(
-        &self,
+        &mut self,
         index: Index<T>,
         func: impl FnOnce(&mut Option<T>) -> U,
     ) -> ArenaResult<U> {
         self.0
-            .try_borrow_mut()
-            .map_err(|_| ArenaError::InvalidBorrow)?
             .map
             .get_mut_slot(index)
             .map(func)
@@ -78,8 +69,6 @@ impl<T, M: IndexableMap<T>> IndexableMapArena<T, M> {
         func: impl FnOnce(&Option<T>) -> U,
     ) -> ArenaResult<U> {
         self.0
-            .try_borrow()
-            .map_err(|_| ArenaError::InvalidBorrow)?
             .map
             .get_slot(index)
             .map(func)
@@ -88,21 +77,18 @@ impl<T, M: IndexableMap<T>> IndexableMapArena<T, M> {
 }
 
 impl<T: ArenaItem, M: IndexableMap<T>> Arena<T> for IndexableMapArena<T, M> {
-    fn size(&self) -> usize {
-        let inner = self.0.borrow();
-        inner.map.size()
+    fn size(&self) -> ArenaResult<usize> {
+        Ok(self.0.map.size())
     }
 
-    fn push(&self, value: T) -> ArenaResult<Index<T>> {
+    fn push(&mut self, value: T) -> ArenaResult<Index<T>> {
         // Stage 1. Check for the arena limit being reached.
-        let inner_ref = self.0.borrow();
-        let inner_next_index = inner_ref.next_index;
+        let inner_next_index = self.0.next_index;
         if inner_next_index == u16::MAX {
             // We can't progress to the next index
             return Err(ArenaError::LimitReached);
         }
         let index = Index::new(inner_next_index);
-        core::mem::drop(inner_ref);
         // Stage 2. Obtain a slot at the given index and
         let alloc_entry =
             self.with_mut_slot(index.clone(), |slot| match slot {
@@ -113,12 +99,11 @@ impl<T: ArenaItem, M: IndexableMap<T>> Arena<T> for IndexableMapArena<T, M> {
                 }
             })?;
         // Stage 3. Increment the next index.
-        let mut inner_mut = self.0.borrow_mut();
-        inner_mut.next_index += 1;
+        self.0.next_index += 1;
         alloc_entry
     }
 
-    fn take(&self, index: Index<T>) -> ArenaResult<T> {
+    fn take(&mut self, index: Index<T>) -> ArenaResult<T> {
         self.with_mut_slot(index, Option::take)?
             .ok_or(ArenaError::ExpectedFullSlot)
     }
@@ -133,7 +118,7 @@ impl<T: ArenaItem, M: IndexableMap<T>> Arena<T> for IndexableMapArena<T, M> {
     }
 
     fn map_mut<U>(
-        &self,
+        &mut self,
         index: Index<T>,
         func: impl FnOnce(&mut T) -> U,
     ) -> ArenaResult<U> {

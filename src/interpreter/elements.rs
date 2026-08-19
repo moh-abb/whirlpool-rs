@@ -12,7 +12,6 @@ use crate::interpreter::error::PatternInterpreterError;
 use crate::interpreter::error::PatternInterpreterResult;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
-use crate::mem::Arena;
 use crate::mem::Multiple;
 
 #[inline]
@@ -377,9 +376,7 @@ pub fn timed_step_total_cycle_length(
         multiple
             .checked_iter(arenas)
             .map(|opt_node_index| {
-                let node = arenas
-                    .get_pattern_arena()
-                    .map(opt_node_index?, Clone::clone)?;
+                let node = arenas.map(opt_node_index?, Clone::clone)?;
                 let Pattern::TimedStep(timed_step) = node.pattern else {
                     return Err(PatternInterpreterError::ExpectedTimedStep);
                 };

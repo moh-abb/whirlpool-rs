@@ -164,7 +164,7 @@ fn test_expectations_with_interpreter_setup_and_start_time<
     let mut frame_arena =
         GrowableArena::<StackChain<InterpreterFrame<'_, Arenas>>>::new();
     let frame_arena_refcell = RefCell::new(&mut frame_arena);
-    debug_assert_eq!(frame_arena_refcell.borrow().size(), 0);
+    debug_assert_eq!(frame_arena_refcell.borrow().size(), Ok(0));
 
     let mut interpreter = PatternInterpreter::new_with_refcell(
         head_index,
@@ -185,7 +185,7 @@ fn test_expectations_with_interpreter_setup_and_start_time<
         .unwrap_or_else(|err| {
             panic!("Encountered error when updating start time to {start_time:?}: {err:?}")
         });
-    debug_assert_eq!(frame_arena_refcell.borrow().size(), 0,);
+    debug_assert_eq!(frame_arena_refcell.borrow().size(), Ok(0));
 
     logging_scheduler
         .borrow_mut()
@@ -231,5 +231,5 @@ fn test_expectations_with_interpreter_setup_and_start_time<
         with_mock_scheduler(&|player| player.checkpoint());
     }
 
-    debug_assert_eq!(frame_arena_refcell.borrow().size(), 0);
+    debug_assert_eq!(frame_arena_refcell.borrow().size(), Ok(0));
 }

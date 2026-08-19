@@ -48,11 +48,11 @@ impl<T: ArenaItem> GrowableArena<T> {
 }
 
 impl<T: ArenaItem> Arena<T> for GrowableArena<T> {
-    fn size(&self) -> usize {
+    fn size(&self) -> ArenaResult<usize> {
         self.0.size()
     }
 
-    fn push(&self, value: T) -> ArenaResult<Index<T>> {
+    fn push(&mut self, value: T) -> ArenaResult<Index<T>> {
         // We need to extend the inner `Vec` with one extra slot, provided we
         // have not already exceeded the limit.
         self.0
@@ -66,7 +66,7 @@ impl<T: ArenaItem> Arena<T> for GrowableArena<T> {
         self.0.push(value)
     }
 
-    fn take(&self, index: Index<T>) -> ArenaResult<T> {
+    fn take(&mut self, index: Index<T>) -> ArenaResult<T> {
         self.0.take(index)
     }
 
@@ -79,7 +79,7 @@ impl<T: ArenaItem> Arena<T> for GrowableArena<T> {
     }
 
     fn map_mut<U>(
-        &self,
+        &mut self,
         index: Index<T>,
         func: impl FnOnce(&mut T) -> U,
     ) -> ArenaResult<U> {

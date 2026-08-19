@@ -43,15 +43,15 @@ impl<T: ArenaItem> ArenaMocker<T> {
 }
 
 impl<T: ArenaItem + Clone> Arena<T> for ArenaMocker<T> {
-    fn size(&self) -> usize {
-        self.0.borrow().size()
+    fn size(&self) -> ArenaResult<usize> {
+        Ok(self.0.borrow().size())
     }
 
-    fn push(&self, value: T) -> ArenaResult<Index<T>> {
+    fn push(&mut self, value: T) -> ArenaResult<Index<T>> {
         self.0.borrow_mut().push(value)
     }
 
-    fn take(&self, index: Index<T>) -> ArenaResult<T> {
+    fn take(&mut self, index: Index<T>) -> ArenaResult<T> {
         let mut inner = self.0.borrow_mut();
         let slot = inner.get_mut_slot(index)?;
         Ok(slot.borrow_mut().take().unwrap())
@@ -68,7 +68,7 @@ impl<T: ArenaItem + Clone> Arena<T> for ArenaMocker<T> {
     }
 
     fn map_mut<U>(
-        &self,
+        &mut self,
         index: Index<T>,
         func: impl FnOnce(&mut T) -> U,
     ) -> ArenaResult<U> {

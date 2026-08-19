@@ -1,6 +1,5 @@
 use alloc::rc::Rc;
 use core::cell::RefCell;
-use core::mem;
 
 use mockall::predicate;
 
@@ -9,16 +8,16 @@ use crate::ast::NoteLetter;
 use crate::ast::NoteUnit;
 use crate::ast::Pattern;
 use crate::ast::PatternNode;
-use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::clone::PatternCloneDropAdapter;
 use crate::ast::pattern::cmp::PatternOrdAdapter;
 use crate::mem::Arena;
+use crate::mem::ArenaMocker;
 use crate::mem::Chain;
 use crate::mem::Cow;
+use crate::mem::GrowableArena;
 use crate::mem::Index;
 use crate::mem::Multiple;
-use crate::test::pattern::arenas::GrowableArenas;
-use crate::test::pattern::arenas::PatternArenaMocker;
+use crate::mem::arena::arena_impl::shared_arena::SharedArena;
 
 type Slot<T> = Rc<RefCell<Option<T>>>;
 fn empty_slot<T>() -> Slot<T> {
@@ -47,8 +46,9 @@ fn test_clone_with_no_subpatterns(orig_pattern: Pattern) {
 
     let pattern_index = || Index::new(0x00);
     let cloned_index = || Index::new(0xC0);
-    let mock_arenas = PatternArenaMocker::new();
-    let mut pattern_mocker = mock_arenas.0.borrow_mut();
+    let mut mock_arenas = ArenaMocker::<PatternNode>::new();
+    let mut pattern_mocker = mock_arenas.borrow_mut();
+
     pattern_mocker
         .expect_get_slot()
         .with(predicate::eq(pattern_index()))
@@ -72,22 +72,33 @@ fn test_clone_with_no_subpatterns(orig_pattern: Pattern) {
         .expect_get_mut_slot()
         .with(predicate::eq(cloned_index()))
         .returning_st(move |_| Ok(third_cloned_slot.clone()));
-    mem::drop(pattern_mocker);
+    drop(pattern_mocker);
 
-    let mut orig_adapter =
-        PatternCloneDropAdapter::new(pattern_index(), &mock_arenas);
+    let shared_mock_arenas = SharedArena::new(&mut mock_arenas);
+
+    let mut orig_adapter = PatternCloneDropAdapter::new(
+        pattern_index(),
+        shared_mock_arenas.make_ref(),
+    );
     let _cloned_index = orig_adapter.clone().take_item();
 
     assert_eq!(_cloned_index, cloned_index());
     assert_eq!(
-        PatternOrdAdapter::new_left(pattern_index(), &mock_arenas),
-        PatternOrdAdapter::new_right(cloned_index(), &mock_arenas)
+        PatternOrdAdapter::new_left(
+            pattern_index(),
+            &shared_mock_arenas.make_ref()
+        ),
+        PatternOrdAdapter::new_right(
+            cloned_index(),
+            &shared_mock_arenas.make_ref()
+        )
     );
     // Take the original adapter too, to avoid dropping it.
     let _pattern_index = orig_adapter.take_item();
     assert_eq!(_pattern_index, pattern_index());
-
-    mock_arenas.0.borrow_mut().checkpoint();
+    drop(orig_adapter);
+    drop(shared_mock_arenas);
+    mock_arenas.borrow_mut().checkpoint();
 }
 
 #[test]
@@ -145,12 +156,14 @@ fn test_clone_with_three_subpatterns(
         })
     };
 
-    let arenas = GrowableArenas::default();
+    let mut arenas = GrowableArena::<PatternNode>::default();
+    let shared_arena = SharedArena::new(&mut arenas);
+    let mut shared_arena_ref_1 = shared_arena.make_ref();
+    let mut shared_arena_ref_2 = shared_arena.make_ref();
 
     // Link the elements to the parent.
     // Try: [] becomes [B] becomes [A, B] becomes [A, B, C].
-    arenas
-        .get_pattern_arena()
+    shared_arena_ref_1
         .push(PatternNode {
             parent: None,
             sibling_chain: Chain::new(),
@@ -158,31 +171,34 @@ fn test_clone_with_three_subpatterns(
         })
         .unwrap();
     Multiple::push_back(
-        &arenas,
+        &mut shared_arena_ref_1,
+        &mut shared_arena_ref_2,
         parent_index.clone(),
         make_letter(NoteLetter::B),
     )
     .unwrap();
     Multiple::push_front(
-        &arenas,
+        &mut shared_arena_ref_1,
+        &mut shared_arena_ref_2,
         parent_index.clone(),
         make_letter(NoteLetter::A),
     )
     .unwrap();
     Multiple::push_back(
-        &arenas,
+        &mut shared_arena_ref_1,
+        &mut shared_arena_ref_2,
         parent_index.clone(),
         make_letter(NoteLetter::C),
     )
     .unwrap();
 
     let mut orig_adapter =
-        PatternCloneDropAdapter::new(parent_index.clone(), &arenas);
+        PatternCloneDropAdapter::new(parent_index.clone(), shared_arena_ref_1);
     let cloned_index = orig_adapter.clone().take_item();
     assert_ne!(parent_index, cloned_index);
     assert_eq!(
-        PatternOrdAdapter::new_left(parent_index.clone(), &arenas),
-        PatternOrdAdapter::new_right(cloned_index.clone(), &arenas)
+        PatternOrdAdapter::new_left(parent_index.clone(), &shared_arena_ref_1),
+        PatternOrdAdapter::new_right(cloned_index.clone(), &shared_arena_ref_1)
     );
     // Take the original adapter too, to avoid dropping them
     let _parent_index = orig_adapter.take_item();

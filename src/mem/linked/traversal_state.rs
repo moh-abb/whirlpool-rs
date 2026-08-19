@@ -1,4 +1,6 @@
+use crate::mem::Arena;
 use crate::mem::ArenaError;
+use crate::mem::ArenaItem;
 use crate::mem::Index;
 use crate::mem::linked::visit_type::VisitType;
 use crate::mem::linked::visit_type::private::SealedVisitType;
@@ -23,11 +25,12 @@ use crate::mem::linked::visit_type::private::SealedVisitType;
 /// the current node is entered again.
 pub trait TraversalState<Node>
 where
+    Node: ArenaItem,
     Self::Visit: VisitType,
 {
-    type Visit;
+    type Visit: 'static;
     type Output;
-    type Error: From<ArenaError>;
+    type Error: From<ArenaError> + 'static;
 
     fn enter_node(
         &mut self,
@@ -39,11 +42,19 @@ where
         cur_node: <Self::Visit as SealedVisitType>::Ref<'_, Node>,
     ) -> Result<Self::Output, Self::Error>;
 
-    fn post_enter(&mut self, _: Index<Node>) -> Result<(), Self::Error> {
+    fn post_enter(
+        &mut self,
+        _: Index<Node>,
+        _: <Self::Visit as SealedVisitType>::Ref<'_, impl Arena<Node>>,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 
-    fn post_exit(&mut self, _: Index<Node>) -> Result<(), Self::Error> {
+    fn post_exit(
+        &mut self,
+        _: Index<Node>,
+        _: <Self::Visit as SealedVisitType>::Ref<'_, impl Arena<Node>>,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 }
@@ -52,6 +63,7 @@ pub(super) struct UncondTravState<'a, TravState>(pub &'a mut TravState);
 
 impl<Node, TravState> TraversalState<Node> for UncondTravState<'_, TravState>
 where
+    Node: ArenaItem,
     TravState: TraversalState<Node, Output = ()>,
 {
     type Visit = TravState::Visit;
@@ -74,15 +86,23 @@ where
         Ok(true)
     }
 
-    fn post_enter(&mut self, index: Index<Node>) -> Result<(), Self::Error> {
+    fn post_enter(
+        &mut self,
+        index: Index<Node>,
+        arena: <Self::Visit as SealedVisitType>::Ref<'_, impl Arena<Node>>,
+    ) -> Result<(), Self::Error> {
         self.0
-            .post_enter(index)
+            .post_enter(index, arena)
             .map_err(Into::into)
     }
 
-    fn post_exit(&mut self, index: Index<Node>) -> Result<(), Self::Error> {
+    fn post_exit(
+        &mut self,
+        index: Index<Node>,
+        arena: <Self::Visit as SealedVisitType>::Ref<'_, impl Arena<Node>>,
+    ) -> Result<(), Self::Error> {
         self.0
-            .post_exit(index)
+            .post_exit(index, arena)
             .map_err(Into::into)
     }
 }

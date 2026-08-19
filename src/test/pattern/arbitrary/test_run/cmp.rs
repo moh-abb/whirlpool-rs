@@ -4,6 +4,7 @@ use crate::ast::PatternNode;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::cmp::PatternOrdAdapter;
 use crate::ast::pattern::format::PatternDisplayAdapter;
+use crate::mem::GrowableArena;
 use crate::mem::Index;
 use crate::test::mem::arena_test::ArenaTest;
 use crate::test::mem::arena_test::ArenaTest2;
@@ -12,13 +13,12 @@ use crate::test::mem::arena_test::with_regenerated_arenas_double;
 use crate::test::mem::arena_test::with_reused_arenas;
 use crate::test::mem::arena_test::with_reused_arenas_double;
 use crate::test::pattern::arbitrary::strategy::AnyPatternStrategy;
-use crate::test::pattern::arenas::GrowableArenas;
 
 struct EqualToItself;
 impl<Arenas: PatternArenas> ArenaTest<Index<PatternNode>, Arenas>
     for EqualToItself
 {
-    fn run(arenas: &Arenas, pattern: Index<PatternNode>) {
+    fn run(arenas: &mut Arenas, pattern: Index<PatternNode>) {
         let lhs_adapter = PatternOrdAdapter::new_left(pattern.clone(), arenas);
         let rhs_adapter = PatternOrdAdapter::new_right(pattern, arenas);
         assert!(lhs_adapter.cmp(&rhs_adapter).is_eq())
@@ -53,14 +53,19 @@ fn pattern_is_equal_to_itself_once() {
     with_regenerated_arenas::<
         _,
         EqualToItself,
-        GrowableArenas,
+        GrowableArena<PatternNode>,
         AnyPatternStrategy,
     >()
 }
 
 #[test]
 fn pattern_is_equal_to_itself_multiple() {
-    with_reused_arenas::<_, EqualToItself, GrowableArenas, AnyPatternStrategy>()
+    with_reused_arenas::<
+        _,
+        EqualToItself,
+        GrowableArena<PatternNode>,
+        AnyPatternStrategy,
+    >()
 }
 
 #[test]
@@ -68,7 +73,7 @@ fn two_patterns_equal_if_and_only_if_display_equal_once() {
     with_regenerated_arenas_double::<
         _,
         PatternEqualIffReprEqual,
-        GrowableArenas,
+        GrowableArena<PatternNode>,
         AnyPatternStrategy,
     >()
 }
@@ -78,7 +83,7 @@ fn two_patterns_equal_if_and_only_if_display_equal_multiple() {
     with_reused_arenas_double::<
         _,
         PatternEqualIffReprEqual,
-        GrowableArenas,
+        GrowableArena<PatternNode>,
         AnyPatternStrategy,
     >()
 }

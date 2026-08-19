@@ -11,6 +11,7 @@ pub mod traversal_state;
 pub mod visit_type;
 pub mod visitor;
 
+pub use clone::clone_linked;
 pub use cmp::cmp_linked;
 pub use drop::drop_linked;
 pub use traversal_state::TraversalState;
@@ -29,14 +30,13 @@ pub use visitor::visit_linked_mut;
 /// "Statement", such that the "Statement"'s parent is the "Program".
 /// Here, we would implement [Linked] with `Child` as `Statement` and
 /// `Parent` as `Program`.
-pub trait Linked<Parent, Arenas>
+pub trait Linked<Parent, ChildArena, ParentArena>
 where
     Self: ArenaItem + Sized,
-    Parent: ArenaItem,
+    Parent: ArenaItem + Sized,
+    ChildArena: Arena<Self>,
+    ParentArena: Arena<Parent>,
 {
-    fn parent_arena(arenas: &Arenas) -> &impl Arena<Parent>;
-    fn child_arena(arenas: &Arenas) -> &impl Arena<Self>;
-
     fn get_parent(&self) -> &Option<Index<Parent>>;
     fn get_mut_parent(&mut self) -> &mut Option<Index<Parent>>;
 

@@ -1,10 +1,13 @@
+use core::cell::RefCell;
+use core::ops::DerefMut;
+
 use proptest::strategy::Strategy;
 use proptest::test_runner::TestRunner;
 
 use crate::test::mem::arenas_to::ArenasTo;
 
 pub trait ArenaTest<Item, Arenas> {
-    fn run(arenas: &Arenas, item: Item);
+    fn run(arenas: &mut Arenas, item: Item);
 }
 
 pub trait StrategyWithArena<Item, Arenas> {
@@ -23,14 +26,15 @@ pub fn with_regenerated_arenas<
 >() {
     let mut test_runner = TestRunner::deterministic();
     let strat = ItemStrategy::item_strategy();
-    let run_with_arena = |pat2: ArenasTo<_, _>, arenas: &Arenas| {
-        Test::run(arenas, pat2.call(arenas).unwrap())
+    let run_with_arena = |pat2: ArenasTo<_, _>, arenas: &mut Arenas| {
+        let item = pat2.call(arenas).unwrap();
+        Test::run(arenas, item)
     };
     test_runner
         .run(&strat, move |pat| {
             let pat2 = pat.clone();
-            let arenas = Arenas::default();
-            run_with_arena(pat2, &arenas);
+            let mut arenas = Arenas::default();
+            run_with_arena(pat2, &mut arenas);
             Ok(())
         })
         .unwrap()
@@ -44,9 +48,13 @@ pub fn with_reused_arenas<
 >() {
     let mut test_runner = TestRunner::deterministic();
     let strat = ItemStrategy::item_strategy();
-    let arenas = Arenas::default();
+    let arenas = RefCell::new(Arenas::default());
     let run_with_arena = |pat: ArenasTo<_, _>| {
-        Test::run(&arenas, pat.call(&arenas).unwrap());
+        let mut borrowed_arenas = arenas.borrow_mut();
+        let item = pat
+            .call(borrowed_arenas.deref_mut())
+            .unwrap();
+        Test::run(borrowed_arenas.deref_mut(), item);
         Ok(())
     };
     test_runner
@@ -68,9 +76,9 @@ pub fn with_regenerated_arenas_double<
     test_runner
         .run(&strat, move |pat| {
             let pat = pat.clone();
-            let arenas = Arenas::default();
-            let (x, y) = pat.call(&arenas).unwrap();
-            Test::run(&arenas, x, y);
+            let mut arenas = Arenas::default();
+            let (x, y) = pat.call(&mut arenas).unwrap();
+            Test::run(&mut arenas, x, y);
             Ok(())
         })
         .unwrap()
@@ -87,10 +95,13 @@ pub fn with_reused_arenas_double<
         .prop_map(|(x, y)| {
             ArenasTo::new(move |arenas| Ok((x.call(arenas)?, y.call(arenas)?)))
         });
-    let arenas = Arenas::default();
+    let arenas = RefCell::new(Arenas::default());
     let run_with_arena = |pat: ArenasTo<_, _>| {
-        let (x, y) = pat.call(&arenas).unwrap();
-        Test::run(&arenas, x, y);
+        let mut borrowed_arenas = arenas.borrow_mut();
+        let (x, y) = pat
+            .call(borrowed_arenas.deref_mut())
+            .unwrap();
+        Test::run(borrowed_arenas.deref_mut(), x, y);
         Ok(())
     };
     test_runner

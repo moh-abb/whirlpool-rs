@@ -3,17 +3,17 @@ use core::fmt::Debug;
 use crate::mem::ArenaResult;
 use crate::mem::Rc;
 
-/// Traits representing functions with static lifetimes, that take a tuple of
-/// `dyn Arena<_>` and produce an [ArenaResult].
+/// Traits representing functions with static lifetimes, that take a mutable
+/// reference to `Arenas` and produce an [ArenaResult].
 /// This can be thought of as an impure generator function which can modify the
 /// arena.
 pub trait ArenasToFn<Arenas, T>
 where
-    Self: Fn(&Arenas) -> ArenaResult<T>,
+    Self: Fn(&mut Arenas) -> ArenaResult<T>,
 {
 }
 impl<Arenas, T, F> ArenasToFn<Arenas, T> for F where
-    Self: Fn(&Arenas) -> ArenaResult<T>
+    Self: Fn(&mut Arenas) -> ArenaResult<T>
 {
 }
 
@@ -37,7 +37,7 @@ impl<Arenas, T> ArenasTo<Arenas, T> {
         Self(Rc::new(f) as Rc<dyn ArenasToFn<Arenas, T>>)
     }
 
-    pub fn call(&self, arenas: &Arenas) -> ArenaResult<T> {
+    pub fn call(&self, arenas: &mut Arenas) -> ArenaResult<T> {
         (self.0)(arenas)
     }
 }

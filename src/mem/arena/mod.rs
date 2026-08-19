@@ -11,7 +11,7 @@ impl<T> ArenaItem for T where T: Ord {}
 /// (allocated), deleted (taken), and queried for occupied status based on an
 /// [Index].
 pub trait Arena<T: ArenaItem> {
-    fn size(&self) -> usize;
+    fn size(&self) -> ArenaResult<usize>;
 
     fn push(&mut self, value: T) -> ArenaResult<Index<T>>;
 

@@ -7,7 +7,6 @@ use crate::ast::NoteUnit;
 use crate::ast::Pattern;
 use crate::ast::PatternNode;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::mem::Arena;
 use crate::mem::Index;
 use crate::test::mem::arenas_to::ArenasTo;
 
@@ -20,10 +19,6 @@ pub fn arb_pattern_leaf<Arenas: PatternArenas + 'static>()
             .prop_map(PatternNode::new)
     ];
     value_strategy.prop_map(move |value| {
-        ArenasTo::new(move |arenas: &Arenas| {
-            arenas
-                .get_pattern_arena()
-                .push(value.clone())
-        })
+        ArenasTo::new(move |arenas: &mut Arenas| arenas.push(value.clone()))
     })
 }

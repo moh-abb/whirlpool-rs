@@ -49,15 +49,15 @@ impl<T: ArenaItem, const N: usize> ScapegoatArena<T, N> {
 }
 
 impl<T: ArenaItem, const N: usize> Arena<T> for ScapegoatArena<T, N> {
-    fn size(&self) -> usize {
+    fn size(&self) -> ArenaResult<usize> {
         self.0.size()
     }
 
-    fn push(&self, value: T) -> ArenaResult<Index<T>> {
+    fn push(&mut self, value: T) -> ArenaResult<Index<T>> {
         self.0.push(value)
     }
 
-    fn take(&self, index: Index<T>) -> ArenaResult<T> {
+    fn take(&mut self, index: Index<T>) -> ArenaResult<T> {
         self.0.take(index)
     }
 
@@ -70,7 +70,7 @@ impl<T: ArenaItem, const N: usize> Arena<T> for ScapegoatArena<T, N> {
     }
 
     fn map_mut<U>(
-        &self,
+        &mut self,
         index: Index<T>,
         func: impl FnOnce(&mut T) -> U,
     ) -> ArenaResult<U> {

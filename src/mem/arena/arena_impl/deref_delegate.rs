@@ -4,15 +4,15 @@ use crate::mem::ArenaResult;
 use crate::mem::Index;
 
 impl<'a, T: ArenaItem, A: Arena<T>> Arena<T> for &'a mut A {
-    fn size(&self) -> usize {
+    fn size(&self) -> ArenaResult<usize> {
         A::size(*self)
     }
 
-    fn push(&self, value: T) -> ArenaResult<Index<T>> {
+    fn push(&mut self, value: T) -> ArenaResult<Index<T>> {
         A::push(*self, value)
     }
 
-    fn take(&self, index: Index<T>) -> ArenaResult<T> {
+    fn take(&mut self, index: Index<T>) -> ArenaResult<T> {
         A::take(*self, index)
     }
 
@@ -25,7 +25,7 @@ impl<'a, T: ArenaItem, A: Arena<T>> Arena<T> for &'a mut A {
     }
 
     fn map_mut<U>(
-        &self,
+        &mut self,
         index: Index<T>,
         func: impl FnOnce(&mut T) -> U,
     ) -> ArenaResult<U> {

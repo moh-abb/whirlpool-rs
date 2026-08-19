@@ -7,7 +7,7 @@ use crate::test::interpreter::test_expectations_with_interpreter_setup_and_start
 use crate::test::mem::arena_test::ArenaTest;
 use crate::test::mem::arena_test::with_regenerated_arenas;
 use crate::test::mem::arena_test::with_reused_arenas;
-use crate::test::pattern::arenas::GrowableArenas;
+use crate::test::pattern::arenas::GrowableArena<PatternNode>;
 
 pub struct PlayedUnitsMatchExpectations;
 impl<Arenas: PatternArenas> ArenaTest<StrategyOutput, Arenas>
@@ -35,7 +35,7 @@ fn played_small_pattern_units_match_expectations_once() {
     with_regenerated_arenas::<
         _,
         PlayedUnitsMatchExpectations,
-        GrowableArenas,
+        GrowableArena<PatternNode>,
         ArbitrarySmallSequenceStrategy,
     >()
 }
@@ -45,7 +45,7 @@ fn played_small_pattern_units_match_expectations_multiple() {
     with_reused_arenas::<
         _,
         PlayedUnitsMatchExpectations,
-        GrowableArenas,
+        GrowableArena<PatternNode>,
         ArbitrarySmallSequenceStrategy,
     >()
 }
@@ -55,7 +55,7 @@ fn played_large_pattern_units_match_expectations_once() {
     with_regenerated_arenas::<
         _,
         PlayedUnitsMatchExpectations,
-        GrowableArenas,
+        GrowableArena<PatternNode>,
         ArbitraryLargeSequenceStrategy,
     >()
 }
@@ -65,7 +65,7 @@ fn played_large_pattern_units_match_expectations_multiple() {
     with_reused_arenas::<
         _,
         PlayedUnitsMatchExpectations,
-        GrowableArenas,
+        GrowableArena<PatternNode>,
         ArbitraryLargeSequenceStrategy,
     >()
 }

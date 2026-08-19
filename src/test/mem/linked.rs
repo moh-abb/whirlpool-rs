@@ -1,6 +1,7 @@
 use core::fmt::Debug;
 use std::collections::BTreeSet;
 
+use crate::mem::Arena;
 use crate::mem::ArenaError;
 use crate::mem::ArenaItem;
 use crate::mem::Index;
@@ -44,12 +45,20 @@ where
         Ok(())
     }
 
-    fn post_enter(&mut self, index: Index<Node>) -> Result<(), Self::Error> {
+    fn post_enter(
+        &mut self,
+        index: Index<Node>,
+        _: &impl Arena<Node>,
+    ) -> Result<(), Self::Error> {
         println!("Entered {index:?}");
         Ok(())
     }
 
-    fn post_exit(&mut self, index: Index<Node>) -> Result<(), Self::Error> {
+    fn post_exit(
+        &mut self,
+        index: Index<Node>,
+        _: &impl Arena<Node>,
+    ) -> Result<(), Self::Error> {
         println!("Exited {index:?}");
         Ok(())
     }
@@ -57,7 +66,8 @@ where
 
 pub fn check_acyclic<Node, Arenas>(start_index: Index<Node>, arenas: &Arenas)
 where
-    Node: Linked<Node, Arenas> + Clone + Debug,
+    Arenas: Arena<Node>,
+    Node: Linked<Node, Arenas, Arenas> + Clone + Debug,
 {
     let mut state = CycleFinderState { visited: BTreeSet::new() };
     visit_linked(start_index, &mut state, arenas).unwrap();

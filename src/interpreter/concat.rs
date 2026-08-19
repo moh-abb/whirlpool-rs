@@ -16,7 +16,6 @@ use crate::interpreter::frame::InterpreterResult;
 use crate::interpreter::frame::query_frame;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
-use crate::mem::Arena;
 use crate::mem::ArenaResult;
 use crate::mem::Index;
 use crate::mem::Multiple;
@@ -32,7 +31,7 @@ pub enum ConcatFrame<'a, Arenas: PatternArenas> {
 }
 
 type CatOrSeqIter<'a, Arenas> = iter::Map<
-    multiple::IterChecked<'a, PatternNode, PatternNode, Arenas>,
+    multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
     fn(
         ArenaResult<Index<PatternNode>>,
     ) -> PatternInterpreterResult<ElemProps<Index<PatternNode>>>,
@@ -44,7 +43,7 @@ pub struct CatOrSeqFrame<'a, Arenas: PatternArenas>(
 );
 
 type StackIter<'a, Arenas> =
-    multiple::IterChecked<'a, PatternNode, PatternNode, Arenas>;
+    multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>;
 
 #[derive(Debug)]
 pub struct StackFrame<'a, Arenas>(PlayElemArgs<()>, StackIter<'a, Arenas>);
@@ -100,7 +99,7 @@ impl<'a, Arenas: PatternArenas> StackFrame<'a, Arenas> {
 }
 
 type TimeCatIter<'a, Arenas> = iter::Scan<
-    multiple::IterChecked<'a, PatternNode, PatternNode, Arenas>,
+    multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
     (CycleTime, CycleTime, &'a Arenas),
     fn(
         &mut (CycleTime, CycleTime, &'a Arenas),
@@ -126,7 +125,6 @@ where
     ) -> PatternInterpreterResult<ElemProps<Index<PatternNode>>>,
 {
     let cloned_pattern = arenas
-        .get_pattern_arena()
         .map(opt_index?, Clone::clone)?
         .pattern;
     let Pattern::TimedStep(timed_step) = cloned_pattern else {
@@ -206,7 +204,7 @@ impl<'a, Arenas: PatternArenas> TimeCatFrame<'a, Arenas> {
 }
 
 type ArrangeIter<'a, Arenas> = iter::Scan<
-    multiple::IterChecked<'a, PatternNode, PatternNode, Arenas>,
+    multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
     &'a Arenas,
     fn(
         &mut &'a Arenas,

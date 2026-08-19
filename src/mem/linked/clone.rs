@@ -1,3 +1,5 @@
+use core::marker::PhantomData;
+
 use crate::mem::Arena;
 use crate::mem::ArenaError;
 use crate::mem::ArenaResult;
@@ -5,6 +7,8 @@ use crate::mem::Chain;
 use crate::mem::Cow;
 use crate::mem::Index;
 use crate::mem::Multiple;
+use crate::mem::arena::arena_impl::shared_arena::SharedArena;
+use crate::mem::arena::arena_impl::shared_arena::SharedArenaRef;
 use crate::mem::linked::Linked;
 use crate::mem::linked::drop_linked;
 use crate::mem::linked::traversal_state::TraversalState;
@@ -27,18 +31,25 @@ use crate::mem::linked::visit_type::VisitRef;
 ///     - If allocation failed, then the error is recorded in `Failed`.
 /// - On `post_exit`, we update the parent node to be the parent of the current
 /// parent (assuming it still exists, which should be the case).
-struct CloneHandler<'a, Node, ArenasY, CloneF> {
-    dest_arenas: &'a ArenasY,
+struct CloneHandler<'a, Node, SourceArena, DestArena, CloneF> {
+    dest_arena: &'a mut DestArena,
     copied_node: Option<Node>,
     dest_parent: Option<Index<Node>>,
     dest_root: Option<Index<Node>>,
     clone_handler: CloneF,
+    phantom: PhantomData<SourceArena>,
 }
 
-impl<Node, ArenasY, CloneF> TraversalState<Node>
-    for CloneHandler<'_, Node, ArenasY, CloneF>
+impl<'a, Node, SourceArena, DestArena, CloneF> TraversalState<Node>
+    for CloneHandler<'a, Node, SourceArena, DestArena, CloneF>
 where
-    Node: Linked<Node, ArenasY>,
+    SourceArena: Arena<Node>,
+    DestArena: Arena<Node>,
+    for<'r, 'b> Node: Linked<
+            Node,
+            SharedArenaRef<'r, 'b, Node, DestArena>,
+            SharedArenaRef<'r, 'b, Node, DestArena>,
+        >,
     CloneF: FnMut(&Node) -> Node,
 {
     type Visit = VisitRef;
@@ -70,7 +81,11 @@ where
         Ok(())
     }
 
-    fn post_enter(&mut self, _: Index<Node>) -> Result<(), Self::Error> {
+    fn post_enter(
+        &mut self,
+        _: Index<Node>,
+        _: &impl Arena<Node>,
+    ) -> Result<(), Self::Error> {
         // Take the node we got when we were still inside the arena slot.
         let copied_node = self
             .copied_node
@@ -80,8 +95,12 @@ where
         // Allocate the child node, this will be the "next parent" when
         // traversing downwards
         let next_parent = if let Some(parent) = self.dest_parent.take() {
+            let shared_arena = SharedArena::new(self.dest_arena);
+            let mut shared_ref_1 = shared_arena.make_ref();
+            let mut shared_ref_2 = shared_arena.make_ref();
             let new_node_index = Multiple::push_back(
-                self.dest_arenas,
+                &mut shared_ref_1,
+                &mut shared_ref_2,
                 parent,
                 Cow::Owned(copied_node),
             )?;
@@ -90,8 +109,7 @@ where
         } else {
             // Just allocate the root node on its own because there cannot
             // be any sibling nodes that need to be modified.
-            let arena = Node::child_arena(self.dest_arenas);
-            let new_node_index = arena.push(copied_node)?;
+            let new_node_index = self.dest_arena.push(copied_node)?;
 
             // Don't forget to store the root node as well.
             self.dest_root = Some(new_node_index.clone());
@@ -103,15 +121,19 @@ where
         Ok(())
     }
 
-    fn post_exit(&mut self, _: Index<Node>) -> Result<(), Self::Error> {
+    fn post_exit(
+        &mut self,
+        _: Index<Node>,
+        _: &impl Arena<Node>,
+    ) -> Result<(), Self::Error> {
         // We are moving back up, so update the node to be the parent
         let Some(parent) = self.dest_parent.take() else {
             return Err(ArenaError::ExpectedParent);
         };
 
-        let arena = Node::child_arena(self.dest_arenas);
-        self.dest_parent =
-            arena.map(parent, |node| node.get_parent().clone())?;
+        self.dest_parent = self
+            .dest_arena
+            .map(parent, |node| node.get_parent().clone())?;
 
         Ok(())
     }
@@ -130,27 +152,36 @@ where
 /// Because allocation can fail once the arena reaches capacity, the result
 /// may need to be dropped (in which case `drop_handler` will be called on
 /// each element and the partial result will be removed).
-pub fn clone_linked<Node, Arenas>(
+pub fn clone_linked<Node, SourceArena, DestArena>(
     start_index: Index<Node>,
-    source_arenas: &Arenas,
-    dest_arenas: &Arenas,
+    source_arena: &SourceArena,
+    dest_arena: &mut DestArena,
     clone_handler: impl FnMut(&Node) -> Node,
 ) -> ArenaResult<Index<Node>>
 where
-    Node: Linked<Node, Arenas>,
+    SourceArena: Arena<Node>,
+    DestArena: Arena<Node>,
+    Node: Linked<Node, SourceArena, SourceArena>,
+    Node: Linked<Node, DestArena, DestArena>,
+    for<'r, 'b> Node: Linked<
+            Node,
+            SharedArenaRef<'r, 'b, Node, DestArena>,
+            SharedArenaRef<'r, 'b, Node, DestArena>,
+        >,
 {
     let mut state = CloneHandler {
-        dest_arenas,
+        dest_arena,
         copied_node: None,
         dest_parent: None,
         dest_root: None,
         clone_handler,
+        phantom: PhantomData::<SourceArena>,
     };
-    let visit_result = visit_linked(start_index, &mut state, source_arenas);
+    let visit_result = visit_linked(start_index, &mut state, source_arena);
 
     if let Err(err) = visit_result {
         if let Some(root) = state.dest_root {
-            drop_linked(root, dest_arenas)?;
+            drop_linked(root, dest_arena)?;
         }
         return Err(err);
     }
