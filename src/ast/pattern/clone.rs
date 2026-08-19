@@ -1,244 +1,68 @@
-use crate::arena::Arena;
-use crate::arena::ArenaItem;
-use crate::arena::error::ArenaResult;
-use crate::ast::pattern::Pattern;
-use crate::ast::pattern::TimedStep;
+use crate::ast::PatternNode;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::ast::pattern::drop::DropAdapter;
-use crate::ast::pattern::drop::MultiplePatternDropAdapter;
-use crate::ast::pattern::drop::MultipleTimedStepDropAdapter;
-use crate::ast::pattern::drop::PatternDropAdapter;
-use crate::ast::pattern::drop::TimedStepDropAdapter;
-use crate::ast::pattern::drop::multiple_cons;
-use crate::ast::pattern::note::NoteUnit;
-use crate::ast::pattern::visitor::PatternVisitor;
-use crate::ast::pattern::visitor::visit_pattern;
-use crate::structures::index::INVALID_INDEX_VALUE;
-use crate::structures::index::Index;
-use crate::structures::multiple::Multiple;
-
-pub struct CloneVisitor<'a, Arenas> {
-    arenas: &'a Arenas,
-}
-
-impl<'a, Arenas: PatternArenas> CloneVisitor<'a, Arenas> {
-    pub fn new(arenas: &'a Arenas) -> Self {
-        Self { arenas }
-    }
-
-    fn clone_multiple_pattern(
-        &self,
-        orig_multiple: Multiple<Pattern>,
-        make_pattern: impl FnOnce(Multiple<Pattern>) -> Pattern,
-        get_multiple: impl FnOnce(&mut Pattern) -> &mut Multiple<Pattern>,
-    ) -> ArenaResult<PatternDropAdapter<'a, Arenas>> {
-        let chain_arena = self.arenas.get_pattern_chain_arena();
-        let cloned_multiple = orig_multiple.fold_left(
-            chain_arena,
-            empty_multiple(self.arenas),
-            |acc: ArenaResult<MultiplePatternDropAdapter<'a, _>>, x| {
-                let pattern_adapter = visit_pattern(self, x)?;
-                multiple_cons(acc?, pattern_adapter, self.arenas, chain_arena)
-            },
-        );
-        alloc_pattern(self.arenas, make_pattern, get_multiple, cloned_multiple?)
-    }
-
-    fn clone_multiple_timed_step(
-        &self,
-        orig_multiple: Multiple<TimedStep>,
-        make_pattern: impl FnOnce(Multiple<TimedStep>) -> Pattern,
-        get_multiple: impl FnOnce(&mut Pattern) -> &mut Multiple<TimedStep>,
-    ) -> ArenaResult<PatternDropAdapter<'a, Arenas>> {
-        let timed_step_arena = self.arenas.get_timed_step_arena();
-        let chain_arena = self.arenas.get_timed_step_chain_arena();
-        let clone_timed_step = |timed_step: Index<TimedStep>| {
-            let cloned_timed_step = timed_step_arena
-                .inspect(timed_step, Clone::clone)
-                .unwrap();
-            let TimedStep(time_unit, pattern_index) = cloned_timed_step;
-            let mut cloned_pattern = visit_pattern(self, pattern_index)?;
-            // Allocation starts here.
-            let invalid_timed_step =
-                TimedStep(time_unit, Index::new(INVALID_INDEX_VALUE));
-            let alloc_timed_step = timed_step_arena
-                .alloc(invalid_timed_step)
-                .unwrap();
-            // Allocation ends here.
-            timed_step_arena
-                .inspect_mut(alloc_timed_step.clone(), |timed_step| {
-                    timed_step.1 = cloned_pattern.take_item();
-                })
-                .unwrap();
-            ArenaResult::Ok(TimedStepDropAdapter::new(
-                alloc_timed_step,
-                self.arenas,
-            ))
-        };
-        let cloned_multiple = orig_multiple.fold_left(
-            chain_arena,
-            empty_multiple(self.arenas),
-            |acc: ArenaResult<MultipleTimedStepDropAdapter<'a, _>>, x| {
-                let cloned_x = clone_timed_step(x)?;
-                multiple_cons(acc?, cloned_x, self.arenas, chain_arena)
-            },
-        );
-        alloc_pattern(self.arenas, make_pattern, get_multiple, cloned_multiple?)
-    }
-}
+use crate::mem::ArenaResult;
+use crate::mem::Index;
+use crate::mem::arena::arena_impl::shared_arena::SharedArenaRef;
+use crate::mem::debug_unwrap;
+use crate::mem::linked::clone_linked;
+use crate::mem::linked::drop_linked;
 
 #[derive(Debug)]
-pub struct PatternCloneDropAdapter<'a, Arenas: PatternArenas>(
-    ArenaResult<Option<Index<Pattern>>>,
-    &'a Arenas,
+pub struct PatternCloneDropAdapter<'r, 'a, Arenas: PatternArenas>(
+    ArenaResult<Option<Index<PatternNode>>>,
+    SharedArenaRef<'r, 'a, PatternNode, Arenas>,
 );
 
-impl<'a, Arenas: PatternArenas> PatternCloneDropAdapter<'a, Arenas> {
-    fn try_take_index(&mut self) -> Option<Index<Pattern>> {
+impl<'r, 'a, A: PatternArenas> PatternCloneDropAdapter<'r, 'a, A> {
+    pub fn new(
+        index: Index<PatternNode>,
+        arena_ref: SharedArenaRef<'r, 'a, PatternNode, A>,
+    ) -> Self {
+        Self(Ok(Some(index)), arena_ref)
+    }
+
+    pub fn take_opt_item(&mut self) -> Option<Index<PatternNode>> {
         self.0
             .as_mut()
             .ok()
-            .and_then(Option::take)
+            .map(Option::take)
+            .flatten()
+    }
+
+    pub fn take_item(&mut self) -> Index<PatternNode> {
+        self.take_opt_item().unwrap()
     }
 }
 
-impl<'a, Arenas: PatternArenas> DropAdapter<'a, Index<Pattern>, Arenas>
-    for PatternCloneDropAdapter<'a, Arenas>
+impl<'r, 'a, Arenas: PatternArenas> Drop
+    for PatternCloneDropAdapter<'r, 'a, Arenas>
 {
-    fn new(index: Index<Pattern>, arenas: &'a Arenas) -> Self {
-        Self(Ok(Some(index)), arenas)
-    }
-
-    fn take_item(&mut self) -> Index<Pattern> {
-        self.try_take_index().unwrap()
-    }
-}
-
-impl<'a, Arenas: PatternArenas> Drop for PatternCloneDropAdapter<'a, Arenas> {
     fn drop(&mut self) {
-        if let Some(index) = self.try_take_index() {
-            core::mem::drop(PatternDropAdapter::new(index.clone(), self.1))
+        if let Some(index) = self.take_opt_item() {
+            debug_unwrap(drop_linked(index, &mut self.1));
         }
     }
 }
 
-impl<'a, Arenas: PatternArenas> Clone for PatternCloneDropAdapter<'a, Arenas> {
+impl<'r, 'a, Arenas: PatternArenas> Clone
+    for PatternCloneDropAdapter<'r, 'a, Arenas>
+{
     fn clone(&self) -> Self {
-        let inner_res = self.0.as_ref().map_err(Clone::clone);
-        let cloned_index = inner_res.and_then(|inner| {
-            let clone_visitor = CloneVisitor::new(self.1);
-            let mut cloned_pattern =
-                visit_pattern(&clone_visitor, inner.clone().unwrap())?;
-            let index = cloned_pattern.take_item();
-            Ok(Some(index))
-        });
-        Self(cloned_index, self.1)
-    }
-}
+        let cloned_index = match self.0.clone() {
+            Ok(Some(index)) => {
+                let mut shared_ref_2 = self.1.clone();
+                let mut shared_ref_1 = self.1.clone();
+                clone_linked(
+                    index,
+                    &mut shared_ref_1,
+                    &mut shared_ref_2,
+                    PatternNode::clone,
+                )
+                .map(Some)
+            }
+            other => other,
+        };
 
-pub fn alloc_pattern<'a, Item: ArenaItem, Arenas: PatternArenas>(
-    arenas: &'a Arenas,
-    make_invalid_pattern: impl FnOnce(Multiple<Item>) -> Pattern,
-    pattern_to_multiple: impl FnOnce(&mut Pattern) -> &mut Multiple<Item>,
-    mut multiple_adapter: impl DropAdapter<'a, Multiple<Item>, Arenas>,
-) -> ArenaResult<PatternDropAdapter<'a, Arenas>> {
-    let pattern_arena = arenas.get_pattern_arena();
-    let invalid_pattern = make_invalid_pattern(Multiple::new_empty());
-    // Allocation starts here.
-    let alloc_pattern_index = pattern_arena.alloc(invalid_pattern)?;
-    // Allocation ends here.
-    let insert_multiple = |pattern: &mut Pattern| {
-        let multiple = pattern_to_multiple(pattern);
-        let new_multiple = multiple_adapter.take_item();
-        let _ = core::mem::replace(multiple, new_multiple);
-    };
-    pattern_arena
-        .inspect_mut(alloc_pattern_index.clone(), insert_multiple)
-        .unwrap();
-    Ok(DropAdapter::new(alloc_pattern_index, arenas))
-}
-
-fn empty_multiple<
-    'a,
-    Item: ArenaItem,
-    Arenas: PatternArenas,
-    MultipleDropAdapter: DropAdapter<'a, Multiple<Item>, Arenas>,
->(
-    arenas: &'a Arenas,
-) -> ArenaResult<MultipleDropAdapter> {
-    Ok(MultipleDropAdapter::new(Multiple::new_empty(), arenas))
-}
-
-impl<'a, Arenas: PatternArenas> PatternVisitor for CloneVisitor<'a, Arenas> {
-    type Output = ArenaResult<PatternDropAdapter<'a, Arenas>>;
-    type PatternOutput = ArenaResult<PatternDropAdapter<'a, Arenas>>;
-
-    fn get_arenas(&self) -> &impl PatternArenas {
-        self.arenas
-    }
-
-    fn map_pattern(
-        &self,
-        _: Index<Pattern>,
-        pattern_output: Self::PatternOutput,
-    ) -> Self::Output {
-        pattern_output
-    }
-
-    fn map_cat(&self, multiple: Multiple<Pattern>) -> Self::PatternOutput {
-        self.clone_multiple_pattern(multiple, Pattern::Cat, |pattern| {
-            let Pattern::Cat(multiple) = pattern else { unreachable!() };
-            multiple
-        })
-    }
-
-    fn map_seq(&self, multiple: Multiple<Pattern>) -> Self::PatternOutput {
-        self.clone_multiple_pattern(multiple, Pattern::Seq, |pattern| {
-            let Pattern::Seq(multiple) = pattern else { unreachable!() };
-            multiple
-        })
-    }
-
-    fn map_stack(&self, multiple: Multiple<Pattern>) -> Self::PatternOutput {
-        self.clone_multiple_pattern(multiple, Pattern::Stack, |pattern| {
-            let Pattern::Stack(multiple) = pattern else { unreachable!() };
-            multiple
-        })
-    }
-
-    fn map_time_cat(
-        &self,
-        multiple: Multiple<TimedStep>,
-    ) -> Self::PatternOutput {
-        self.clone_multiple_timed_step(multiple, Pattern::TimeCat, |pattern| {
-            let Pattern::TimeCat(multiple) = pattern else { unreachable!() };
-            multiple
-        })
-    }
-
-    fn map_arrange(
-        &self,
-        multiple: Multiple<TimedStep>,
-    ) -> Self::PatternOutput {
-        self.clone_multiple_timed_step(multiple, Pattern::Arrange, |pattern| {
-            let Pattern::Arrange(multiple) = pattern else { unreachable!() };
-            multiple
-        })
-    }
-
-    fn map_note_unit(&self, unit: NoteUnit) -> Self::PatternOutput {
-        let pattern_index = self
-            .arenas
-            .get_pattern_arena()
-            .alloc(Pattern::Note(unit))?;
-        Ok(PatternDropAdapter::new(pattern_index, self.arenas))
-    }
-
-    fn map_silence(&self) -> Self::PatternOutput {
-        let pattern_index = self
-            .arenas
-            .get_pattern_arena()
-            .alloc(Pattern::Silence)?;
-        Ok(PatternDropAdapter::new(pattern_index, self.arenas))
+        Self(cloned_index, self.1.clone())
     }
 }

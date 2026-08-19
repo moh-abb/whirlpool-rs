@@ -5,19 +5,18 @@ use proptest_derive::Arbitrary;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(Arbitrary))]
-pub struct Number(pub u16);
+pub struct NoteNumber(pub u16);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct Note {
-    pub note: Letter,
+    pub note: NoteLetter,
     pub octave: NonZeroU8,
 }
 
-#[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(Arbitrary))]
-pub enum Letter {
+pub enum NoteLetter {
     A,
     ASharp,
     B,
@@ -34,13 +33,12 @@ pub enum Letter {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(Arbitrary))]
-pub struct Frequency(pub u32);
+pub struct NoteFrequency(pub u32);
 
-#[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum NoteUnit {
-    Letter(Letter),
-    Number(Number),
-    Frequency(Frequency),
+    Letter(NoteLetter),
+    Number(NoteNumber),
+    Frequency(NoteFrequency),
 }

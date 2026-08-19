@@ -1,12 +1,12 @@
-use crate::alloc_types::Vec;
-use crate::ast::time::CycleTime;
-use crate::ast::time::CycleTimeInterval;
+use crate::ast::CycleInterval;
+use crate::ast::CycleTime;
+use crate::mem::Vec;
 use crate::test::interpreter::ScheduledExpectation;
 
 #[allow(unused)]
 #[derive(Debug)]
 pub struct NoteSequence {
-    pub interval: CycleTimeInterval,
+    pub interval: CycleInterval,
     pub offset: CycleTime,
     pub multiplier: CycleTime,
     pub expected: Vec<ScheduledExpectation>,

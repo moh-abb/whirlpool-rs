@@ -1,32 +1,50 @@
-use core::cmp::Ordering;
-
-use crate::ast::time::CycleTime;
-use crate::structures::index::Index;
-use crate::structures::multiple::Multiple;
+use crate::ast::CycleTime;
+use crate::mem::Chain;
+use crate::mem::Index;
+use crate::mem::Multiple;
 
 pub mod arenas;
 pub mod clone;
+pub mod cmp;
 pub mod drop;
-pub mod equality;
-pub mod format_display;
-pub mod interpreter;
+pub mod format;
+pub mod linked;
 pub mod note;
-#[cfg(test)]
-pub mod string_display;
-mod visitor;
+
+/// Represents a [Pattern] played with a given duration.
+///
+/// To allow for recursion, the inner pattern is a [Multiple]. However, this
+/// should only have exactly one child element.
+///
+/// To maintain the type-level invariants, this should only be a child of a
+/// pattern which expects [TimedStep] elements; i.e. [Pattern::TimeCat] or
+/// [Pattern::Arrange].
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct TimedStep(pub CycleTime, pub Multiple<PatternNode>);
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct TimedStep(pub CycleTime, pub Index<Pattern>);
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Pattern {
-    Cat(Multiple<Self>),
-    Seq(Multiple<Self>),
-    Stack(Multiple<Self>),
-    TimeCat(Multiple<TimedStep>),
-    Arrange(Multiple<TimedStep>),
+    Cat(Multiple<PatternNode>),
+    Seq(Multiple<PatternNode>),
+    Stack(Multiple<PatternNode>),
+    TimeCat { total_cycle_length: CycleTime, multiple: Multiple<PatternNode> },
+    Arrange { total_cycle_length: CycleTime, multiple: Multiple<PatternNode> },
+    TimedStep(TimedStep),
     Note(note::NoteUnit),
     Silence,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PatternNode {
+    pub parent: Option<Index<Self>>,
+    pub sibling_chain: Chain<Self>,
+    pub pattern: Pattern,
+}
+
+impl PatternNode {
+    pub const fn new(pattern: Pattern) -> Self {
+        Self { parent: None, sibling_chain: Chain::new(), pattern }
+    }
 }
 
 const fn pattern_discriminant(pattern: &Pattern) -> u8 {
@@ -34,34 +52,10 @@ const fn pattern_discriminant(pattern: &Pattern) -> u8 {
         Pattern::Cat(_) => 1,
         Pattern::Seq(_) => 2,
         Pattern::Stack(_) => 3,
-        Pattern::TimeCat(_) => 4,
-        Pattern::Arrange(_) => 5,
-        Pattern::Note(_) => 6,
-        Pattern::Silence => 7,
-    }
-}
-
-impl PartialOrd for Pattern {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Pattern {
-    fn cmp(&self, other: &Self) -> Ordering {
-        let discriminant_order =
-            pattern_discriminant(self).cmp(&pattern_discriminant(other));
-        if discriminant_order != Ordering::Equal {
-            return discriminant_order;
-        }
-        match (self, other) {
-            (Self::Cat(lhs), Self::Cat(rhs)) => lhs.cmp(rhs),
-            (Self::Seq(lhs), Self::Seq(rhs)) => lhs.cmp(rhs),
-            (Self::Stack(lhs), Self::Stack(rhs)) => lhs.cmp(rhs),
-            (Self::TimeCat(lhs), Self::TimeCat(rhs)) => lhs.cmp(rhs),
-            (Self::Note(lhs), Self::Note(rhs)) => lhs.cmp(rhs),
-            (Self::Silence, Self::Silence) => Ordering::Equal,
-            _ => unreachable!(),
-        }
+        Pattern::TimeCat { .. } => 4,
+        Pattern::Arrange { .. } => 5,
+        Pattern::TimedStep(_) => 6,
+        Pattern::Note(_) => 7,
+        Pattern::Silence => 8,
     }
 }

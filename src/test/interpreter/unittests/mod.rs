@@ -1,12 +1,19 @@
-use crate::ast::time::CycleTime;
+use crate::ast::CycleTime;
+use crate::ast::time::OverflowError;
 
 mod cat;
-mod examples;
 mod seq;
+mod silence;
 mod stack;
 mod timedstep;
-mod unit_silence;
+mod unit;
 
 // A complex (approximation of pi) offset cycle time to test played units.
-const NONZERO_OFFSET: CycleTime =
-    CycleTime::from_int(355).div(CycleTime::from_int(113));
+const NONZERO_OFFSET: CycleTime = {
+    let opt_offset = CycleTime::unwrapped_from_int(355)
+        .div(CycleTime::unwrapped_from_int(113));
+    match opt_offset {
+        Err(OverflowError) => panic!("Overflow error"),
+        Ok(offset) => offset,
+    }
+};

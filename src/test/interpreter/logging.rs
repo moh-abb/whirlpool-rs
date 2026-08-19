@@ -1,18 +1,16 @@
-#![allow(unused)]
+use crate::ast::CycleTime;
+use crate::synth::scheduler::UnitScheduler;
+use crate::synth::unit::SoundUnit;
 
-use crate::ast::time::CycleTime;
-use crate::player::PatternPlayer;
-use crate::player::unit::SoundUnit;
-
-pub struct LoggingPlayer<'a, P> {
-    player: &'a mut P,
+pub struct LoggingScheduler<'a, Scheduler> {
+    scheduler: &'a mut Scheduler,
     inner_enabled: bool,
     log_enabled: bool,
 }
 
-impl<'a, P: PatternPlayer> LoggingPlayer<'a, P> {
-    pub fn new(player: &'a mut P) -> Self {
-        Self { player, inner_enabled: true, log_enabled: false }
+impl<'a, Scheduler: UnitScheduler> LoggingScheduler<'a, Scheduler> {
+    pub fn new(scheduler: &'a mut Scheduler) -> Self {
+        Self { scheduler, inner_enabled: true, log_enabled: false }
     }
 
     pub fn set_inner_enabled(&mut self, inner_enabled: bool) {
@@ -23,22 +21,21 @@ impl<'a, P: PatternPlayer> LoggingPlayer<'a, P> {
         self.log_enabled = log_enabled;
     }
 
-    pub fn get_mut_player(&mut self) -> &mut P {
-        &mut self.player
+    pub fn get_mut_scheduler(&mut self) -> &mut Scheduler {
+        &mut self.scheduler
     }
 }
 
-impl<'a, P: PatternPlayer> PatternPlayer for LoggingPlayer<'a, P> {
-    fn schedule_note_unit(&mut self, sound: SoundUnit, start: CycleTime) {
+impl<'a, P: UnitScheduler> UnitScheduler for LoggingScheduler<'a, P> {
+    fn add(&mut self, sound: SoundUnit, start: CycleTime) {
         if !self.inner_enabled {
             return;
         }
 
         if self.log_enabled {
-            println!("LoggingPlayer: Playing {sound:?} at {start:?}");
+            println!("LoggingScheduler: Playing {sound:?} at {start:?}");
         }
 
-        self.player
-            .schedule_note_unit(sound, start);
+        self.scheduler.add(sound, start);
     }
 }
