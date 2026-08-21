@@ -2,6 +2,7 @@ use core::fmt;
 
 use crate::ast::Pattern;
 use crate::ast::PatternNode;
+use crate::ast::display::AstDisplay;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::mem::ArenaError;
 use crate::mem::Index;
@@ -99,4 +100,10 @@ impl<'a, Arenas: PatternArenas> fmt::Display
         ));
         Ok(())
     }
+}
+
+impl<'a, Arenas: PatternArenas> AstDisplay
+    for PatternDisplayAdapter<'a, Arenas>
+{
+    type Error = DisplayError;
 }

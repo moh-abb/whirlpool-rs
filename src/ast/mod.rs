@@ -1,3 +1,4 @@
+pub mod display;
 pub mod parser;
 pub mod pattern;
 pub mod time;
