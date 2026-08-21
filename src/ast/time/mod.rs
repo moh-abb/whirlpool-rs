@@ -1,5 +1,3 @@
-use core::str::FromStr;
-
 use fixed::FixedI32;
 use fixed::types::extra::U12;
 
@@ -7,6 +5,7 @@ use crate::ast::macros::compose_result;
 
 pub mod arbitrary;
 pub mod interval;
+pub mod parser;
 mod traits;
 
 type Inner = FixedI32<U12>;
@@ -19,10 +18,6 @@ pub struct CycleTime(Inner);
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct OverflowError;
-
-#[allow(unused)]
-#[derive(Debug, Clone)]
-pub struct ParseCycleTimeError(<Inner as FromStr>::Err);
 
 macro_rules! checked {
     ($e: expr) => {
@@ -40,16 +35,6 @@ macro_rules! unwrapped {
             Ok(x) => x,
         }
     };
-}
-
-impl FromStr for CycleTime {
-    type Err = ParseCycleTimeError;
-
-    fn from_str(src: &str) -> Result<Self, Self::Err> {
-        Inner::from_str(src)
-            .map(Self)
-            .map_err(ParseCycleTimeError)
-    }
 }
 
 impl CycleTime {
