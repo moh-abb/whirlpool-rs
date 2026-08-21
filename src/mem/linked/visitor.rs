@@ -128,6 +128,13 @@ where
     }
 }
 
+#[must_use]
+pub(super) enum VisitDoubleOutput {
+    Equal,
+    XFirst,
+    YFirst,
+}
+
 /// Used to traverse two structures at the same time, possibly from two
 /// different arenas.
 /// The two nodes are entered and exited in tandem, assuming the callbacks
@@ -139,7 +146,7 @@ pub(super) fn controlled_visit_two_linked<'a, TravState, Node, AX, AY>(
     state: &mut TravState,
     mut arenas_x: <TravState::Visit as SealedVisitType>::Ref<'a, AX>,
     mut arenas_y: <TravState::Visit as SealedVisitType>::Ref<'a, AY>,
-) -> Result<(), TravState::Error>
+) -> Result<VisitDoubleOutput, TravState::Error>
 where
     AX: Arena<Node>,
     AY: Arena<Node>,
@@ -185,7 +192,9 @@ where
                 fsm_state_x = next_fsm_state_x;
                 fsm_state_y = next_fsm_state_y;
             }
-            (Break(()), _) | (_, Break(())) => return Ok(()),
+            (Break(()), Continue(_)) => break Ok(VisitDoubleOutput::XFirst),
+            (Continue(_), Break(())) => break Ok(VisitDoubleOutput::YFirst),
+            (Break(()), Break(())) => break Ok(VisitDoubleOutput::Equal),
         }
 
         #[cfg(debug_assertions)]

@@ -8,6 +8,7 @@ use crate::mem::Index;
 use crate::mem::linked::Linked;
 use crate::mem::linked::TraversalState;
 use crate::mem::linked::VisitRef;
+use crate::mem::linked::visitor::VisitDoubleOutput;
 use crate::mem::linked::visitor::controlled_visit_two_linked;
 
 /// Used for comparing two linked structures, potentially in different arenas.
@@ -120,12 +121,16 @@ where
         copied_y: None,
         result: Ordering::Equal,
     };
-    controlled_visit_two_linked(
+    let visit_output = controlled_visit_two_linked(
         start_index_x,
         start_index_y,
         &mut state,
         arena_x,
         arena_y,
     )?;
-    Ok(state.result)
+    Ok(match visit_output {
+        VisitDoubleOutput::Equal => state.result,
+        VisitDoubleOutput::XFirst => Ordering::Less,
+        VisitDoubleOutput::YFirst => Ordering::Greater,
+    })
 }

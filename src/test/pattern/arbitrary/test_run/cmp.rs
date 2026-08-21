@@ -34,16 +34,28 @@ impl<Arenas: PatternArenas> ArenaTest2<Index<PatternNode>, Arenas>
         pattern_x: Index<PatternNode>,
         pattern_y: Index<PatternNode>,
     ) {
-        let repr1 = PatternDisplayAdapter::new(pattern_x.clone(), arenas);
-        let repr2 = PatternDisplayAdapter::new(pattern_y.clone(), arenas);
+        let lhs_repr = PatternDisplayAdapter::new(pattern_x.clone(), arenas);
+        let rhs_repr = PatternDisplayAdapter::new(pattern_y.clone(), arenas);
         let lhs_adapter =
             PatternOrdAdapter::new_left(pattern_x.clone(), arenas);
         let rhs_adapter =
             PatternOrdAdapter::new_right(pattern_y.clone(), arenas);
-        if format!("{repr1}") == format!("{repr2}") {
-            assert_eq!(lhs_adapter.cmp(&rhs_adapter), Ordering::Equal)
+        let lhs_fmt = format!("{lhs_repr}");
+        let rhs_fmt = format!("{rhs_repr}");
+        if lhs_fmt == rhs_fmt {
+            assert_eq!(
+                lhs_adapter.cmp(&rhs_adapter),
+                Ordering::Equal,
+                "LHS {lhs_fmt} and RHS {rhs_fmt} compared differently
+                but representations are the same"
+            )
         } else {
-            assert_ne!(lhs_adapter.cmp(&rhs_adapter), Ordering::Equal)
+            assert_ne!(
+                lhs_adapter.cmp(&rhs_adapter),
+                Ordering::Equal,
+                "LHS {lhs_fmt} and RHS {rhs_fmt} compared equally
+                but representations are different"
+            )
         }
     }
 }
