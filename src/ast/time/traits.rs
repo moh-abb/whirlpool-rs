@@ -1,5 +1,6 @@
 #![deny(unconditional_recursion)]
 
+use core::fmt;
 use core::iter::Sum;
 use core::ops::Add;
 use core::ops::Div;
@@ -43,5 +44,11 @@ impl_unary_op!(Neg, neg, neg);
 impl Sum<CycleTime> for Result<CycleTime, OverflowError> {
     fn sum<I: Iterator<Item = CycleTime>>(mut iter: I) -> Self {
         iter.try_fold(CycleTime::ZERO, CycleTime::add)
+    }
+}
+
+impl fmt::Display for CycleTime {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
     }
 }
