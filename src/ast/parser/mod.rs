@@ -1,17 +1,23 @@
 //! Defines parser input and actual parser traits.
 
 pub use chumsky::Parser as ChumskyParser;
+use chumsky::input::Input;
+use chumsky::input::SliceInput;
 use chumsky::input::ValueInput;
 use chumsky::span::SimpleSpan;
 
 pub trait ParserInput<'src>
 where
-    Self: ValueInput<'src, Token = char, Span = SimpleSpan>,
+    Self: Input<'src, Token = u8, Span = SimpleSpan>
+        + ValueInput<'src>
+        + SliceInput<'src, Slice = &'src [u8]>,
 {
 }
 
 impl<'src, I> ParserInput<'src> for I where
-    Self: ValueInput<'src, Token = char, Span = SimpleSpan>
+    Self: Input<'src, Token = u8, Span = SimpleSpan>
+        + ValueInput<'src>
+        + SliceInput<'src, Slice = &'src [u8]>
 {
 }
 
