@@ -4,6 +4,7 @@ use core::cell::RefCell;
 use mockall::predicate;
 
 use crate::ast::CycleTime;
+use crate::ast::Note;
 use crate::ast::NoteLetter;
 use crate::ast::NoteUnit;
 use crate::ast::Pattern;
@@ -139,7 +140,7 @@ fn can_clone_empty_arrange() {
 
 #[test]
 fn can_clone_letter_a() {
-    let pattern = Pattern::Note(NoteUnit::Letter(NoteLetter::A));
+    let pattern = Pattern::Note(NoteUnit::WithOctave(Note::new(NoteLetter::A)));
     test_clone_with_no_subpatterns(pattern)
 }
 
@@ -152,7 +153,7 @@ fn test_clone_with_three_subpatterns(
         Cow::Owned(PatternNode {
             parent: None,
             sibling_chain: Chain::new(),
-            pattern: Pattern::Note(NoteUnit::Letter(letter)),
+            pattern: Pattern::Note(NoteUnit::WithOctave(Note::new(letter))),
         })
     };
 

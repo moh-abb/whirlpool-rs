@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use core::num::NonZeroU16;
 
 use proptest::prelude::Arbitrary;

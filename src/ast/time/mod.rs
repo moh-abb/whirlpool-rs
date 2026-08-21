@@ -5,6 +5,7 @@ use fixed::types::extra::U12;
 
 use crate::ast::macros::compose_result;
 
+pub mod arbitrary;
 pub mod interval;
 mod traits;
 

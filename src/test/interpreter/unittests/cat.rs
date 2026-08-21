@@ -1,4 +1,5 @@
 use crate::ast::CycleTime;
+use crate::ast::Note;
 use crate::ast::NoteLetter;
 use crate::ast::NoteUnit;
 use crate::ast::Pattern;
@@ -16,7 +17,8 @@ fn play_double_alternating_cats_with_offset_and_multiplier(
     offset: CycleTime,
     multiplier: CycleTime,
 ) {
-    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
+    let note_unit =
+        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
     let unit_duration = multiplier.recip().unwrap();
     let make_scheduled_action = |start_time, letter: NoteLetter| {
         [ScheduledExpectation {
@@ -103,7 +105,8 @@ fn play_double_cat_then_unit_with_multiplier(multiplier: CycleTime) {
     // [ Cat ]     C
     // ↓  ↓
     // A   B
-    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
+    let note_unit =
+        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
 
     let unit_duration = multiplier.recip().unwrap();
     let make_scheduled_action = |start_time, letter: NoteLetter| {
@@ -158,7 +161,8 @@ fn play_cat_of_three_units_with_offset_and_multiplier(
     // [  Cat  ]
     // ↓ ↓ ↓
     // A  B  C
-    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
+    let note_unit =
+        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
 
     let make_scheduled_action = |start_time, letter: NoteLetter| {
         [ScheduledExpectation {
@@ -241,7 +245,8 @@ fn can_play_cat_of_unit_then_silence_then_unit() {
     // [  Cat  ]
     // ↓ ↓ ↓
     // A  ~  C
-    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
+    let note_unit =
+        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
 
     let make_scheduled_action = |start_time, letter: NoteLetter| {
         [ScheduledExpectation {

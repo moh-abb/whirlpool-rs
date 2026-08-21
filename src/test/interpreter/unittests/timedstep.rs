@@ -1,6 +1,7 @@
 //! Unit tests for [Pattern::Arrange] and [Pattern::TimeCat].
 
 use crate::ast::CycleTime;
+use crate::ast::Note;
 use crate::ast::NoteLetter;
 use crate::ast::NoteUnit;
 use crate::ast::Pattern;
@@ -14,7 +15,8 @@ fn play_nested_time_cats_with_elem_lengths(
     root_elem_lengths: [CycleTime; 2],
     child_elem_lengths: [CycleTime; 2],
 ) {
-    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
+    let note_unit =
+        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
     let proportion_of_root = |index: usize| {
         root_elem_lengths[index]
             / root_elem_lengths
@@ -102,7 +104,8 @@ fn can_play_nested_time_cats_with_nonequal_child_lengths() {
 }
 
 fn play_linear_time_cat_with_elem_lengths(elem_lengths: [CycleTime; 4]) {
-    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
+    let note_unit =
+        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
     let accum_lengths = elem_lengths.iter().copied().fold(
         vec![CycleTime::ZERO],
         |mut arr, x| {
@@ -210,7 +213,8 @@ fn can_play_linear_time_cat_with_complex_unequal_decimal_lengths() {
 
 #[test]
 fn can_play_nested_arranges() {
-    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
+    let note_unit =
+        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
     let start_time = |num: i32| CycleTime::unwrapped_from_int(num);
     let single_action = |unscaled_start_time, letter: NoteLetter| {
         [ScheduledExpectation {

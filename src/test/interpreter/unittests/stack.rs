@@ -1,4 +1,5 @@
 use crate::ast::CycleTime;
+use crate::ast::Note;
 use crate::ast::NoteLetter;
 use crate::ast::NoteUnit;
 use crate::ast::Pattern;
@@ -10,7 +11,8 @@ use crate::test::interpreter::test_expectations;
 
 #[test]
 fn can_play_four_stacks() {
-    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
+    let note_unit =
+        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
     let single_action = |start_time, letter: NoteLetter| ScheduledExpectation {
         start_time: CycleTime::unwrapped_from_int(start_time),
         duration: CycleTime::ONE,
@@ -38,7 +40,8 @@ fn can_play_double_stack_with_unit() {
     // [ Stack ]     C
     // ↓   ↓
     // A    B
-    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
+    let note_unit =
+        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
 
     let single_action = |start_time, letter: NoteLetter| ScheduledExpectation {
         start_time: CycleTime::unwrapped_from_int(start_time),
@@ -65,7 +68,8 @@ fn can_play_stack_of_three_units() {
     // [ Stack ]
     // ↓ ↓ ↓
     // A  B  C
-    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
+    let note_unit =
+        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
 
     let single_action = |start_time, letter: NoteLetter| ScheduledExpectation {
         start_time: CycleTime::unwrapped_from_int(start_time),
@@ -95,7 +99,8 @@ fn can_play_stack_of_cats() {
     // [ cat ]   [ cat ]
     // ↓  ↓    ↓  ↓
     // A   B     C   D
-    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
+    let note_unit =
+        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
 
     let single_action = |start_time, letter: NoteLetter| ScheduledExpectation {
         start_time: CycleTime::unwrapped_from_int(start_time),

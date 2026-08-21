@@ -1,4 +1,5 @@
 use crate::ast::CycleTime;
+use crate::ast::Note;
 use crate::ast::NoteLetter;
 use crate::ast::NoteUnit;
 use crate::ast::Pattern;
@@ -16,7 +17,8 @@ fn play_double_sequential_seqs_with_offset_and_multiplier(
     offset: CycleTime,
     multiplier: CycleTime,
 ) {
-    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
+    let note_unit =
+        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
     let multiple_length_product = CycleTime::unwrapped_from_int(4);
 
     let interpreter_time = |start_time| {
@@ -110,7 +112,8 @@ fn play_double_seq_then_unit_with_multiplier(multiplier: CycleTime) {
     // [ Seq ]     C
     // ↓  ↓
     // A   B
-    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
+    let note_unit =
+        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
     let multiple_length_product = CycleTime::unwrapped_from_int(4);
 
     let interpreter_time = |start_time| {
@@ -168,7 +171,8 @@ fn play_seq_of_three_units_with_offset_and_multiplier(
     // [  Seq  ]
     // ↓ ↓ ↓
     // A  B  C
-    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
+    let note_unit =
+        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
     let multiple_length = CycleTime::unwrapped_from_int(3);
 
     let make_scheduled_action = |start_time, letter: NoteLetter| {
@@ -256,7 +260,8 @@ fn can_play_seq_of_unit_then_silence_then_unit() {
     // [  Seq  ]
     // ↓ ↓ ↓
     // A  ~  C
-    let note_unit = |letter: NoteLetter| NoteUnit::Letter(letter);
+    let note_unit =
+        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
     let multiple_length = CycleTime::unwrapped_from_int(3);
 
     let make_scheduled_action = |start_time, letter: NoteLetter| {

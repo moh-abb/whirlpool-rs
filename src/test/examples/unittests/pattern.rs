@@ -1,4 +1,5 @@
 use crate::ast::CycleTime;
+use crate::ast::Note;
 use crate::ast::NoteLetter;
 use crate::ast::NoteUnit;
 use crate::ast::Pattern;
@@ -15,7 +16,9 @@ use crate::mem::arena::arena_impl::shared_arena::SharedArena;
 pub type FixedPatternArenas = FixableArena<PatternNode>;
 
 fn note_unit_node(letter: NoteLetter) -> Cow<PatternNode> {
-    Cow::Owned(PatternNode::new(Pattern::Note(NoteUnit::Letter(letter))))
+    Cow::Owned(PatternNode::new(Pattern::Note(NoteUnit::WithOctave(
+        Note::new(letter),
+    ))))
 }
 
 fn silence_node() -> Cow<PatternNode> {

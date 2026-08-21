@@ -11,12 +11,12 @@ use crate::ast::PatternNode;
 use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::drop::PatternDropAdapter;
+use crate::ast::time::arbitrary::arb_positive_cycle_time;
 use crate::mem::Cow;
 use crate::mem::Index;
 use crate::mem::Multiple;
 use crate::mem::arena::arena_impl::shared_arena::SharedArena;
 use crate::test::examples::arbitrary::pattern::leaf::arb_pattern_leaf;
-use crate::test::examples::arbitrary::time::arb_positive_cycle_time;
 use crate::test::mem::arenas_to::ArenasTo;
 use crate::test::mem::linked::check_acyclic;
 
