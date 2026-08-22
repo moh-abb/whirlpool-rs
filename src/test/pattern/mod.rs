@@ -1,2 +1,2 @@
-mod arbitrary;
+pub mod arbitrary;
 mod unittests;

@@ -10,6 +10,7 @@ pub mod drop;
 pub mod format;
 pub mod linked;
 pub mod note;
+pub mod parser;
 
 /// Represents a [Pattern] played with a given duration.
 ///
