@@ -21,14 +21,14 @@ impl<'src, I> Input<'src> for I where
 pub trait AstParser<'src, I, O>
 where
     I: Input<'src>,
-    Self: ChumskyParser<'src, I, O>,
+    Self: ChumskyParser<'src, I, O> + Clone,
 {
 }
 
 impl<'src, I, O, P> AstParser<'src, I, O> for P
 where
     I: Input<'src>,
-    Self: ChumskyParser<'src, I, O>,
+    Self: ChumskyParser<'src, I, O> + Clone,
 {
 }
 
