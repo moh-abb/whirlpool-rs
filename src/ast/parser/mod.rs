@@ -2,7 +2,6 @@
 
 use chumsky::Parser as ChumskyParser;
 use chumsky::input::Input as ChumskyInput;
-use chumsky::input::SliceInput;
 use chumsky::input::ValueInput;
 use chumsky::span::SimpleSpan;
 
@@ -10,16 +9,12 @@ pub mod array;
 
 pub trait Input<'src>
 where
-    Self: ChumskyInput<'src, Token = u8, Span = SimpleSpan>
-        + ValueInput<'src>
-        + SliceInput<'src, Slice = &'src [u8]>,
+    Self: ChumskyInput<'src, Token = u8, Span = SimpleSpan> + ValueInput<'src>,
 {
 }
 
 impl<'src, I> Input<'src> for I where
-    Self: ChumskyInput<'src, Token = u8, Span = SimpleSpan>
-        + ValueInput<'src>
-        + SliceInput<'src, Slice = &'src [u8]>
+    Self: ChumskyInput<'src, Token = u8, Span = SimpleSpan> + ValueInput<'src>
 {
 }
 
