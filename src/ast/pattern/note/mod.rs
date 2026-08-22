@@ -12,10 +12,11 @@ pub struct Note {
 }
 
 impl Note {
+    /// Strudel uses the default octave of 3.
+    pub const DEFAULT_OCTAVE: NonZeroU8 = NonZeroU8::new(3).unwrap();
+
     pub const fn new(letter: NoteLetter) -> Self {
-        /// Strudel uses the default octave of 3
-        const DEFAULT_OCTAVE: NonZeroU8 = NonZeroU8::new(3).unwrap();
-        Self { letter, octave: DEFAULT_OCTAVE }
+        Self { letter, octave: Self::DEFAULT_OCTAVE }
     }
 }
 
