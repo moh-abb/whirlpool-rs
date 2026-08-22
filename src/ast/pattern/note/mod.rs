@@ -3,6 +3,7 @@ use core::num::NonZeroU8;
 use crate::ast::CycleTime;
 
 pub mod arbitrary;
+pub mod format;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
