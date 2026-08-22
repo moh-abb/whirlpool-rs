@@ -1,36 +1,36 @@
 //! Defines parser input and actual parser traits.
 
-pub use chumsky::Parser as ChumskyParser;
-use chumsky::input::Input;
+use chumsky::Parser as ChumskyParser;
+use chumsky::input::Input as ChumskyInput;
 use chumsky::input::SliceInput;
 use chumsky::input::ValueInput;
 use chumsky::span::SimpleSpan;
 
-pub trait ParserInput<'src>
+pub trait Input<'src>
 where
-    Self: Input<'src, Token = u8, Span = SimpleSpan>
+    Self: ChumskyInput<'src, Token = u8, Span = SimpleSpan>
         + ValueInput<'src>
         + SliceInput<'src, Slice = &'src [u8]>,
 {
 }
 
-impl<'src, I> ParserInput<'src> for I where
-    Self: Input<'src, Token = u8, Span = SimpleSpan>
+impl<'src, I> Input<'src> for I where
+    Self: ChumskyInput<'src, Token = u8, Span = SimpleSpan>
         + ValueInput<'src>
         + SliceInput<'src, Slice = &'src [u8]>
 {
 }
 
-pub trait Parser<'src, I, O>
+pub trait AstParser<'src, I, O>
 where
-    I: ParserInput<'src>,
+    I: Input<'src>,
     Self: ChumskyParser<'src, I, O>,
 {
 }
 
-impl<'src, I, O, P> Parser<'src, I, O> for P
+impl<'src, I, O, P> AstParser<'src, I, O> for P
 where
-    I: ParserInput<'src>,
+    I: Input<'src>,
     Self: ChumskyParser<'src, I, O>,
 {
 }
@@ -38,7 +38,7 @@ where
 pub trait Parseable<'src, Args>: Sized {
     type Error;
 
-    fn parser<I: ParserInput<'src>>(
+    fn parser<I: Input<'src>>(
         args: Args,
-    ) -> impl Parser<'src, I, Result<Self, Self::Error>>;
+    ) -> impl AstParser<'src, I, Result<Self, Self::Error>>;
 }

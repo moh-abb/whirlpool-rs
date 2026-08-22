@@ -5,8 +5,8 @@ use chumsky::primitive::any;
 use chumsky::primitive::just;
 
 use crate::ast::CycleTime;
+use crate::ast::parser::Input;
 use crate::ast::parser::Parseable;
-use crate::ast::parser::ParserInput;
 use crate::ast::time::Inner;
 
 #[allow(unused)]
@@ -36,7 +36,7 @@ impl CycleTime {
 impl<'src> Parseable<'src, ()> for CycleTime {
     type Error = ParseCycleTimeError;
 
-    fn parser<I: ParserInput<'src>>(
+    fn parser<I: Input<'src>>(
         _args: (),
     ) -> impl Parser<'src, I, Result<Self, Self::Error>> {
         let opt_sign = just(b"+")
