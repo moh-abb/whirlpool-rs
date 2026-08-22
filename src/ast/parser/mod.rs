@@ -6,6 +6,8 @@ use chumsky::input::SliceInput;
 use chumsky::input::ValueInput;
 use chumsky::span::SimpleSpan;
 
+pub mod array;
+
 pub trait Input<'src>
 where
     Self: ChumskyInput<'src, Token = u8, Span = SimpleSpan>
