@@ -167,9 +167,7 @@ fn arb_pattern<Arenas: PatternArenas + 'static>(
             )
                 .prop_map(
                     |(xs, opt_time_units, pattern_func, timed_step_func)| {
-                        if let Some(time_units) = opt_time_units
-                            && false
-                        {
+                        if let Some(time_units) = opt_time_units {
                             pattern_to_time_cat_or_arrange(
                                 xs.clone(),
                                 time_units,
