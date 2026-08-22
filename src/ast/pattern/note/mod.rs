@@ -39,7 +39,10 @@ pub enum NoteLetter {
     GSharp,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    derive_more::Display, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord,
+)]
+#[display("{_0}")]
 pub struct NoteNumber(pub CycleTime);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

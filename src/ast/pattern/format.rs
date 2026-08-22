@@ -27,7 +27,7 @@ struct DisplayTraversalState<'a, 'b> {
     formatter: &'a mut fmt::Formatter<'b>,
 }
 
-#[derive(Debug, derive_more::From)]
+#[derive(derive_more::From, Debug)]
 pub enum DisplayError {
     ArenaErr(ArenaError),
     FormatErr(fmt::Error),
@@ -53,9 +53,9 @@ impl<'a, 'b> TraversalState<PatternNode> for DisplayTraversalState<'a, 'b> {
             Pattern::TimeCat { .. } => write!(f, "timeCat("),
             Pattern::Arrange { .. } => write!(f, "arrange("),
             Pattern::TimedStep(ref timed_step) => {
-                write!(f, "[{:?}, ", timed_step.0)
+                write!(f, "[{}, ", timed_step.0)
             }
-            Pattern::Note(note_unit) => write!(f, "{:?}", note_unit),
+            Pattern::Note(note_unit) => write!(f, "{}", note_unit),
             Pattern::Silence => write!(f, "~"),
         }?;
         Ok(())
