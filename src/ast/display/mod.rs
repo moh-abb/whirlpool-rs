@@ -1,6 +1,6 @@
 use core::fmt;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct AstDisplayFlags {}
 
 pub trait AstDisplay: fmt::Display {
