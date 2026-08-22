@@ -15,6 +15,7 @@ impl<const N: usize> ConvertConst for ConstToU8<N> {
 pub struct ParserVec<T, const CAP: usize> {
     inner: Vec<T, CAP, <ConstToU8<CAP> as ConvertConst>::Output>,
     exceeded: bool,
+    _verify: (),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -30,7 +31,11 @@ impl<T, const CAP: usize> Default for ParserVec<T, CAP> {
 
 impl<T, const CAP: usize> ParserVec<T, CAP> {
     pub const fn new() -> Self {
-        Self { inner: Vec::new(), exceeded: false }
+        Self {
+            inner: Vec::new(),
+            exceeded: false,
+            _verify: <ConstToU8<CAP> as ConvertConst>::_VERIFY,
+        }
     }
 
     pub fn as_slice(&self) -> Result<&[T], ParserVecError> {
