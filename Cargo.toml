@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 derive_more = { version = "2", default-features = false, features = [ "full" ] }
 fixed = "1.29.0"
+heapless = "0.9.3"
 mockall = "0.14.0"
 no_alloc = "0.1.0"
 proptest = "1.8.0"
