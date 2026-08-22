@@ -7,6 +7,7 @@ use chumsky::primitive::just;
 use fixed::ParseFixedError;
 
 use crate::ast::CycleTime;
+use crate::ast::parser::AstParser;
 use crate::ast::parser::Input;
 use crate::ast::parser::Parseable;
 use crate::ast::parser::array::ParserVec;
@@ -47,7 +48,7 @@ impl<'src> Parseable<'src, ()> for CycleTime {
 
     fn parser<I: Input<'src>>(
         _args: (),
-    ) -> impl Parser<'src, I, Result<Self, Self::Error>> {
+    ) -> impl AstParser<'src, I, Result<Self, Self::Error>> {
         just(b'+')
             .or(just(b'-'))
             .or(just(b'.'))
