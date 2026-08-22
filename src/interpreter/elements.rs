@@ -4,15 +4,10 @@ use core::ops::RangeInclusive;
 
 use crate::ast::CycleInterval;
 use crate::ast::CycleTime;
-use crate::ast::Pattern;
-use crate::ast::PatternNode;
-use crate::ast::TimedStep;
-use crate::ast::pattern::arenas::PatternArenas;
-use crate::interpreter::error::PatternInterpreterError;
+use crate::ast::pattern::arenas::sum_cycle_length;
 use crate::interpreter::error::PatternInterpreterResult;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
-use crate::mem::Multiple;
 
 #[inline]
 fn play_intersection<T: Debug>(
@@ -368,24 +363,6 @@ where
     }
 }
 
-pub fn timed_step_total_cycle_length(
-    multiple: &Multiple<PatternNode>,
-    arenas: &impl PatternArenas,
-) -> PatternInterpreterResult<CycleTime> {
-    sum_cycle_length(
-        multiple
-            .checked_iter(arenas)
-            .map(|opt_node_index| {
-                let node = arenas.map(opt_node_index?, Clone::clone)?;
-                let Pattern::TimedStep(timed_step) = node.pattern else {
-                    return Err(PatternInterpreterError::ExpectedTimedStep);
-                };
-                Ok(timed_step)
-            }),
-        |TimedStep(dur, _)| dur,
-    )
-}
-
 /// Verifies that the elements of an iterator have the correct simulation
 /// properties (simulated and played durations) as expected.
 #[inline]
@@ -419,16 +396,6 @@ where
     }
 
     Ok(())
-}
-
-pub fn sum_cycle_length<T>(
-    mut iter: impl Iterator<Item = PatternInterpreterResult<T>>,
-    mut f: impl FnMut(T) -> CycleTime,
-) -> PatternInterpreterResult<CycleTime> {
-    iter.try_fold(CycleTime::ZERO, |acc, x| {
-        let time = f(x?);
-        Ok(acc.add(time)?)
-    })
 }
 
 #[inline]

@@ -1,3 +1,4 @@
+use crate::ast::pattern::arenas::SumCycleLengthError;
 use crate::ast::time::OverflowError;
 use crate::mem::ArenaError;
 use crate::mem::structures::stack::StackError;
@@ -8,6 +9,7 @@ pub enum PatternInterpreterError {
     ArenaErr(ArenaError),
     OverflowErr(OverflowError),
     StackErr(StackError),
+    SumCycleLengthErr(SumCycleLengthError),
     MultipleEmpty,
     ExpectedTimedStep,
     ExpectedNormalPattern,

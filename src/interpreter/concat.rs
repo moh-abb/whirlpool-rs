@@ -6,9 +6,9 @@ use crate::ast::Pattern;
 use crate::ast::PatternNode;
 use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
+use crate::ast::pattern::arenas::timed_step_total_cycle_length;
 use crate::interpreter::elements::PlayMultiple;
 use crate::interpreter::elements::play_multiple_elements;
-use crate::interpreter::elements::timed_step_total_cycle_length;
 use crate::interpreter::error::PatternInterpreterError;
 use crate::interpreter::error::PatternInterpreterResult;
 use crate::interpreter::frame::EvaluateFrame;
@@ -154,7 +154,7 @@ impl<'a, Arenas: PatternArenas> TimeCatFrame<'a, Arenas> {
 
         debug_assert_eq!(
             Ok(total_cycle_length),
-            timed_step_total_cycle_length(&multiple, arenas),
+            timed_step_total_cycle_length(multiple.clone(), arenas),
         );
 
         let multiple_length =
@@ -230,7 +230,7 @@ impl<'a, Arenas: PatternArenas> ArrangeFrame<'a, Arenas> {
 
         debug_assert_eq!(
             Ok(total_cycle_length),
-            timed_step_total_cycle_length(&multiple, arenas),
+            timed_step_total_cycle_length(multiple.clone(), arenas),
         );
 
         let scan_func: fn(&mut _, _) -> _ =
