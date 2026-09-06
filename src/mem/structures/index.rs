@@ -1,7 +1,9 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
+use core::num::NonZeroU16;
 
-type IndexInner = u16;
+type IndexInput = u16;
+type IndexInner = NonZeroU16;
 const INVALID_INDEX_VALUE: u16 = u16::MAX;
 
 /// An index type used to access an [crate::mem::Arena].
@@ -25,8 +27,9 @@ impl<T> Clone for Index<T> {
 
 impl<T> Index<T> {
     #[inline(always)]
-    pub const fn new(index: IndexInner) -> Self {
-        Self(index, PhantomData)
+    pub const fn new(index: IndexInput) -> Self {
+        const ONE: NonZeroU16 = NonZeroU16::new(1).unwrap();
+        Self(ONE.saturating_add(index), PhantomData)
     }
 
     pub const fn new_invalid() -> Self {
@@ -42,6 +45,8 @@ impl<T> Index<T> {
 impl<T> From<Index<T>> for usize {
     fn from(value: Index<T>) -> Self {
         let Index(inner, _) = value;
-        usize::from(inner)
+        // Scale the index down by one for zero-indexed values.
+        let scaled_down = inner.get().saturating_sub(1);
+        usize::from(scaled_down)
     }
 }
