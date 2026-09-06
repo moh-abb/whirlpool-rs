@@ -5,13 +5,7 @@ edition = "2024"
 
 [build-dependencies]
 bindgen = "0.72.1"
-
-# Used to allow Bindgen's automatically generated names.
-[bindgen.lints]
-non_camel_case_types = "allow"
-non_upper_case_globals = "allow"
-non_snake_case = "allow"
-unnecessary_transmutes = "allow"
+cc = "1.4.4"
 
 [dependencies]
 derive_more = { version = "2", default-features = false, features = [ "full" ] }
