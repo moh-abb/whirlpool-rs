@@ -2,14 +2,56 @@ use crate::ast::CycleTime;
 use crate::ast::Pattern;
 use crate::ast::PatternNode;
 use crate::ast::TimedStep;
+use crate::ast::pattern::clone::PatternCloneDropAdapter;
+use crate::ast::pattern::drop::PatternDropAdapter;
 use crate::ast::time::OverflowError;
 use crate::mem::Arena;
 use crate::mem::ArenaError;
+use crate::mem::ArenaResult;
+use crate::mem::Index;
 use crate::mem::Multiple;
+use crate::mem::arena::arena_impl::shared_arena::SharedArenaRef;
 
 pub trait PatternArenas: Arena<PatternNode> {}
 
 impl<A: Arena<PatternNode>> PatternArenas for A {}
+
+pub trait PatternArenasExt: PatternArenas + Sized {
+    fn push_raw(
+        &mut self,
+        pattern: Pattern,
+    ) -> ArenaResult<Index<PatternNode>> {
+        self.push(PatternNode::new(pattern))
+    }
+
+    fn push_dropping(
+        &mut self,
+        pattern: Pattern,
+    ) -> ArenaResult<PatternDropAdapter<Self>>;
+
+    fn push_cloning(
+        &mut self,
+        pattern: Pattern,
+    ) -> ArenaResult<PatternCloneDropAdapter<Self>>;
+}
+
+impl<'r, A: PatternArenas> PatternArenasExt
+    for SharedArenaRef<'r, PatternNode, A>
+{
+    fn push_dropping(
+        &mut self,
+        pattern: Pattern,
+    ) -> ArenaResult<PatternDropAdapter<Self>> {
+        Ok(PatternDropAdapter::new(self.push_raw(pattern)?, self.clone()))
+    }
+
+    fn push_cloning(
+        &mut self,
+        pattern: Pattern,
+    ) -> ArenaResult<PatternCloneDropAdapter<Self>> {
+        Ok(PatternCloneDropAdapter::new(self.push_raw(pattern)?, self.clone()))
+    }
+}
 
 #[derive(derive_more::From, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SumCycleLengthError {

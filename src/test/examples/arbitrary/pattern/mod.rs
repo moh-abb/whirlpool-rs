@@ -10,7 +10,7 @@ use crate::ast::Pattern;
 use crate::ast::PatternNode;
 use crate::ast::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
-use crate::ast::pattern::drop::PatternDropAdapter;
+use crate::ast::pattern::arenas::PatternArenasExt;
 use crate::ast::time::arbitrary::arb_positive_cycle_time;
 use crate::mem::Cow;
 use crate::mem::Index;
@@ -34,13 +34,11 @@ fn pattern_to_time_cat_or_arrange<Arenas: PatternArenas + 'static>(
         .expect("expected times to not overflow");
 
     ArenasTo::new(move |arenas: &mut Arenas| {
-        let result_index = arenas
-            .push(PatternNode::new(f(total_cycle_time, Multiple::new())))?;
         let shared_arena = SharedArena::new(arenas);
-        let mut result_adapter = PatternDropAdapter::new(
-            result_index.clone(),
-            shared_arena.make_ref(),
-        );
+        let mut result_adapter = shared_arena
+            .make_ref()
+            .push_dropping(f(total_cycle_time, Multiple::new()))?;
+        let result_index = result_adapter.clone_index().unwrap();
 
         let add_single_timed_step =
             |x: ArenasTo<Arenas, _>, duration: &CycleTime| {
@@ -88,12 +86,11 @@ fn pattern_to_multiple_pattern<Arenas: PatternArenas + 'static>(
     f: fn(Multiple<PatternNode>) -> Pattern,
 ) -> ArenasTo<Arenas, Index<PatternNode>> {
     ArenasTo::new(move |arenas: &mut Arenas| {
-        let result_index = arenas.push(PatternNode::new(f(Multiple::new())))?;
         let shared_arena = SharedArena::new(&mut *arenas);
-        let mut result_adapter = PatternDropAdapter::new(
-            result_index.clone(),
-            shared_arena.make_ref(),
-        );
+        let mut result_adapter = shared_arena
+            .make_ref()
+            .push_dropping(f(Multiple::new()))?;
+        let result_index = result_adapter.clone_index().unwrap();
 
         let add_single_pattern = |x: ArenasTo<Arenas, _>| {
             // Obtain the arbitrary pattern which will form
