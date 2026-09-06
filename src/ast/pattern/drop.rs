@@ -1,18 +1,29 @@
 use crate::ast::PatternNode;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::mem::Index;
-use crate::mem::arena::arena_impl::shared_arena::SharedArenaRef;
 use crate::mem::debug_unwrap;
 use crate::mem::linked::drop::drop_linked;
 
-pub struct PatternDropAdapter<'r, 'a, Arenas: PatternArenas>(
-    pub Option<Index<PatternNode>>,
-    pub SharedArenaRef<'r, 'a, PatternNode, Arenas>,
+pub struct PatternDropAdapter<Arenas: PatternArenas>(
+    Option<Index<PatternNode>>,
+    Arenas,
 );
 
-impl<'r, 'a, Arenas: PatternArenas> Drop
-    for PatternDropAdapter<'r, 'a, Arenas>
-{
+impl<Arenas: PatternArenas> PatternDropAdapter<Arenas> {
+    pub fn new(index: Index<PatternNode>, arenas: Arenas) -> Self {
+        Self(Some(index), arenas)
+    }
+
+    pub fn clone_index(&self) -> Option<Index<PatternNode>> {
+        self.0.clone()
+    }
+
+    pub fn take_index(&mut self) -> Option<Index<PatternNode>> {
+        self.0.take()
+    }
+}
+
+impl<Arenas: PatternArenas> Drop for PatternDropAdapter<Arenas> {
     fn drop(&mut self) {
         let Some(inner) = self.0.take() else {
             return;

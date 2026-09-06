@@ -47,8 +47,8 @@ where
     DestArena: Arena<Node>,
     for<'r, 'b> Node: Linked<
             Node,
-            SharedArenaRef<'r, 'b, Node, DestArena>,
-            SharedArenaRef<'r, 'b, Node, DestArena>,
+            SharedArenaRef<'r, Node, &'b mut DestArena>,
+            SharedArenaRef<'r, Node, &'b mut DestArena>,
         >,
     CloneF: FnMut(&Node) -> Node,
 {
@@ -95,7 +95,7 @@ where
         // Allocate the child node, this will be the "next parent" when
         // traversing downwards
         let next_parent = if let Some(parent) = self.dest_parent.take() {
-            let shared_arena = SharedArena::new(self.dest_arena);
+            let shared_arena = SharedArena::new(&mut *self.dest_arena);
             let mut shared_ref_1 = shared_arena.make_ref();
             let mut shared_ref_2 = shared_arena.make_ref();
             let new_node_index = Multiple::push_back(
@@ -165,8 +165,8 @@ where
     Node: Linked<Node, DestArena, DestArena>,
     for<'r, 'b> Node: Linked<
             Node,
-            SharedArenaRef<'r, 'b, Node, DestArena>,
-            SharedArenaRef<'r, 'b, Node, DestArena>,
+            SharedArenaRef<'r, Node, &'b mut DestArena>,
+            SharedArenaRef<'r, Node, &'b mut DestArena>,
         >,
 {
     let mut state = CloneHandler {

@@ -35,8 +35,7 @@ impl<Arenas: PatternArenas> ArenaTest<Index<PatternNode>, Arenas>
             ))
             .expect("Internal pattern should be correct");
         let result_index = result_adapter
-            .0
-            .take()
+            .take_index()
             .expect("Should have a full item inside the adapter");
         let result_formatted =
             PatternDisplayAdapter::new(result_index.clone(), &shared_arena_ref);

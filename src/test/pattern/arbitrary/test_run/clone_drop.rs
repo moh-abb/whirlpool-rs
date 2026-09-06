@@ -27,7 +27,7 @@ impl<Arenas: PatternArenas> ArenaTest<Index<PatternNode>, Arenas>
     fn run(arenas: &mut Arenas, node: Index<PatternNode>) {
         let shared_arena = SharedArena::new(arenas);
         let shared_arena_ref = shared_arena.make_ref();
-        drop(PatternDropAdapter(Some(node), shared_arena_ref))
+        drop(PatternDropAdapter::new(node, shared_arena_ref))
     }
 }
 
@@ -37,9 +37,9 @@ impl<Arenas: PatternArenas> ArenaTest<Index<PatternNode>, Arenas>
 {
     fn run(arenas: &mut Arenas, pattern: Index<PatternNode>) {
         assert_ne!(arenas.size(), Ok(0));
-        let shared_arena = SharedArena::new(arenas);
+        let shared_arena = SharedArena::new(&mut *arenas);
         let shared_arena_ref = shared_arena.make_ref();
-        drop(PatternDropAdapter(Some(pattern), shared_arena_ref));
+        drop(PatternDropAdapter::new(pattern, shared_arena_ref));
         assert_eq!(arenas.size(), Ok(0));
     }
 }
@@ -123,7 +123,7 @@ impl<Arenas: PatternArenas> ArenaTest<Index<PatternNode>, Arenas>
         );
         let drop_ref = shared_arenas.make_ref();
         let pattern_3_adapter =
-            PatternDropAdapter(Some(pattern_3.clone()), drop_ref);
+            PatternDropAdapter::new(pattern_3.clone(), drop_ref);
         drop(pattern_3_adapter);
         let sizes_4 = adapter_ref.size().unwrap();
         assert_eq!(
@@ -131,7 +131,7 @@ impl<Arenas: PatternArenas> ArenaTest<Index<PatternNode>, Arenas>
             "Cloning then dropping should preserve the number of elements"
         );
         let drop_ref_2 = shared_arenas.make_ref();
-        drop(PatternDropAdapter(Some(pattern_2), drop_ref_2));
+        drop(PatternDropAdapter::new(pattern_2, drop_ref_2));
         let sizes_5 = adapter_ref.size().unwrap();
         assert_eq!(
             sizes_5, sizes,

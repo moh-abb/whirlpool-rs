@@ -46,14 +46,14 @@ fn timed_step_func_fields<'a>(
     }
 }
 
-impl<'src, 'a, A: PatternArenas>
-    Parseable<'src, SharedArenaRef<'src, 'a, PatternNode, A>>
-    for PatternDropAdapter<'src, 'a, A>
+impl<'src, A: PatternArenas>
+    Parseable<'src, SharedArenaRef<'src, PatternNode, A>>
+    for PatternDropAdapter<SharedArenaRef<'src, PatternNode, A>>
 {
     type Error = ParsePatternError;
 
     fn parser<I: Input<'src>>(
-        shared_arena_ref: SharedArenaRef<'src, 'a, PatternNode, A>,
+        shared_arena_ref: SharedArenaRef<'src, PatternNode, A>,
     ) -> impl AstParser<'src, I, Result<Self, Self::Error>> {
         let normal_func_map: [(&[u8], fn(_) -> _); _] = [
             (b"cat", Pattern::Cat),
@@ -82,8 +82,8 @@ impl<'src, 'a, A: PatternArenas>
                 let mut cloned_arena_ref = shared_arena_ref.clone();
                 let node_index =
                     cloned_arena_ref.push(PatternNode::new(node))?;
-                Result::<_, ParsePatternError>::Ok(PatternDropAdapter(
-                    Some(node_index),
+                Result::<_, ParsePatternError>::Ok(PatternDropAdapter::new(
+                    node_index,
                     cloned_arena_ref,
                 ))
             };
@@ -113,14 +113,12 @@ impl<'src, 'a, A: PatternArenas>
         let cons_pattern = move |acc: _, opt_x: _| {
             let parent_adapter: PatternDropAdapter<_> = acc?;
             let parent_index = parent_adapter
-                .0
-                .clone()
+                .clone_index()
                 .ok_or(ParsePatternError::ExpectedFullAdapter)?;
 
             let mut child_adapter: PatternDropAdapter<_> = opt_x?;
             let child_index = child_adapter
-                .0
-                .take()
+                .take_index()
                 .ok_or(ParsePatternError::ExpectedFullAdapter)?;
 
             let mut shared_arena_ref_1 = shared_arena_ref.clone();
@@ -139,8 +137,7 @@ impl<'src, 'a, A: PatternArenas>
             let time = opt_time?;
             let mut child_adapter: PatternDropAdapter<_> = opt_x?;
             let child_index = child_adapter
-                .0
-                .clone()
+                .clone_index()
                 .ok_or(ParsePatternError::ExpectedFullAdapter)?;
 
             let timed_step_adapter = push_to_arena(Ok(Pattern::TimedStep(
@@ -148,8 +145,7 @@ impl<'src, 'a, A: PatternArenas>
             )))?;
 
             let timed_step_index = timed_step_adapter
-                .0
-                .clone()
+                .clone_index()
                 .ok_or(ParsePatternError::ExpectedFullAdapter)?;
 
             let mut shared_arena_ref_1 = shared_arena_ref.clone();
@@ -162,7 +158,7 @@ impl<'src, 'a, A: PatternArenas>
             )?;
 
             // Avoid dropping the newly-linked child.
-            child_adapter.0.take();
+            child_adapter.take_index();
 
             Result::<_, ParsePatternError>::Ok(timed_step_adapter)
         };
@@ -172,8 +168,7 @@ impl<'src, 'a, A: PatternArenas>
 
             let parent_adapter: PatternDropAdapter<_> = func_result?;
             let parent_index = parent_adapter
-                .0
-                .clone()
+                .clone_index()
                 .ok_or(ParsePatternError::ExpectedFullAdapter)?;
 
             let mut cloned_arena_ref = shared_arena_ref.clone();

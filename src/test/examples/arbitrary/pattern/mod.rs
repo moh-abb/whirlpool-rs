@@ -37,8 +37,8 @@ fn pattern_to_time_cat_or_arrange<Arenas: PatternArenas + 'static>(
         let result_index = arenas
             .push(PatternNode::new(f(total_cycle_time, Multiple::new())))?;
         let shared_arena = SharedArena::new(arenas);
-        let mut result_adapter = PatternDropAdapter(
-            Some(result_index.clone()),
+        let mut result_adapter = PatternDropAdapter::new(
+            result_index.clone(),
             shared_arena.make_ref(),
         );
 
@@ -78,7 +78,7 @@ fn pattern_to_time_cat_or_arrange<Arenas: PatternArenas + 'static>(
             .try_for_each(|(x, duration)| add_single_timed_step(x, duration))?;
 
         // Now take the result to stop it being dropped.
-        result_adapter.0.take();
+        result_adapter.take_index();
         Ok(result_index)
     })
 }
@@ -89,9 +89,9 @@ fn pattern_to_multiple_pattern<Arenas: PatternArenas + 'static>(
 ) -> ArenasTo<Arenas, Index<PatternNode>> {
     ArenasTo::new(move |arenas: &mut Arenas| {
         let result_index = arenas.push(PatternNode::new(f(Multiple::new())))?;
-        let shared_arena = SharedArena::new(arenas);
-        let mut result_adapter = PatternDropAdapter(
-            Some(result_index.clone()),
+        let shared_arena = SharedArena::new(&mut *arenas);
+        let mut result_adapter = PatternDropAdapter::new(
+            result_index.clone(),
             shared_arena.make_ref(),
         );
 
@@ -119,7 +119,7 @@ fn pattern_to_multiple_pattern<Arenas: PatternArenas + 'static>(
             .try_for_each(add_single_pattern)?;
 
         // Now take the result to stop it being dropped.
-        result_adapter.0.take();
+        result_adapter.take_index();
         drop(result_adapter);
 
         check_acyclic(result_index.clone(), arenas);
