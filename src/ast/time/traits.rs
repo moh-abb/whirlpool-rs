@@ -9,7 +9,7 @@ use core::ops::Neg;
 use core::ops::Rem;
 use core::ops::Sub;
 
-use crate::ast::CycleTime;
+use crate::ast::time::CycleTime;
 use crate::ast::time::OverflowError;
 
 macro_rules! impl_unary_op {

@@ -4,10 +4,10 @@ use core::num::NonZeroU16;
 use proptest::prelude::Strategy;
 use proptest::test_runner::Reason;
 
-use crate::ast::CycleInterval;
-use crate::ast::CycleTime;
+use crate::ast::time::CycleTime;
 use crate::ast::time::arbitrary::arb_cycle_time;
 use crate::ast::time::arbitrary::arb_positive_cycle_time;
+use crate::ast::time::interval::CycleInterval;
 
 const MAX_START_TIME: CycleTime = CycleTime::unwrapped_from_int(1 << 9);
 const MAX_DURATION: CycleTime = CycleTime::unwrapped_from_int(1 << 5);

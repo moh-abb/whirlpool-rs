@@ -1,12 +1,13 @@
+use core::debug_assert_matches;
 use core::iter;
 use core::ops::ControlFlow;
 
-use crate::ast::CycleTime;
-use crate::ast::Pattern;
-use crate::ast::PatternNode;
-use crate::ast::TimedStep;
+use crate::ast::pattern::Pattern;
+use crate::ast::pattern::PatternNode;
+use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::arenas::timed_step_total_cycle_length;
+use crate::ast::time::CycleTime;
 use crate::interpreter::elements::PlayMultiple;
 use crate::interpreter::elements::play_multiple_elements;
 use crate::interpreter::error::PatternInterpreterError;
@@ -152,9 +153,9 @@ impl<'a, Arenas: PatternArenas> TimeCatFrame<'a, Arenas> {
             return Err(PatternInterpreterError::MultipleEmpty);
         }
 
-        debug_assert_eq!(
-            Ok(total_cycle_length),
+        debug_assert_matches!(
             timed_step_total_cycle_length(multiple.clone(), arenas),
+            Ok(len) if len == total_cycle_length,
         );
 
         let multiple_length =
@@ -228,9 +229,9 @@ impl<'a, Arenas: PatternArenas> ArrangeFrame<'a, Arenas> {
             return Err(PatternInterpreterError::MultipleEmpty);
         }
 
-        debug_assert_eq!(
-            Ok(total_cycle_length),
+        debug_assert_matches!(
             timed_step_total_cycle_length(multiple.clone(), arenas),
+            Ok(length) if length == total_cycle_length,
         );
 
         let scan_func: fn(&mut _, _) -> _ =

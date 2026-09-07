@@ -1,4 +1,4 @@
-use crate::ast::CycleTime;
+use crate::ast::time::CycleTime;
 use crate::synth::unit::SoundUnit;
 
 #[cfg_attr(test, mockall::automock)]

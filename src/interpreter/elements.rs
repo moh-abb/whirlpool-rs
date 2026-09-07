@@ -2,9 +2,9 @@ use core::fmt::Debug;
 use core::iter;
 use core::ops::RangeInclusive;
 
-use crate::ast::CycleInterval;
-use crate::ast::CycleTime;
 use crate::ast::pattern::arenas::sum_cycle_length;
+use crate::ast::time::CycleTime;
+use crate::ast::time::interval::CycleInterval;
 use crate::interpreter::error::PatternInterpreterResult;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;

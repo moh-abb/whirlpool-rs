@@ -3,14 +3,14 @@ use core::cell::RefCell;
 
 use mockall::predicate;
 
-use crate::ast::CycleTime;
-use crate::ast::Note;
-use crate::ast::NoteLetter;
-use crate::ast::NoteUnit;
-use crate::ast::Pattern;
-use crate::ast::PatternNode;
+use crate::ast::note::Note;
+use crate::ast::note::NoteLetter;
+use crate::ast::note::NoteUnit;
+use crate::ast::pattern::Pattern;
+use crate::ast::pattern::PatternNode;
 use crate::ast::pattern::clone::PatternCloneDropAdapter;
 use crate::ast::pattern::cmp::PatternOrdAdapter;
+use crate::ast::time::CycleTime;
 use crate::mem::Arena;
 use crate::mem::ArenaMocker;
 use crate::mem::Chain;
@@ -18,7 +18,7 @@ use crate::mem::Cow;
 use crate::mem::GrowableArena;
 use crate::mem::Index;
 use crate::mem::Multiple;
-use crate::mem::arena::arena_impl::shared_arena::SharedArena;
+use crate::mem::SharedArena;
 
 type Slot<T> = Rc<RefCell<Option<T>>>;
 fn empty_slot<T>() -> Slot<T> {
@@ -186,15 +186,17 @@ fn test_clone_with_three_subpatterns(
     )
     .unwrap();
     Multiple::push_back(
-        &mut shared_arena_ref_1,
-        &mut shared_arena_ref_2,
+        &mut shared_arena_ref_1.clone(),
+        &mut shared_arena_ref_2.clone(),
         parent_index.clone(),
         make_letter(NoteLetter::C),
     )
     .unwrap();
 
-    let mut orig_adapter =
-        PatternCloneDropAdapter::new(parent_index.clone(), shared_arena_ref_1);
+    let mut orig_adapter = PatternCloneDropAdapter::new(
+        parent_index.clone(),
+        shared_arena_ref_1.clone(),
+    );
     let cloned_index = orig_adapter.clone().take_item();
     assert_ne!(parent_index, cloned_index);
     assert_eq!(

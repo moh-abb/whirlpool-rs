@@ -1,15 +1,17 @@
-use crate::ast::CycleTime;
+use crate::ast::note::NoteUnit;
+use crate::ast::time::CycleTime;
 use crate::mem::Chain;
 use crate::mem::Index;
 use crate::mem::Multiple;
 
+pub mod arbitrary;
 pub mod arenas;
 pub mod clone;
 pub mod cmp;
 pub mod drop;
+pub mod examples;
 pub mod format;
 pub mod linked;
-pub mod note;
 pub mod parser;
 
 /// Represents a [Pattern] played with a given duration.
@@ -31,7 +33,7 @@ pub enum Pattern {
     TimeCat { total_cycle_length: CycleTime, multiple: Multiple<PatternNode> },
     Arrange { total_cycle_length: CycleTime, multiple: Multiple<PatternNode> },
     TimedStep(TimedStep),
-    Note(note::NoteUnit),
+    Note(NoteUnit),
     Silence,
 }
 

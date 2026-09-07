@@ -1,17 +1,17 @@
 use proptest::prelude::Strategy;
 
-use crate::ast::Pattern;
+use crate::ast::pattern::Pattern;
+use crate::ast::pattern::arbitrary::arb_large_pattern;
+use crate::ast::pattern::arbitrary::arb_small_pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::time::OverflowError;
 use crate::interpreter::error::PatternInterpreterError;
 use crate::mem::Index;
-use crate::test::examples::arbitrary::pattern::arb_large_pattern;
-use crate::test::examples::arbitrary::pattern::arb_small_pattern;
+use crate::mem::arena::test::ArenasTo;
+use crate::mem::arena::test::StrategyWithArena;
 use crate::test::interpreter::arbitrary::expectations::arb_interval_offset_and_multiplier;
 use crate::test::interpreter::arbitrary::expectations::pattern_expectations;
 use crate::test::interpreter::sequence::NoteSequence;
-use crate::test::mem::arena_test::StrategyWithArena;
-use crate::test::mem::arenas_to::ArenasTo;
 
 pub type StrategyOutput = Result<(Index<Pattern>, NoteSequence), OverflowError>;
 
@@ -19,9 +19,9 @@ fn prop_map_func<Arenas: PatternArenas + 'static>(
     (arenas_to_pattern, (interval, offset, multiplier)): (
         ArenasTo<Arenas, Index<Pattern>>,
         (
-            crate::ast::CycleInterval,
-            crate::ast::CycleTime,
-            crate::ast::CycleTime,
+            crate::ast::time::interval::CycleInterval,
+            crate::ast::time::CycleTime,
+            crate::ast::time::CycleTime,
         ),
     ),
 ) -> ArenasTo<Arenas, Result<(Index<Pattern>, NoteSequence), OverflowError>> {

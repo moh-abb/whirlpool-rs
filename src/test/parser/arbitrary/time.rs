@@ -1,27 +1,34 @@
 use chumsky::Parser;
 use proptest::strategy::Strategy;
 
-use crate::ast::CycleTime;
-use crate::ast::PatternNode;
 use crate::ast::parser::Parseable;
+use crate::ast::pattern::PatternNode;
+use crate::ast::time::CycleTime;
 use crate::ast::time::arbitrary::arb_cycle_time;
+use crate::mem::ArenaError;
 use crate::mem::GrowableArena;
-use crate::test::mem::arena_test::ArenaTest;
-use crate::test::mem::arena_test::StrategyWithArena;
-use crate::test::mem::arena_test::with_regenerated_arenas;
-use crate::test::mem::arena_test::with_reused_arenas;
-use crate::test::mem::arenas_to::ArenasTo;
+use crate::mem::SharedArenaRef;
+use crate::mem::arena::test::ArenaTest;
+use crate::mem::arena::test::ArenasTo;
+use crate::mem::arena::test::StrategyWithArena;
+use crate::mem::arena::test::arenas_test_run;
 
 struct AnyTimeStrategy;
-impl<Arenas> StrategyWithArena<CycleTime, Arenas> for AnyTimeStrategy {
-    fn item_strategy() -> impl Strategy<Value = ArenasTo<Arenas, CycleTime>> {
+impl<Arenas> StrategyWithArena<CycleTime, Arenas, ArenaError>
+    for AnyTimeStrategy
+{
+    fn item_strategy<'r>()
+    -> impl Strategy<Value = ArenasTo<'r, Arenas, CycleTime, ArenaError>>
+    where
+        Arenas: 'r,
+    {
         arb_cycle_time().prop_map(|time| ArenasTo::new(move |_arenas| Ok(time)))
     }
 }
 
 struct ValidateTime;
 impl<Arenas> ArenaTest<CycleTime, Arenas> for ValidateTime {
-    fn run(_arenas: &mut Arenas, time: CycleTime) {
+    fn run<'r>(_arenas: SharedArenaRef<'r, Arenas>, time: CycleTime) {
         let formatted = format!("{time}");
         let parser = CycleTime::parser(());
         let result = parser
@@ -37,21 +44,12 @@ impl<Arenas> ArenaTest<CycleTime, Arenas> for ValidateTime {
 }
 
 #[test]
-fn can_parse_cycle_time_once() {
-    with_regenerated_arenas::<
+fn can_parse_cycle_time() {
+    arenas_test_run::<
         CycleTime,
         ValidateTime,
         GrowableArena<PatternNode>,
         AnyTimeStrategy,
-    >();
-}
-
-#[test]
-fn can_parse_cycle_time_multiple() {
-    with_reused_arenas::<
-        CycleTime,
-        ValidateTime,
-        GrowableArena<PatternNode>,
-        AnyTimeStrategy,
+        ArenaError,
     >();
 }

@@ -1,4 +1,8 @@
 use crate::ast::pattern::arenas::PatternArenas;
+use crate::mem::GrowableArena;
+use crate::mem::arena::test::ArenaTest;
+use crate::mem::arena::test::with_regenerated_arenas;
+use crate::mem::arena::test::with_reused_arenas;
 use crate::test::interpreter::FullInterpreterSetup;
 use crate::test::interpreter::arbitrary::strategy::ArbitraryLargeSequenceStrategy;
 use crate::test::interpreter::arbitrary::strategy::ArbitrarySmallSequenceStrategy;
@@ -7,7 +11,6 @@ use crate::test::interpreter::test_expectations_with_interpreter_setup_and_start
 use crate::test::mem::arena_test::ArenaTest;
 use crate::test::mem::arena_test::with_regenerated_arenas;
 use crate::test::mem::arena_test::with_reused_arenas;
-use crate::test::pattern::arenas::GrowableArena<PatternNode>;
 
 pub struct PlayedUnitsMatchExpectations;
 impl<Arenas: PatternArenas> ArenaTest<StrategyOutput, Arenas>

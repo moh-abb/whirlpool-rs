@@ -4,12 +4,12 @@ use core::ops::ControlFlow::Continue;
 use crate::mem::Arena;
 use crate::mem::Index;
 use crate::mem::linked::Linked;
-use crate::mem::linked::TraversalState;
-use crate::mem::linked::VisitMut;
-use crate::mem::linked::VisitRef;
+use crate::mem::linked::traversal_state::TraversalState;
 use crate::mem::linked::traversal_state::UncondTravState;
-use crate::mem::linked::visit_type::CurrentTraversalState::EnterNode;
-use crate::mem::linked::visit_type::CurrentTraversalState::ExitNode;
+use crate::mem::linked::visit_type::VisitMut;
+use crate::mem::linked::visit_type::VisitRef;
+use crate::mem::linked::visit_type::private::CurrentTraversalState::EnterNode;
+use crate::mem::linked::visit_type::private::CurrentTraversalState::ExitNode;
 use crate::mem::linked::visit_type::private::SealedVisitType;
 
 #[cfg(debug_assertions)]

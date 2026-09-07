@@ -19,6 +19,8 @@ pub use arena::arena_impl::growable_arena::GrowableArena;
 #[cfg(test)]
 pub use arena::arena_impl::mock_arena::ArenaMocker;
 pub use arena::arena_impl::scapegoat_arena::ScapegoatArena;
+pub use arena::arena_impl::shared_arena::SharedArena;
+pub use arena::arena_impl::shared_arena::SharedArenaRef;
 pub use arena::error::ArenaError;
 pub use arena::error::ArenaResult;
 pub use structures::chain::Chain;

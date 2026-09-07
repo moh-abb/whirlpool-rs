@@ -1,5 +1,5 @@
-use crate::ast::CycleTime;
-use crate::ast::NoteUnit;
+use crate::ast::note::NoteUnit;
+use crate::ast::time::CycleTime;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SoundUnit {

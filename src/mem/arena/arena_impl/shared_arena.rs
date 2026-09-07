@@ -1,5 +1,4 @@
 use core::cell::RefCell;
-use core::marker::PhantomData;
 use core::ops::Deref;
 use core::ops::DerefMut;
 
@@ -10,29 +9,23 @@ use crate::mem::ArenaResult;
 use crate::mem::Index;
 
 #[derive(Debug)]
-pub struct SharedArena<'a, T, A>(RefCell<&'a mut A>, PhantomData<T>);
+pub struct SharedArena<A>(RefCell<A>);
 
 #[derive(Debug)]
-pub struct SharedArenaRef<'r, 'a, T, A>(&'r SharedArena<'a, T, A>);
+pub struct SharedArenaRef<'r, A>(&'r SharedArena<A>);
 
-impl<'r, 'a, T, A> Clone for SharedArenaRef<'r, 'a, T, A> {
+impl<'r, A> Clone for SharedArenaRef<'r, A> {
     fn clone(&self) -> Self {
         Self(self.0)
     }
 }
 
-impl<'r, 'a, T, A> Copy for SharedArenaRef<'r, 'a, T, A> {}
-
-impl<'a, T, A> SharedArena<'a, T, A>
-where
-    T: ArenaItem,
-    A: Arena<T>,
-{
-    pub fn new(arena: &'a mut A) -> Self {
-        Self(RefCell::new(arena), PhantomData)
+impl<A> SharedArena<A> {
+    pub fn new(arena: A) -> Self {
+        Self(RefCell::new(arena))
     }
 
-    pub fn make_ref<'r>(&'r self) -> SharedArenaRef<'r, 'a, T, A> {
+    pub fn make_ref<'r>(&'r self) -> SharedArenaRef<'r, A> {
         SharedArenaRef(self)
     }
 
@@ -56,7 +49,7 @@ where
     }
 }
 
-impl<'r, 'a, T, A> Arena<T> for SharedArenaRef<'r, 'a, T, A>
+impl<'r, T, A> Arena<T> for SharedArenaRef<'r, A>
 where
     T: ArenaItem,
     A: Arena<T>,

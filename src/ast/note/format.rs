@@ -1,10 +1,10 @@
 use core::fmt;
 
-use crate::ast::Note;
-use crate::ast::NoteLetter;
-use crate::ast::NoteUnit;
 use crate::ast::display::AstDisplay;
 use crate::ast::display::AstDisplayFlags;
+use crate::ast::note::Note;
+use crate::ast::note::NoteLetter;
+use crate::ast::note::NoteUnit;
 use crate::mem::debug_unwrap;
 
 #[derive(derive_more::From, Debug)]

@@ -9,7 +9,7 @@ use proptest::prelude::any;
 use proptest::prop_oneof;
 use proptest::test_runner::Reason;
 
-use crate::ast::CycleTime;
+use crate::ast::time::CycleTime;
 
 pub fn arb_positive_cycle_time<NumSource: Arbitrary + Into<NonZeroU16>>()
 -> impl Strategy<Value = CycleTime> {

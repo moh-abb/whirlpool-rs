@@ -4,10 +4,10 @@ use core::fmt::Debug;
 
 use mockall::predicate;
 
-use crate::ast::CycleTime;
-use crate::ast::NoteUnit;
-use crate::ast::PatternNode;
+use crate::ast::note::NoteUnit;
+use crate::ast::pattern::PatternNode;
 use crate::ast::pattern::arenas::PatternArenas;
+use crate::ast::time::CycleTime;
 use crate::interpreter::Interpreter;
 use crate::interpreter::frame::InterpreterFrame;
 use crate::interpreter::pattern::PatternInterpreter;

@@ -1,9 +1,9 @@
 use core::iter;
 use core::ops::ControlFlow;
 
-use crate::ast::CycleTime;
-use crate::ast::NoteUnit;
+use crate::ast::note::NoteUnit;
 use crate::ast::pattern::arenas::PatternArenas;
+use crate::ast::time::CycleTime;
 use crate::interpreter::elements::PlayMultiple;
 use crate::interpreter::elements::play_multiple_elements;
 use crate::interpreter::error::PatternInterpreterResult;

@@ -1,12 +1,12 @@
 use core::cmp::Ordering;
 
-use crate::ast::Pattern;
-use crate::ast::PatternNode;
-use crate::ast::TimedStep;
+use crate::ast::pattern::Pattern;
+use crate::ast::pattern::PatternNode;
+use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::pattern_discriminant;
 use crate::mem::Index;
-use crate::mem::linked::cmp_linked;
+use crate::mem::linked::cmp::cmp_linked;
 
 /// Compares two [PatternNode]s on a surface level, without considering nesting
 /// between the nodes' children.
