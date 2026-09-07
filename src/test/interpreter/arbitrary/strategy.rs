@@ -1,12 +1,12 @@
 use proptest::prelude::Strategy;
 
 use crate::ast::Pattern;
+use crate::ast::pattern::arbitrary::arb_large_pattern;
+use crate::ast::pattern::arbitrary::arb_small_pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::time::OverflowError;
 use crate::interpreter::error::PatternInterpreterError;
 use crate::mem::Index;
-use crate::test::examples::arbitrary::pattern::arb_large_pattern;
-use crate::test::examples::arbitrary::pattern::arb_small_pattern;
 use crate::test::interpreter::arbitrary::expectations::arb_interval_offset_and_multiplier;
 use crate::test::interpreter::arbitrary::expectations::pattern_expectations;
 use crate::test::interpreter::sequence::NoteSequence;

@@ -186,15 +186,17 @@ fn test_clone_with_three_subpatterns(
     )
     .unwrap();
     Multiple::push_back(
-        &mut shared_arena_ref_1,
-        &mut shared_arena_ref_2,
+        &mut shared_arena_ref_1.clone(),
+        &mut shared_arena_ref_2.clone(),
         parent_index.clone(),
         make_letter(NoteLetter::C),
     )
     .unwrap();
 
-    let mut orig_adapter =
-        PatternCloneDropAdapter::new(parent_index.clone(), shared_arena_ref_1);
+    let mut orig_adapter = PatternCloneDropAdapter::new(
+        parent_index.clone(),
+        shared_arena_ref_1.clone(),
+    );
     let cloned_index = orig_adapter.clone().take_item();
     assert_ne!(parent_index, cloned_index);
     assert_eq!(

@@ -1,3 +1,4 @@
+use core::debug_assert_matches;
 use core::iter;
 use core::ops::ControlFlow;
 
@@ -152,9 +153,9 @@ impl<'a, Arenas: PatternArenas> TimeCatFrame<'a, Arenas> {
             return Err(PatternInterpreterError::MultipleEmpty);
         }
 
-        debug_assert_eq!(
-            Ok(total_cycle_length),
+        debug_assert_matches!(
             timed_step_total_cycle_length(multiple.clone(), arenas),
+            Ok(len) if len == total_cycle_length,
         );
 
         let multiple_length =
@@ -228,9 +229,9 @@ impl<'a, Arenas: PatternArenas> ArrangeFrame<'a, Arenas> {
             return Err(PatternInterpreterError::MultipleEmpty);
         }
 
-        debug_assert_eq!(
-            Ok(total_cycle_length),
+        debug_assert_matches!(
             timed_step_total_cycle_length(multiple.clone(), arenas),
+            Ok(length) if length == total_cycle_length,
         );
 
         let scan_func: fn(&mut _, _) -> _ =

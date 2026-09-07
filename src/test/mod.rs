@@ -2,6 +2,6 @@
 
 mod examples;
 mod interpreter;
-mod mem;
+pub mod mem;
 mod parser;
 mod pattern;

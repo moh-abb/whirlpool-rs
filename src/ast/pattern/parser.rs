@@ -1,3 +1,5 @@
+use core::array;
+
 use chumsky::Parser;
 use chumsky::primitive::choice;
 use chumsky::primitive::just;
@@ -7,12 +9,12 @@ use crate::ast::CycleTime;
 use crate::ast::NoteUnit;
 use crate::ast::Pattern;
 use crate::ast::PatternNode;
-use crate::ast::TimedStep;
 use crate::ast::parser::AstParser;
 use crate::ast::parser::Input;
 use crate::ast::parser::Parseable;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::arenas::PatternArenasExt;
+use crate::ast::pattern::arenas::PatternPushBackError;
 use crate::ast::pattern::arenas::SumCycleLengthError;
 use crate::ast::pattern::arenas::timed_step_total_cycle_length;
 use crate::ast::pattern::drop::PatternDropAdapter;
@@ -20,7 +22,6 @@ use crate::ast::pattern::note::parser::ParseNoteUnitError;
 use crate::ast::time::parser::ParseCycleTimeError;
 use crate::mem::Arena;
 use crate::mem::ArenaError;
-use crate::mem::Cow;
 use crate::mem::Multiple;
 use crate::mem::arena::arena_impl::shared_arena::SharedArenaRef;
 
@@ -32,6 +33,7 @@ pub enum ParsePatternError {
     CycleTimeErr(ParseCycleTimeError),
     NoteUnitErr(ParseNoteUnitError),
     SumCycleLengthErr(SumCycleLengthError),
+    PatternPushBackErr(PatternPushBackError),
 }
 
 fn timed_step_func_fields<'a>(
@@ -47,15 +49,17 @@ fn timed_step_func_fields<'a>(
     }
 }
 
-impl<'src, A: PatternArenas>
-    Parseable<'src, SharedArenaRef<'src, PatternNode, A>>
-    for PatternDropAdapter<SharedArenaRef<'src, PatternNode, A>>
+impl<'src, A: PatternArenas> Parseable<'src, SharedArenaRef<'src, A>>
+    for PatternDropAdapter<SharedArenaRef<'src, A>>
 {
     type Error = ParsePatternError;
 
     fn parser<I: Input<'src>>(
-        shared_arena_ref: SharedArenaRef<'src, PatternNode, A>,
+        shared_arena_ref: SharedArenaRef<'src, A>,
     ) -> impl AstParser<'src, I, Result<Self, Self::Error>> {
+        let [ref_1, ref_2, ref_3, ref_4, ref_5, ref_6] =
+            array::from_fn(|_| shared_arena_ref.clone());
+
         let normal_func_map: [(&[u8], fn(_) -> _); _] = [
             (b"cat", Pattern::Cat),
             (b"seq", Pattern::Seq),
@@ -87,7 +91,7 @@ impl<'src, A: PatternArenas>
             .or(leaf_silence)
             .map(move |opt_leaf| {
                 opt_leaf.and_then(|leaf| {
-                    shared_arena_ref
+                    ref_1
                         .clone()
                         .push_dropping(leaf)
                         .map_err(Into::into)
@@ -108,57 +112,33 @@ impl<'src, A: PatternArenas>
 
         let cons_pattern = move |acc: _, opt_x: _| {
             let parent_adapter: PatternDropAdapter<_> = acc?;
+            let child_adapter: PatternDropAdapter<_> = opt_x?;
+
             let parent_index = parent_adapter
                 .clone_index()
                 .ok_or(ParsePatternError::ExpectedFullAdapter)?;
-
-            let mut child_adapter: PatternDropAdapter<_> = opt_x?;
-            let child_index = child_adapter
-                .take_index()
-                .ok_or(ParsePatternError::ExpectedFullAdapter)?;
-
-            let mut shared_arena_ref_1 = shared_arena_ref.clone();
-            let mut shared_arena_ref_2 = shared_arena_ref.clone();
-            Multiple::push_back(
-                &mut shared_arena_ref_1,
-                &mut shared_arena_ref_2,
-                parent_index,
-                Cow::Indexed(child_index),
-            )?;
+            ref_2
+                .clone()
+                .push_pattern_adapter(parent_index, child_adapter)?;
 
             Result::<_, ParsePatternError>::Ok(parent_adapter)
         };
 
-        let create_timed_step = move |opt_time, opt_x| {
+        let cons_timed_step = move |acc: _, (opt_time, opt_x): (_, _)| {
+            let parent_adapter: PatternDropAdapter<_> = acc?;
             let time = opt_time?;
-            let mut child_adapter: PatternDropAdapter<_> = opt_x?;
-            let child_index = child_adapter
+            let child_adapter: PatternDropAdapter<_> = opt_x?;
+
+            let parent_index = parent_adapter
                 .clone_index()
                 .ok_or(ParsePatternError::ExpectedFullAdapter)?;
-
-            let timed_step =
-                Pattern::TimedStep(TimedStep(time, Multiple::new()));
-            let timed_step_adapter = shared_arena_ref
-                .clone()
-                .push_dropping(timed_step)?;
-
-            let timed_step_index = timed_step_adapter
-                .clone_index()
-                .ok_or(ParsePatternError::ExpectedFullAdapter)?;
-
-            let mut shared_arena_ref_1 = shared_arena_ref.clone();
-            let mut shared_arena_ref_2 = shared_arena_ref.clone();
-            Multiple::push_back(
-                &mut shared_arena_ref_1,
-                &mut shared_arena_ref_2,
-                timed_step_index,
-                Cow::Indexed(child_index),
+            ref_3.clone().push_timed_step_adapter(
+                parent_index,
+                time,
+                child_adapter,
             )?;
 
-            // Avoid dropping the newly-linked child.
-            child_adapter.take_index();
-
-            Result::<_, ParsePatternError>::Ok(timed_step_adapter)
+            Result::<_, ParsePatternError>::Ok(parent_adapter)
         };
 
         let update_total_cycle_length = move |func_result| {
@@ -168,7 +148,7 @@ impl<'src, A: PatternArenas>
                 .clone_index()
                 .ok_or(ParsePatternError::ExpectedFullAdapter)?;
 
-            let mut cloned_arena_ref = shared_arena_ref.clone();
+            let mut cloned_arena_ref = ref_4.clone();
             let parent_multiple =
                 cloned_arena_ref.map_mut(parent_index.clone(), |node| {
                     let (_, parent_mut_multiple) =
@@ -195,7 +175,7 @@ impl<'src, A: PatternArenas>
         recursive(move |subpattern| {
             let normal_func = normal_func_start
                 .map(move |normal_func| {
-                    shared_arena_ref
+                    ref_5
                         .clone()
                         .push_dropping(normal_func(Multiple::new()))
                         .map_err(Into::into)
@@ -213,14 +193,12 @@ impl<'src, A: PatternArenas>
                 .ignore_then(CycleTime::parser(()))
                 .then_ignore(separator.clone())
                 .then(subpattern)
-                .then_ignore(just(b']'))
-                .map(move |(opt_time, opt_x)| {
-                    create_timed_step(opt_time, opt_x)
-                });
+                .then_ignore(just(b']'));
 
+            let cloned_arena_ref = ref_6.clone();
             let timed_step_func = timed_step_func_start
                 .map(move |timed_step_func| {
-                    shared_arena_ref
+                    cloned_arena_ref
                         .clone()
                         .push_dropping(timed_step_func(
                             CycleTime::ZERO,
@@ -233,7 +211,7 @@ impl<'src, A: PatternArenas>
                     timed_step
                         .clone()
                         .separated_by(separator),
-                    cons_pattern,
+                    cons_timed_step,
                 )
                 .then_ignore(close_arguments)
                 .map(update_total_cycle_length);

@@ -47,8 +47,8 @@ where
     DestArena: Arena<Node>,
     for<'r, 'b> Node: Linked<
             Node,
-            SharedArenaRef<'r, Node, &'b mut DestArena>,
-            SharedArenaRef<'r, Node, &'b mut DestArena>,
+            SharedArenaRef<'r, &'b mut DestArena>,
+            SharedArenaRef<'r, &'b mut DestArena>,
         >,
     CloneF: FnMut(&Node) -> Node,
 {
@@ -165,8 +165,8 @@ where
     Node: Linked<Node, DestArena, DestArena>,
     for<'r, 'b> Node: Linked<
             Node,
-            SharedArenaRef<'r, Node, &'b mut DestArena>,
-            SharedArenaRef<'r, Node, &'b mut DestArena>,
+            SharedArenaRef<'r, &'b mut DestArena>,
+            SharedArenaRef<'r, &'b mut DestArena>,
         >,
 {
     let mut state = CloneHandler {

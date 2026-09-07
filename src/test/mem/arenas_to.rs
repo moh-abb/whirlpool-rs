@@ -1,43 +1,48 @@
 use core::fmt::Debug;
 
-use crate::mem::ArenaResult;
 use crate::mem::Rc;
+use crate::mem::arena::arena_impl::shared_arena::SharedArenaRef;
 
 /// Traits representing functions with static lifetimes, that take a mutable
 /// reference to `Arenas` and produce an [ArenaResult].
 /// This can be thought of as an impure generator function which can modify the
 /// arena.
-pub trait ArenasToFn<Arenas, T>
+pub trait ArenasToFn<'r, Arenas, T, E>
 where
-    Self: Fn(&mut Arenas) -> ArenaResult<T>,
+    Self: Fn(SharedArenaRef<'r, Arenas>) -> Result<T, E> + 'r,
+    Arenas: 'r,
 {
 }
-impl<Arenas, T, F> ArenasToFn<Arenas, T> for F where
-    Self: Fn(&mut Arenas) -> ArenaResult<T>
+impl<'r, Arenas, T, E, F> ArenasToFn<'r, Arenas, T, E> for F
+where
+    Self: Fn(SharedArenaRef<'r, Arenas>) -> Result<T, E> + 'r,
+    Arenas: 'r,
 {
 }
 
 /// A helper struct to avoid rewriting casting to [ArenasToFn].
-pub struct ArenasTo<Arenas, T>(Rc<dyn ArenasToFn<Arenas, T>>);
+pub struct ArenasTo<'r, Arenas, T, E>(
+    Rc<dyn ArenasToFn<'r, Arenas, T, E> + 'r>,
+);
 
-impl<Arenas, T> Debug for ArenasTo<Arenas, T> {
+impl<'r, Arenas, T, E> Debug for ArenasTo<'r, Arenas, T, E> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "ArenasTo")
     }
 }
 
-impl<Arenas, T> Clone for ArenasTo<Arenas, T> {
+impl<'r, Arenas, T, E> Clone for ArenasTo<'r, Arenas, T, E> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<Arenas, T> ArenasTo<Arenas, T> {
-    pub fn new(f: impl ArenasToFn<Arenas, T> + 'static) -> Self {
-        Self(Rc::new(f) as Rc<dyn ArenasToFn<Arenas, T>>)
+impl<'r, Arenas, T, E> ArenasTo<'r, Arenas, T, E> {
+    pub fn new(f: impl ArenasToFn<'r, Arenas, T, E>) -> Self {
+        Self(Rc::new(f) as Rc<dyn ArenasToFn<'r, Arenas, T, E>>)
     }
 
-    pub fn call(&self, arenas: &mut Arenas) -> ArenaResult<T> {
+    pub fn call(&self, arenas: SharedArenaRef<'r, Arenas>) -> Result<T, E> {
         (self.0)(arenas)
     }
 }
