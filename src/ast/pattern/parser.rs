@@ -23,7 +23,7 @@ use crate::ast::time::parser::ParseCycleTimeError;
 use crate::mem::Arena;
 use crate::mem::ArenaError;
 use crate::mem::Multiple;
-use crate::mem::arena::arena_impl::shared_arena::SharedArenaRef;
+use crate::mem::SharedArenaRef;
 
 #[derive(derive_more::From, Debug)]
 pub enum ParsePatternError {

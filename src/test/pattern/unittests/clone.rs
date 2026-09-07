@@ -18,7 +18,7 @@ use crate::mem::Cow;
 use crate::mem::GrowableArena;
 use crate::mem::Index;
 use crate::mem::Multiple;
-use crate::mem::arena::arena_impl::shared_arena::SharedArena;
+use crate::mem::SharedArena;
 
 type Slot<T> = Rc<RefCell<Option<T>>>;
 fn empty_slot<T>() -> Slot<T> {

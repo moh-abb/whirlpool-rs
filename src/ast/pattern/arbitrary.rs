@@ -19,9 +19,9 @@ use crate::ast::time::arbitrary::arb_positive_cycle_time;
 use crate::mem::ArenaError;
 use crate::mem::Index;
 use crate::mem::Multiple;
-use crate::mem::arena::arena_impl::shared_arena::SharedArenaRef;
-use crate::test::mem::arenas_to::ArenasTo;
-use crate::test::mem::linked::check_acyclic;
+use crate::mem::SharedArenaRef;
+use crate::mem::arena::test::ArenasTo;
+use crate::mem::linked::checker::check_acyclic;
 
 #[allow(unused)]
 #[derive(derive_more::From, Debug)]

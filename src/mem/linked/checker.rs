@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use core::fmt::Debug;
 use std::collections::BTreeSet;
 

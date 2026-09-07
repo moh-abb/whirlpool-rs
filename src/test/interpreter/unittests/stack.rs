@@ -3,9 +3,9 @@ use crate::ast::Note;
 use crate::ast::NoteLetter;
 use crate::ast::NoteUnit;
 use crate::ast::Pattern;
-use crate::test::examples::unittests::pattern::binary_tree_depth_two;
-use crate::test::examples::unittests::pattern::half_binary_tree_depth_two;
-use crate::test::examples::unittests::pattern::multiple_of_three_units;
+use crate::ast::pattern::examples::binary_tree_depth_two;
+use crate::ast::pattern::examples::half_binary_tree_depth_two;
+use crate::ast::pattern::examples::multiple_of_three_units;
 use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::test_expectations;
 

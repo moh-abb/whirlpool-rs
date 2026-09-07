@@ -5,9 +5,9 @@ use crate::ast::Note;
 use crate::ast::NoteLetter;
 use crate::ast::NoteUnit;
 use crate::ast::Pattern;
+use crate::ast::pattern::examples::half_binary_tree_depth_two_with_timed_steps;
+use crate::ast::pattern::examples::multiple_of_four_timed_steps;
 use crate::ast::time::OverflowError;
-use crate::test::examples::unittests::pattern::half_binary_tree_depth_two_with_timed_steps;
-use crate::test::examples::unittests::pattern::multiple_of_four_timed_steps;
 use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::test_expectations;
 

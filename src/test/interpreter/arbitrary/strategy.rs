@@ -7,11 +7,11 @@ use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::time::OverflowError;
 use crate::interpreter::error::PatternInterpreterError;
 use crate::mem::Index;
+use crate::mem::arena::test::ArenasTo;
+use crate::mem::arena::test::StrategyWithArena;
 use crate::test::interpreter::arbitrary::expectations::arb_interval_offset_and_multiplier;
 use crate::test::interpreter::arbitrary::expectations::pattern_expectations;
 use crate::test::interpreter::sequence::NoteSequence;
-use crate::test::mem::arena_test::StrategyWithArena;
-use crate::test::mem::arenas_to::ArenasTo;
 
 pub type StrategyOutput = Result<(Index<Pattern>, NoteSequence), OverflowError>;
 

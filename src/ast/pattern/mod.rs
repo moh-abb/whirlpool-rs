@@ -8,6 +8,7 @@ pub mod arenas;
 pub mod clone;
 pub mod cmp;
 pub mod drop;
+pub mod examples;
 pub mod format;
 pub mod linked;
 pub mod note;

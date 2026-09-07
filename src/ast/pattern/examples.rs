@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use crate::ast::CycleTime;
 use crate::ast::Note;
 use crate::ast::NoteLetter;
@@ -11,7 +13,7 @@ use crate::mem::Cow;
 use crate::mem::FixableArena;
 use crate::mem::Index;
 use crate::mem::Multiple;
-use crate::mem::arena::arena_impl::shared_arena::SharedArena;
+use crate::mem::SharedArena;
 
 pub type FixedPatternArenas = FixableArena<PatternNode>;
 

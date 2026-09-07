@@ -7,11 +7,11 @@ use crate::ast::parser::Parseable;
 use crate::ast::time::arbitrary::arb_cycle_time;
 use crate::mem::ArenaError;
 use crate::mem::GrowableArena;
-use crate::mem::arena::arena_impl::shared_arena::SharedArenaRef;
-use crate::test::mem::arena_test::ArenaTest;
-use crate::test::mem::arena_test::StrategyWithArena;
-use crate::test::mem::arena_test::arenas_test_run;
-use crate::test::mem::arenas_to::ArenasTo;
+use crate::mem::SharedArenaRef;
+use crate::mem::arena::test::ArenaTest;
+use crate::mem::arena::test::ArenasTo;
+use crate::mem::arena::test::StrategyWithArena;
+use crate::mem::arena::test::arenas_test_run;
 
 struct AnyTimeStrategy;
 impl<Arenas> StrategyWithArena<CycleTime, Arenas, ArenaError>

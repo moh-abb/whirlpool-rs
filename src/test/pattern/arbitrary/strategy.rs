@@ -6,7 +6,7 @@ use crate::ast::pattern::arbitrary::ArenasToPatternIndex;
 use crate::ast::pattern::arbitrary::arb_large_pattern;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::mem::Index;
-use crate::test::mem::arena_test::StrategyWithArena;
+use crate::mem::arena::test::StrategyWithArena;
 
 pub struct AnyPatternStrategy;
 impl<Arenas: PatternArenas>

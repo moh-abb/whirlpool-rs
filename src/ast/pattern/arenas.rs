@@ -10,7 +10,7 @@ use crate::mem::ArenaError;
 use crate::mem::Cow;
 use crate::mem::Index;
 use crate::mem::Multiple;
-use crate::mem::arena::arena_impl::shared_arena::SharedArenaRef;
+use crate::mem::SharedArenaRef;
 
 pub trait PatternArenas: Arena<PatternNode> {}
 

@@ -4,6 +4,7 @@ use crate::mem::Chain;
 use crate::mem::Index;
 use crate::mem::Multiple;
 
+pub mod checker;
 pub mod clone;
 pub mod cmp;
 pub mod drop;

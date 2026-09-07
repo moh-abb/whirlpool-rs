@@ -11,9 +11,9 @@ use crate::ast::pattern::drop::PatternDropAdapter;
 use crate::ast::pattern::format::PatternDisplayAdapter;
 use crate::mem::GrowableArena;
 use crate::mem::Index;
-use crate::mem::arena::arena_impl::shared_arena::SharedArenaRef;
-use crate::test::mem::arena_test::ArenaTest;
-use crate::test::mem::arena_test::arenas_test_run;
+use crate::mem::SharedArenaRef;
+use crate::mem::arena::test::ArenaTest;
+use crate::mem::arena::test::arenas_test_run;
 use crate::test::pattern::arbitrary::strategy::AnyPatternStrategy;
 
 struct ValidatePattern;

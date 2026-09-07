@@ -1,7 +1,7 @@
 use crate::ast::CycleTime;
 use crate::ast::NoteNumber;
 use crate::ast::NoteUnit;
-use crate::test::examples::unittests::pattern::one_cycle_unit;
+use crate::ast::pattern::examples::one_cycle_unit;
 use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::test_expectations;
 

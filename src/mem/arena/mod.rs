@@ -3,6 +3,7 @@ use crate::mem::Index;
 
 pub mod arena_impl;
 pub mod error;
+pub mod test;
 
 pub trait ArenaItem: Ord {}
 impl<T> ArenaItem for T where T: Ord {}
