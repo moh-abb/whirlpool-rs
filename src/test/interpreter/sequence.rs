@@ -1,5 +1,5 @@
-use crate::ast::CycleInterval;
-use crate::ast::CycleTime;
+use crate::ast::time::CycleTime;
+use crate::ast::time::interval::CycleInterval;
 use crate::mem::Vec;
 use crate::test::interpreter::ScheduledExpectation;
 

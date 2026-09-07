@@ -1,9 +1,9 @@
 use chumsky::Parser;
 use proptest::strategy::Strategy;
 
-use crate::ast::CycleTime;
-use crate::ast::PatternNode;
 use crate::ast::parser::Parseable;
+use crate::ast::pattern::PatternNode;
+use crate::ast::time::CycleTime;
 use crate::ast::time::arbitrary::arb_cycle_time;
 use crate::mem::ArenaError;
 use crate::mem::GrowableArena;

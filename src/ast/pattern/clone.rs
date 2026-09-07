@@ -1,10 +1,10 @@
-use crate::ast::PatternNode;
+use crate::ast::pattern::PatternNode;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::mem::ArenaResult;
 use crate::mem::Index;
 use crate::mem::debug_unwrap;
-use crate::mem::linked::clone_linked;
-use crate::mem::linked::drop_linked;
+use crate::mem::linked::clone::clone_linked;
+use crate::mem::linked::drop::drop_linked;
 
 #[derive(Debug)]
 pub struct PatternCloneDropAdapter<Arenas: PatternArenas>(

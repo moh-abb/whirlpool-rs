@@ -1,12 +1,12 @@
 //! Unit tests for [Pattern::Arrange] and [Pattern::TimeCat].
 
-use crate::ast::CycleTime;
-use crate::ast::Note;
-use crate::ast::NoteLetter;
-use crate::ast::NoteUnit;
-use crate::ast::Pattern;
+use crate::ast::note::Note;
+use crate::ast::note::NoteLetter;
+use crate::ast::note::NoteUnit;
+use crate::ast::pattern::Pattern;
 use crate::ast::pattern::examples::half_binary_tree_depth_two_with_timed_steps;
 use crate::ast::pattern::examples::multiple_of_four_timed_steps;
+use crate::ast::time::CycleTime;
 use crate::ast::time::OverflowError;
 use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::test_expectations;

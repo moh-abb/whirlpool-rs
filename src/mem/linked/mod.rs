@@ -12,16 +12,6 @@ pub mod traversal_state;
 pub mod visit_type;
 pub mod visitor;
 
-pub use clone::clone_linked;
-pub use cmp::cmp_linked;
-pub use drop::drop_linked;
-pub use traversal_state::TraversalState;
-pub use visit_type::VisitMut;
-pub use visit_type::VisitRef;
-pub use visitor::controlled_visit_linked;
-pub use visitor::visit_linked;
-pub use visitor::visit_linked_mut;
-
 /// Represents a structure which is linked to other elements such that:
 /// - It can have a parent which owns its children via a [Multiple]
 /// - It can have siblings which are referenced via a [Chain]

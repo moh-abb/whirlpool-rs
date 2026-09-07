@@ -5,9 +5,9 @@ use crate::mem::ArenaError;
 use crate::mem::ArenaResult;
 use crate::mem::Index;
 use crate::mem::linked::Linked;
-use crate::mem::linked::VisitMut;
 use crate::mem::linked::traversal_state::TraversalState;
-use crate::mem::linked::visit_linked_mut;
+use crate::mem::linked::visit_type::VisitMut;
+use crate::mem::linked::visitor::visit_linked_mut;
 
 struct DropTraversalState<Arenas>(PhantomData<Arenas>);
 

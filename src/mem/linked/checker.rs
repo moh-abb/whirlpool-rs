@@ -8,9 +8,9 @@ use crate::mem::ArenaError;
 use crate::mem::ArenaItem;
 use crate::mem::Index;
 use crate::mem::linked::Linked;
-use crate::mem::linked::TraversalState;
-use crate::mem::linked::VisitRef;
-use crate::mem::linked::visit_linked;
+use crate::mem::linked::traversal_state::TraversalState;
+use crate::mem::linked::visit_type::VisitRef;
+use crate::mem::linked::visitor::visit_linked;
 
 struct CycleFinderState<Node> {
     visited: BTreeSet<Node>,

@@ -7,14 +7,14 @@ use proptest::prelude::Strategy;
 use proptest::prelude::prop;
 use proptest::prop_oneof;
 
-use crate::ast::CycleTime;
-use crate::ast::Pattern;
-use crate::ast::PatternNode;
+use crate::ast::note::arbitrary::arb_note_unit;
+use crate::ast::pattern::Pattern;
+use crate::ast::pattern::PatternNode;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::arenas::PatternArenasExt;
 use crate::ast::pattern::arenas::PatternPushBackError;
 use crate::ast::pattern::drop::PatternDropAdapter;
-use crate::ast::pattern::note::arbitrary::arb_note_unit;
+use crate::ast::time::CycleTime;
 use crate::ast::time::arbitrary::arb_positive_cycle_time;
 use crate::mem::ArenaError;
 use crate::mem::Index;

@@ -1,5 +1,5 @@
-use crate::ast::CycleInterval;
-use crate::ast::CycleTime;
+use crate::ast::time::CycleTime;
+use crate::ast::time::interval::CycleInterval;
 
 /// A struct used to denote the simulation properties of each element in a
 /// [Multiple]. This includes the element itself, the number of cycles to play

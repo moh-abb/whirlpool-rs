@@ -6,8 +6,8 @@ use crate::mem::ArenaItem;
 use crate::mem::ArenaResult;
 use crate::mem::Index;
 use crate::mem::linked::Linked;
-use crate::mem::linked::TraversalState;
-use crate::mem::linked::VisitRef;
+use crate::mem::linked::traversal_state::TraversalState;
+use crate::mem::linked::visit_type::VisitRef;
 use crate::mem::linked::visitor::VisitDoubleOutput;
 use crate::mem::linked::visitor::controlled_visit_two_linked;
 

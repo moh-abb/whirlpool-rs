@@ -3,10 +3,10 @@ use core::marker::PhantomData;
 use core::ops::ControlFlow;
 use core::ops::DerefMut;
 
-use crate::ast::CycleInterval;
-use crate::ast::CycleTime;
-use crate::ast::PatternNode;
+use crate::ast::pattern::PatternNode;
 use crate::ast::pattern::arenas::PatternArenas;
+use crate::ast::time::CycleTime;
+use crate::ast::time::interval::CycleInterval;
 use crate::interpreter::Interpreter;
 use crate::interpreter::borrow::BorrowAdapter;
 use crate::interpreter::error::PatternInterpreterError;

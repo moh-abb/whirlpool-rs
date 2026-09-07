@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use crate::ast::PatternNode;
+use crate::ast::pattern::PatternNode;
 use crate::ast::pattern::arbitrary::ArbPatternError;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::cmp::PatternOrdAdapter;

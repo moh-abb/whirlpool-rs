@@ -10,10 +10,10 @@ use crate::mem::Multiple;
 use crate::mem::SharedArena;
 use crate::mem::SharedArenaRef;
 use crate::mem::linked::Linked;
-use crate::mem::linked::drop_linked;
+use crate::mem::linked::drop::drop_linked;
 use crate::mem::linked::traversal_state::TraversalState;
-use crate::mem::linked::visit_linked;
 use crate::mem::linked::visit_type::VisitRef;
+use crate::mem::linked::visitor::visit_linked;
 
 /// Used to implement a FSM to represent the current state of cloning as we
 /// traverse the source structure.

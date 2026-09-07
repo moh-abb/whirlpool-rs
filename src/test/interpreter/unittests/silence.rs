@@ -1,5 +1,5 @@
-use crate::ast::CycleTime;
 use crate::ast::pattern::examples::one_cycle_silence;
+use crate::ast::time::CycleTime;
 use crate::test::interpreter::test_expectations;
 
 #[test]

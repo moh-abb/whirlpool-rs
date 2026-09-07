@@ -1,4 +1,4 @@
-use crate::ast::PatternNode;
+use crate::ast::pattern::PatternNode;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::mem::Index;
 use crate::mem::debug_unwrap;

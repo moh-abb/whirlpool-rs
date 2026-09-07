@@ -1,6 +1,6 @@
 use core::num::NonZeroU8;
 
-use crate::ast::CycleTime;
+use crate::ast::time::CycleTime;
 
 pub mod arbitrary;
 pub mod format;

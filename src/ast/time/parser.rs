@@ -6,12 +6,12 @@ use chumsky::primitive::any;
 use chumsky::primitive::just;
 use fixed::ParseFixedError;
 
-use crate::ast::CycleTime;
 use crate::ast::parser::AstParser;
 use crate::ast::parser::Input;
 use crate::ast::parser::Parseable;
 use crate::ast::parser::array::ParserVec;
 use crate::ast::parser::array::ParserVecError;
+use crate::ast::time::CycleTime;
 use crate::ast::time::Inner;
 
 const TIME_STRING_CAPACITY: usize = 16;

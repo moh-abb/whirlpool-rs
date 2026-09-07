@@ -3,14 +3,14 @@ use core::cell::RefCell;
 
 use mockall::predicate;
 
-use crate::ast::CycleTime;
-use crate::ast::Note;
-use crate::ast::NoteLetter;
-use crate::ast::NoteUnit;
-use crate::ast::Pattern;
-use crate::ast::PatternNode;
+use crate::ast::note::Note;
+use crate::ast::note::NoteLetter;
+use crate::ast::note::NoteUnit;
+use crate::ast::pattern::Pattern;
+use crate::ast::pattern::PatternNode;
 use crate::ast::pattern::clone::PatternCloneDropAdapter;
 use crate::ast::pattern::cmp::PatternOrdAdapter;
+use crate::ast::time::CycleTime;
 use crate::mem::Arena;
 use crate::mem::ArenaMocker;
 use crate::mem::Chain;

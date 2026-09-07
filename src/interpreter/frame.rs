@@ -1,7 +1,7 @@
 use core::ops::ControlFlow;
 
-use crate::ast::Pattern;
-use crate::ast::PatternNode;
+use crate::ast::pattern::Pattern;
+use crate::ast::pattern::PatternNode;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::interpreter::concat::ConcatFrame;
 use crate::interpreter::error::PatternInterpreterError;

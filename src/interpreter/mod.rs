@@ -1,4 +1,4 @@
-use crate::ast::CycleTime;
+use crate::ast::time::CycleTime;
 
 mod borrow;
 mod concat;

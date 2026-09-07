@@ -1,5 +1,5 @@
-use crate::ast::CycleTime;
 use crate::ast::macros::compose_result;
+use crate::ast::time::CycleTime;
 use crate::ast::time::OverflowError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

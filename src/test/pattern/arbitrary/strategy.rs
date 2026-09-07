@@ -1,6 +1,6 @@
 use proptest::strategy::Strategy;
 
-use crate::ast::PatternNode;
+use crate::ast::pattern::PatternNode;
 use crate::ast::pattern::arbitrary::ArbPatternError;
 use crate::ast::pattern::arbitrary::ArenasToPatternIndex;
 use crate::ast::pattern::arbitrary::arb_large_pattern;

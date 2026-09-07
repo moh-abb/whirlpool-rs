@@ -1,6 +1,6 @@
 use proptest::prelude::Strategy;
 
-use crate::ast::Pattern;
+use crate::ast::pattern::Pattern;
 use crate::ast::pattern::arbitrary::arb_large_pattern;
 use crate::ast::pattern::arbitrary::arb_small_pattern;
 use crate::ast::pattern::arenas::PatternArenas;
@@ -19,9 +19,9 @@ fn prop_map_func<Arenas: PatternArenas + 'static>(
     (arenas_to_pattern, (interval, offset, multiplier)): (
         ArenasTo<Arenas, Index<Pattern>>,
         (
-            crate::ast::CycleInterval,
-            crate::ast::CycleTime,
-            crate::ast::CycleTime,
+            crate::ast::time::interval::CycleInterval,
+            crate::ast::time::CycleTime,
+            crate::ast::time::CycleTime,
         ),
     ),
 ) -> ArenasTo<Arenas, Result<(Index<Pattern>, NoteSequence), OverflowError>> {

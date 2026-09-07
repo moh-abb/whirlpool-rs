@@ -1,9 +1,9 @@
-use crate::ast::CycleTime;
-use crate::ast::Pattern;
-use crate::ast::PatternNode;
-use crate::ast::TimedStep;
+use crate::ast::pattern::Pattern;
+use crate::ast::pattern::PatternNode;
+use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::clone::PatternCloneDropAdapter;
 use crate::ast::pattern::drop::PatternDropAdapter;
+use crate::ast::time::CycleTime;
 use crate::ast::time::OverflowError;
 use crate::mem::Arena;
 use crate::mem::ArenaError;

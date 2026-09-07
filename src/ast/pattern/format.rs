@@ -1,15 +1,15 @@
 use core::fmt;
 
-use crate::ast::Pattern;
-use crate::ast::PatternNode;
 use crate::ast::display::AstDisplay;
+use crate::ast::pattern::Pattern;
+use crate::ast::pattern::PatternNode;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::mem::ArenaError;
 use crate::mem::Index;
 use crate::mem::debug_unwrap;
-use crate::mem::linked::TraversalState;
-use crate::mem::linked::VisitRef;
-use crate::mem::linked::visit_linked;
+use crate::mem::linked::traversal_state::TraversalState;
+use crate::mem::linked::visit_type::VisitRef;
+use crate::mem::linked::visitor::visit_linked;
 
 pub struct PatternDisplayAdapter<'a, Arenas> {
     index: Index<PatternNode>,

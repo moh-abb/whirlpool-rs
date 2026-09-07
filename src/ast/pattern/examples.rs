@@ -1,13 +1,13 @@
 #![cfg(test)]
 
-use crate::ast::CycleTime;
-use crate::ast::Note;
-use crate::ast::NoteLetter;
-use crate::ast::NoteUnit;
-use crate::ast::Pattern;
-use crate::ast::PatternNode;
-use crate::ast::TimedStep;
+use crate::ast::note::Note;
+use crate::ast::note::NoteLetter;
+use crate::ast::note::NoteUnit;
+use crate::ast::pattern::Pattern;
+use crate::ast::pattern::PatternNode;
+use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
+use crate::ast::time::CycleTime;
 use crate::mem::Arena;
 use crate::mem::Cow;
 use crate::mem::FixableArena;

@@ -10,16 +10,16 @@ use chumsky::primitive::any;
 use chumsky::primitive::choice;
 use chumsky::primitive::just;
 
-use crate::ast::CycleTime;
-use crate::ast::Note;
-use crate::ast::NoteLetter;
-use crate::ast::NoteNumber;
-use crate::ast::NoteUnit;
+use crate::ast::note::Note;
+use crate::ast::note::NoteLetter;
+use crate::ast::note::NoteNumber;
+use crate::ast::note::NoteUnit;
 use crate::ast::parser::AstParser;
 use crate::ast::parser::Input;
 use crate::ast::parser::Parseable;
 use crate::ast::parser::array::ParserVec;
 use crate::ast::parser::array::ParserVecError;
+use crate::ast::time::CycleTime;
 use crate::ast::time::parser::ParseCycleTimeError;
 
 #[derive(derive_more::From, Debug)]

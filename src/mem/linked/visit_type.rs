@@ -6,7 +6,7 @@ use core::ops::ControlFlow::Break;
 use core::ops::ControlFlow::Continue;
 use core::ops::Deref;
 
-pub use private::*;
+use private::*;
 
 use crate::mem::Arena;
 use crate::mem::ArenaItem;
