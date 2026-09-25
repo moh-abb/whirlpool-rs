@@ -1,14 +1,14 @@
 use core::str::FromStr;
 
-use chumsky::IterParser;
-use chumsky::Parser;
-use chumsky::primitive::any;
-use chumsky::primitive::just;
+use combine::Parser;
+use combine::choice;
+use combine::many1;
+use combine::satisfy;
+use combine::token;
 use fixed::ParseFixedError;
 
+use crate::ast::parser::AstInput;
 use crate::ast::parser::AstParser;
-use crate::ast::parser::Input;
-use crate::ast::parser::Parseable;
 use crate::ast::parser::array::ParserVec;
 use crate::ast::parser::array::ParserVecError;
 use crate::ast::time::CycleTime;
@@ -17,7 +17,7 @@ use crate::ast::time::Inner;
 const TIME_STRING_CAPACITY: usize = 16;
 type TimeString = ParserVec<u8, TIME_STRING_CAPACITY>;
 
-#[derive(derive_more::From, Debug)]
+#[derive(derive_more::From, Debug, Clone)]
 pub enum ParseCycleTimeError {
     FromAsciiErr(ParseFixedError),
     StringBufferErr(ParserVecError),
@@ -43,23 +43,19 @@ impl CycleTime {
     }
 }
 
-impl<'src> Parseable<'src, ()> for CycleTime {
-    type Error = ParseCycleTimeError;
-
-    fn parser<I: Input<'src>>(
-        _args: (),
-    ) -> impl AstParser<'src, I, Result<Self, Self::Error>> {
-        just(b'+')
-            .or(just(b'-'))
-            .or(just(b'.'))
-            .or(any().filter(u8::is_ascii_digit))
-            .repeated()
-            .at_least(1)
-            .collect::<TimeString>()
-            .map(|time_str| {
-                let slice = time_str.as_slice()?;
-                let result = CycleTime::from_ascii(slice)?;
-                Ok(result)
-            })
+impl CycleTime {
+    pub fn parser<I: AstInput>()
+    -> impl AstParser<I, Result<Self, ParseCycleTimeError>> + Clone {
+        many1::<TimeString, _, _>(choice((
+            token(b'+'),
+            token(b'-'),
+            token(b'.'),
+            satisfy(|b: u8| b.is_ascii_digit()),
+        )))
+        .map(|time_str| {
+            let slice = time_str.as_slice()?;
+            let result = CycleTime::from_ascii(slice)?;
+            Ok(result)
+        })
     }
 }
