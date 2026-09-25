@@ -4,7 +4,7 @@ use crate::ast::time::CycleTime;
 
 pub mod arbitrary;
 pub mod format;
-pub mod parser;
+pub(super) mod parser;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
