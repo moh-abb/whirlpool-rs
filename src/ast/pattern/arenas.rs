@@ -18,7 +18,7 @@ impl<A: Arena<PatternNode>> PatternArenas for A {}
 
 /// Represents the error type when pushing back an element to a pattern using
 /// [PatternArenasExt].
-#[derive(derive_more::From, Debug)]
+#[derive(derive_more::From, Debug, Clone)]
 pub enum PatternPushBackError {
     ArenaErr(ArenaError),
     OverflowErr(OverflowError),
@@ -122,7 +122,7 @@ impl<'r, A: PatternArenas> PatternArenasExt for SharedArenaRef<'r, A> {
     }
 }
 
-#[derive(derive_more::From, Debug)]
+#[derive(derive_more::From, Debug, Clone)]
 pub enum SumCycleLengthError {
     ArenaErr(ArenaError),
     OverflowErr(OverflowError),
