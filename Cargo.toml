@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+combine = "4.6.8"
 derive_more = { version = "2", default-features = false, features = [ "full" ] }
 fixed = "1.29.0"
 heapless = "0.9.3"
@@ -15,9 +16,5 @@ scapegoat = "2.3.0"
 spin = "0.10.0"
 spin-lock = "0.2.1"
 
-[dependencies.chumsky]
-version = "0.11.1"
-features = ["pratt"]
-
 [features]
-std = ["chumsky/std", "fixed/std"]
+std = [ "fixed/std"]
