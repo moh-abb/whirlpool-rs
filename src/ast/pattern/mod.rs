@@ -12,7 +12,7 @@ pub mod drop;
 pub mod examples;
 pub mod format;
 pub mod linked;
-pub mod parser;
+pub(super) mod parser;
 
 /// Represents a [Pattern] played with a given duration.
 ///
