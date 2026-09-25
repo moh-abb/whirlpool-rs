@@ -1,4 +1,3 @@
-use chumsky::container::Container;
 use heapless::Vec;
 
 trait ConvertConst {
@@ -12,6 +11,7 @@ impl<const N: usize> ConvertConst for ConstToU8<N> {
     type Output = u8;
 }
 
+#[derive(Debug, Clone)]
 pub struct ParserVec<T, const CAP: usize> {
     inner: Vec<T, CAP, <ConstToU8<CAP> as ConvertConst>::Output>,
     exceeded: bool,
@@ -38,6 +38,10 @@ impl<T, const CAP: usize> ParserVec<T, CAP> {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
     pub fn as_slice(&self) -> Result<&[T], ParserVecError> {
         if self.exceeded {
             return Err(ParserVecError::LimitReached);
@@ -47,9 +51,13 @@ impl<T, const CAP: usize> ParserVec<T, CAP> {
     }
 }
 
-impl<T, const CAP: usize> Container<T> for ParserVec<T, CAP> {
-    fn push(&mut self, item: T) {
-        let push_result = self.inner.push(item);
-        self.exceeded = push_result.is_err();
+impl<T, const CAP: usize> Extend<T> for ParserVec<T, CAP> {
+    fn extend<Iter: IntoIterator<Item = T>>(&mut self, iter: Iter) {
+        iter.into_iter().for_each(|item| {
+            if self.exceeded {
+                return;
+            }
+            self.exceeded = self.inner.push(item).is_err();
+        });
     }
 }

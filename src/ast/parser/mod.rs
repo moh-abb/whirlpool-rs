@@ -5,7 +5,7 @@ use chumsky::input::Input as ChumskyInput;
 use chumsky::input::ValueInput;
 use chumsky::span::SimpleSpan;
 
-pub mod array;
+pub(super) mod array;
 pub(super) mod collect;
 
 pub trait Input<'src>
