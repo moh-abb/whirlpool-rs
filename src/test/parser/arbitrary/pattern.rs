@@ -1,8 +1,8 @@
 use core::cmp::Ordering;
+use core::fmt::Debug;
 
-use chumsky::Parser;
+use combine::EasyParser;
 
-use crate::ast::parser::Parseable;
 use crate::ast::pattern::PatternNode;
 use crate::ast::pattern::arbitrary::ArbPatternError;
 use crate::ast::pattern::arenas::PatternArenas;
@@ -17,7 +17,7 @@ use crate::mem::arena::test::arenas_test_run;
 use crate::test::pattern::arbitrary::strategy::AnyPatternStrategy;
 
 struct ValidatePattern;
-impl<Arenas: PatternArenas> ArenaTest<Index<PatternNode>, Arenas>
+impl<Arenas: PatternArenas + Debug> ArenaTest<Index<PatternNode>, Arenas>
     for ValidatePattern
 {
     fn run<'r>(
@@ -27,14 +27,22 @@ impl<Arenas: PatternArenas> ArenaTest<Index<PatternNode>, Arenas>
         let display_adapter =
             PatternDisplayAdapter::new(orig_index.clone(), &shared_arena_ref);
         let orig_formatted = format!("{display_adapter}");
-        let parser = PatternDropAdapter::parser(shared_arena_ref.clone());
+        let mut parser = PatternDropAdapter::parser(shared_arena_ref.clone());
         let mut result_adapter = parser
-            .parse(orig_formatted.as_bytes())
-            .into_result()
-            .unwrap_or_else(|e| panic!(
-                "Parsing pattern {orig_formatted} should succeed, error: {e:?}"
-            ))
-            .expect("Internal pattern should be correct");
+            .easy_parse(orig_formatted.as_bytes())
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Parsing pattern {orig_formatted} \
+                    failed with error {e:?}"
+                )
+            })
+            .0
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Parsed pattern {orig_formatted} \
+                    contains error {e:?}"
+                )
+            });
         let result_index = result_adapter
             .take_index()
             .expect("Should have a full item inside the adapter");

@@ -1,7 +1,6 @@
-use chumsky::Parser;
+use combine::EasyParser;
 use proptest::strategy::Strategy;
 
-use crate::ast::parser::Parseable;
 use crate::ast::pattern::PatternNode;
 use crate::ast::time::CycleTime;
 use crate::ast::time::arbitrary::arb_cycle_time;
@@ -30,11 +29,11 @@ struct ValidateTime;
 impl<Arenas> ArenaTest<CycleTime, Arenas> for ValidateTime {
     fn run<'r>(_arenas: SharedArenaRef<'r, Arenas>, time: CycleTime) {
         let formatted = format!("{time}");
-        let parser = CycleTime::parser(());
+        let mut parser = CycleTime::parser();
         let result = parser
-            .parse(formatted.as_bytes())
-            .into_result()
+            .easy_parse(formatted.as_bytes())
             .expect("Parsing single CycleTime should succeed")
+            .0
             .expect("Parsed CycleTime should not overflow");
         assert_eq!(
             result, time,
