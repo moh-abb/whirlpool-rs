@@ -3,12 +3,13 @@ use core::cmp::Ordering;
 use crate::mem::Arena;
 use crate::mem::ArenaError;
 use crate::mem::Index;
+use crate::mem::debug_unwrap;
 
 /// An arena-based Stack that is implemented via a singly-linked-list structure.
-pub struct Stack<'a, T, A> {
+pub struct Stack<T, A: Arena<StackChain<T>>> {
     last_item: Option<Index<StackChain<T>>>,
     size: u16,
-    arena: &'a mut A,
+    arena: A,
 }
 
 /// The error type when pushing/popping/accessing a stack item.
@@ -48,8 +49,8 @@ impl<T> Ord for StackChain<T> {
     }
 }
 
-impl<'a, T, A> Stack<'a, T, A> {
-    pub const fn new(arena: &'a mut A) -> Self {
+impl<T, A: Arena<StackChain<T>>> Stack<T, A> {
+    pub const fn new(arena: A) -> Self {
         Self { last_item: None, size: 0, arena }
     }
 
@@ -60,12 +61,7 @@ impl<'a, T, A> Stack<'a, T, A> {
     pub const fn is_empty(&self) -> bool {
         self.last_item.is_none()
     }
-}
 
-impl<'a, T, A> Stack<'a, T, A>
-where
-    A: Arena<StackChain<T>>,
-{
     pub fn push(&mut self, item: T) -> StackResult<()> {
         let index = self.arena.push(StackChain {
             item,
@@ -134,12 +130,18 @@ where
     }
 }
 
-impl<'a, T, A> Stack<'a, T, A>
+impl<T, A> Stack<T, A>
 where
     T: Clone,
     A: Arena<StackChain<T>>,
 {
     pub fn clone_last(&self) -> StackResult<Option<T>> {
         self.map(Clone::clone)
+    }
+}
+
+impl<T, A: Arena<StackChain<T>>> Drop for Stack<T, A> {
+    fn drop(&mut self) {
+        debug_unwrap(self.clear());
     }
 }

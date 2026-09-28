@@ -163,13 +163,14 @@ where
             multiplier: self.base_multiplier,
         }))?;
 
-        let mut yield_step_result = || loop {
+        loop {
             let opt_step_result = frames.map_mut(|frame| {
                 frame.step(borrowed_scheduler.deref_mut(), self.arenas)
             })?;
             let Some(step_result) = opt_step_result else {
-                break Ok(());
+                break;
             };
+
             let opt_new_frame = match step_result? {
                 ControlFlow::Break(opt_new_frame) => {
                     frames.pop();
@@ -180,11 +181,6 @@ where
             if let Some(new_frame) = opt_new_frame {
                 frames.push(new_frame)?;
             }
-        };
-
-        if let Err(err) = yield_step_result() {
-            frames.clear()?;
-            return Err(err);
         }
 
         self.cur_time = next_time;
