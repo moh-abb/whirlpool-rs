@@ -5,6 +5,7 @@ use combine::Stream;
 
 pub(super) mod array;
 pub(super) mod collect;
+pub mod recursive;
 
 pub trait AstInput
 where
