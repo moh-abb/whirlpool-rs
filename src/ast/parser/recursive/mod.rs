@@ -2,5 +2,6 @@
 /// during a recursive parse.
 type RecIterations = usize;
 
+pub mod callback;
 pub mod error;
 pub mod state;
