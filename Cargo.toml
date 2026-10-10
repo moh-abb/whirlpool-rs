@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 combine = "4.6.8"
+derive-where = "1.7.0"
 derive_more = { version = "2", default-features = false, features = [ "full" ] }
 fixed = "1.29.0"
 heapless = "0.9.3"
