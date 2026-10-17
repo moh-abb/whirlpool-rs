@@ -1,6 +1,8 @@
 use core::marker::PhantomData;
 use core::mem::swap;
 
+use derive_where::derive_where;
+
 use crate::mem::Arena;
 use crate::mem::ArenaError;
 use crate::mem::ArenaItem;
@@ -9,26 +11,17 @@ use crate::mem::Cow;
 use crate::mem::Index;
 use crate::mem::linked::Linked;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(derive_more::Debug)]
+#[derive_where(Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum StartEnd<Child> {
     Empty,
     Full { start: Index<Child>, end: Index<Child> },
 }
 
-impl<Child> Clone for StartEnd<Child> {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Empty => Self::Empty,
-            Self::Full { start, end } => {
-                Self::Full { start: start.clone(), end: end.clone() }
-            }
-        }
-    }
-}
-
 /// A structure for a doubly-linked list of multiple arena-allocated elements.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Multiple<Item: ArenaItem> {
+#[derive(derive_more::Debug)]
+#[derive_where(Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Multiple<Item> {
     length: u16,
     start_end: StartEnd<Item>,
 }
@@ -439,23 +432,6 @@ impl<Child: ArenaItem> Multiple<Child> {
         Self::remove(child_arena, parent_arena, end).map(Some)
     }
 
-    fn iter_base<'a, Parent, ChildArena, ParentArena>(
-        &self,
-        child_arena: &'a ChildArena,
-    ) -> IterBase<'a, Child, Parent, ChildArena, ParentArena>
-    where
-        Parent: ArenaItem,
-        ChildArena: Arena<Child>,
-        ParentArena: Arena<Parent>,
-        Child: Linked<Parent, ChildArena, ParentArena>,
-    {
-        IterBase {
-            start_end: self.start_end.clone(),
-            child_arena,
-            phantom: PhantomData,
-        }
-    }
-
     pub fn checked_iter<'a, Parent, ChildArena, ParentArena>(
         &self,
         child_arena: &'a ChildArena,
@@ -466,34 +442,24 @@ impl<Child: ArenaItem> Multiple<Child> {
         ParentArena: Arena<Parent>,
         Child: Linked<Parent, ChildArena, ParentArena>,
     {
-        IterChecked { inner: self.iter_base(child_arena) }
-    }
-
-    pub fn unwrapped_iter<'a, Parent, ChildArena, ParentArena>(
-        &self,
-        child_arena: &'a ChildArena,
-    ) -> IterUnwrapped<'a, Child, Parent, ChildArena, ParentArena>
-    where
-        Parent: ArenaItem,
-        ChildArena: Arena<Child>,
-        ParentArena: Arena<Parent>,
-        Child: Linked<Parent, ChildArena, ParentArena>,
-    {
-        IterUnwrapped { inner: self.iter_base(child_arena) }
+        IterChecked {
+            start_end: self.start_end.clone(),
+            child_arena,
+            phantom: PhantomData,
+        }
     }
 }
 
-/// An iterator for which the elements consist of the pairs
-/// `(Index<Item>, Index<Chain<Item>>)`.
+/// An iterator for which the elements consist of `ArenaResult<Index<Item>>`.
 #[derive(Debug, Clone)]
-struct IterBase<'a, Child, Parent, ChildArena, ParentArena> {
+pub struct IterChecked<'a, Child, Parent, ChildArena, ParentArena> {
     start_end: StartEnd<Child>,
     child_arena: &'a ChildArena,
     phantom: PhantomData<(Parent, ParentArena)>,
 }
 
 impl<'a, Child, Parent, ChildArena, ParentArena>
-    IterBase<'a, Child, Parent, ChildArena, ParentArena>
+    IterChecked<'a, Child, Parent, ChildArena, ParentArena>
 where
     Child: ArenaItem,
     Parent: ArenaItem,
@@ -541,7 +507,7 @@ where
 }
 
 impl<'a, Child, Parent, ChildArena, ParentArena> Iterator
-    for IterBase<'a, Child, Parent, ChildArena, ParentArena>
+    for IterChecked<'a, Child, Parent, ChildArena, ParentArena>
 where
     Child: ArenaItem,
     Parent: ArenaItem,
@@ -557,7 +523,7 @@ where
 }
 
 impl<'a, Child, Parent, ChildArena, ParentArena> DoubleEndedIterator
-    for IterBase<'a, Child, Parent, ChildArena, ParentArena>
+    for IterChecked<'a, Child, Parent, ChildArena, ParentArena>
 where
     Child: ArenaItem,
     Parent: ArenaItem,
@@ -567,81 +533,5 @@ where
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.next_or_next_back(true)
-    }
-}
-
-/// An iterator for which the elements consist of `Index<Item>`.
-#[derive(Debug, Clone)]
-pub struct IterUnwrapped<'a, Child, Parent, ChildArena, ParentArena> {
-    inner: IterBase<'a, Child, Parent, ChildArena, ParentArena>,
-}
-
-impl<'a, Child, Parent, ChildArena, ParentArena> Iterator
-    for IterUnwrapped<'a, Child, Parent, ChildArena, ParentArena>
-where
-    Child: ArenaItem,
-    Parent: ArenaItem,
-    ChildArena: Arena<Child>,
-    ParentArena: Arena<Parent>,
-    Child: Linked<Parent, ChildArena, ParentArena>,
-{
-    type Item = Index<Child>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner
-            .next()
-            .map(ArenaResult::unwrap)
-    }
-}
-
-impl<'a, Child, Parent, ChildArena, ParentArena> DoubleEndedIterator
-    for IterUnwrapped<'a, Child, Parent, ChildArena, ParentArena>
-where
-    Child: ArenaItem,
-    Parent: ArenaItem,
-    ChildArena: Arena<Child>,
-    ParentArena: Arena<Parent>,
-    Child: Linked<Parent, ChildArena, ParentArena>,
-{
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.inner
-            .next_back()
-            .map(ArenaResult::unwrap)
-    }
-}
-
-/// An iterator for which the elements consist of `ArenaResult<Index<Item>>`.
-#[derive(Debug, Clone)]
-pub struct IterChecked<'a, Child, Parent, ChildArena, ParentArena> {
-    inner: IterBase<'a, Child, Parent, ChildArena, ParentArena>,
-}
-
-impl<'a, Child, Parent, ChildArena, ParentArena> Iterator
-    for IterChecked<'a, Child, Parent, ChildArena, ParentArena>
-where
-    Child: ArenaItem,
-    Parent: ArenaItem,
-    ChildArena: Arena<Child>,
-    ParentArena: Arena<Parent>,
-    Child: Linked<Parent, ChildArena, ParentArena>,
-{
-    type Item = ArenaResult<Index<Child>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
-    }
-}
-
-impl<'a, Child, Parent, ChildArena, ParentArena> DoubleEndedIterator
-    for IterChecked<'a, Child, Parent, ChildArena, ParentArena>
-where
-    Child: ArenaItem,
-    Parent: ArenaItem,
-    ChildArena: Arena<Child>,
-    ParentArena: Arena<Parent>,
-    Child: Linked<Parent, ChildArena, ParentArena>,
-{
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.inner.next_back()
     }
 }
