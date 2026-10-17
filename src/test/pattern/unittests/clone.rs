@@ -163,7 +163,7 @@ fn test_clone_with_three_subpatterns(
     let mut shared_arena_ref_2 = shared_arena.make_ref();
 
     // Link the elements to the parent.
-    // Try: [] becomes [B] becomes [A, B] becomes [A, B, C].
+    // Try: [] becomes [A] becomes [A, B] becomes [A, B, C].
     shared_arena_ref_1
         .push(PatternNode {
             parent: None,
@@ -175,14 +175,14 @@ fn test_clone_with_three_subpatterns(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         parent_index.clone(),
-        make_letter(NoteLetter::B),
+        make_letter(NoteLetter::A),
     )
     .unwrap();
-    Multiple::push_front(
+    Multiple::push_back(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         parent_index.clone(),
-        make_letter(NoteLetter::A),
+        make_letter(NoteLetter::B),
     )
     .unwrap();
     Multiple::push_back(

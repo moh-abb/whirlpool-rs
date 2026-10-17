@@ -382,40 +382,6 @@ impl<Child: ArenaItem> Multiple<Child> {
         })?
     }
 
-    /// Prepends a child to the front of its parent's list.
-    /// `child` must initially have no parent, and have no previous or
-    /// next element.
-    /// The child node will be allocated into the arena.
-    /// After prepending, the parent will see that it has a new start child
-    /// node, and the child will see that its parent is the one provided.
-    /// Returns the allocated child index.
-    pub fn push_front<Parent, ChildArena, ParentArena>(
-        child_arena: &mut ChildArena,
-        parent_arena: &mut ParentArena,
-        parent_index: Index<Parent>,
-        child_cow: Cow<Child>,
-    ) -> ArenaResult<Index<Child>>
-    where
-        Parent: ArenaItem,
-        ChildArena: Arena<Child>,
-        ParentArena: Arena<Parent>,
-        Child: Linked<Parent, ChildArena, ParentArena>,
-    {
-        let opt_start = Self::get_end_in_arena(
-            parent_arena,
-            parent_index.clone(),
-            Self::start,
-        )?;
-        Self::insert(
-            child_arena,
-            parent_arena,
-            parent_index,
-            None,
-            opt_start,
-            child_cow,
-        )
-    }
-
     /// Appends a child to the end of its parent's list.
     /// `child` must initially have no parent, and have no previous or
     /// next element.
@@ -448,29 +414,6 @@ impl<Child: ArenaItem> Multiple<Child> {
             None,
             child_cow,
         )
-    }
-
-    /// Pops a child from the front of its parent's list.
-    /// After removal, `child` will see its parent be `None`,
-    /// and the parent will no longer have its start element as `child`.
-    /// Returns the optional removed child.
-    pub fn pop_front<Parent, ChildArena, ParentArena>(
-        child_arena: &mut ChildArena,
-        parent_arena: &mut ParentArena,
-        parent_index: Index<Parent>,
-    ) -> ArenaResult<Option<Child>>
-    where
-        Parent: ArenaItem,
-        ChildArena: Arena<Child>,
-        ParentArena: Arena<Parent>,
-        Child: Linked<Parent, ChildArena, ParentArena>,
-    {
-        let opt_front =
-            Self::get_end_in_arena(parent_arena, parent_index, Self::start)?;
-        let Some(front) = opt_front else {
-            return Ok(None);
-        };
-        Self::remove(child_arena, parent_arena, front).map(Some)
     }
 
     /// Pops a child from the end of its parent's list.
