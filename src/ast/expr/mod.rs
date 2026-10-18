@@ -17,28 +17,23 @@ pub struct StringLiteral;
 
 #[derive(derive_more::From, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PatternExpr {
-    // Function call; e.g. `cat(A5,B5,C5)`.
-    // Formats:
-    // - Non-method: `<ident>((<expr>,)*)`
-    // - Method: `<expr>.<ident>((<expr>,)*)`
+    /// Function call; e.g. `cat(A5,B5,C5)`.
+    /// Formats:
+    /// - Non-method: `<ident>((<expr>,)*)`
+    /// - Method: `<expr>.<ident>((<expr>,)*)`
     Call {
         is_method: bool,
         name: Identifier,
         args: Multiple<PatternExprNode>,
         opt_pattern: Option<Pattern>,
     },
-    // Lambda function; e.g. `x=>cat(x,A5)`.
-    // Format: `<ident>=><expr>`
-    Lambda {
-        param: Identifier,
-        expr: Option<Index<PatternExprNode>>,
-    },
-    // Array literal; e.g. `[bd,sd,hh]`
-    // Format: `[(<expr>,)*]`
-    Array {
-        args: Multiple<PatternExprNode>,
-    },
-    // Expression unit; for details and format see [ExprUnit].
+    /// Lambda function; e.g. `x=>cat(x,A5)`.
+    /// Format: `<ident>=><expr>`
+    Lambda { param: Identifier, expr: Option<Index<PatternExprNode>> },
+    /// Array literal; e.g. `[bd,sd,hh]`
+    /// Format: `[(<expr>,)*]`
+    Array { args: Multiple<PatternExprNode> },
+    /// Expression unit; for details and format see [ExprUnit].
     Unit(ExprUnit),
 }
 
@@ -46,16 +41,16 @@ pub enum PatternExpr {
 /// cycle time number e.g. `-5.12`; or a singly-quoted string `'foo'`.
 #[derive(derive_more::From, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ExprUnit {
-    // Identifier with pattern data attached.
-    // Format: <ident>
+    /// Identifier with pattern data attached.
+    /// Format: <ident>
     Ident { name: Identifier, as_pattern: Option<Pattern> },
-    // Number represented as a cycle time.
-    // Format: <number>
+    /// Number represented as a cycle time.
+    /// Format: <number>
     Number(CycleTime),
-    // Singly quoted strings; i.e. 'https://...'
-    // Should only be used for URLs.
-    // Stores only the span of the inner portion.
-    // Format: <string>
+    /// Singly quoted strings; i.e. 'https://...'
+    /// Should only be used for URLs.
+    /// Stores only the span of the inner portion.
+    /// Format: <string>
     String(StringLiteral),
 }
 
