@@ -1,45 +1,55 @@
+use crate::ast::parser::array::ParserVec;
 use crate::ast::pattern::Pattern;
 use crate::ast::time::CycleTime;
 use crate::mem::Chain;
 use crate::mem::Index;
 use crate::mem::Multiple;
 
+pub mod linked;
+
+pub const MAX_IDENT_LENGTH: usize = 20;
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Identifier;
+pub struct Identifier(pub ParserVec<u8, MAX_IDENT_LENGTH>);
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StringLiteral;
 
 #[derive(derive_more::From, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PatternExpr {
-    // Non-method: <ident>((<expr>,)*)
-    // Method: <expr>.<ident>((<expr>,)*)
+    // Function call; e.g. `cat(A5,B5,C5)`.
+    // Formats:
+    // - Non-method: `<ident>((<expr>,)*)`
+    // - Method: `<expr>.<ident>((<expr>,)*)`
     Call {
         is_method: bool,
-        name: Index<Identifier>,
+        name: Identifier,
         args: Multiple<PatternExprNode>,
         opt_pattern: Option<Pattern>,
     },
-    // <ident>=><expr>
+    // Lambda function; e.g. `x=>cat(x,A5)`.
+    // Format: `<ident>=><expr>`
     Lambda {
-        param: Index<Identifier>,
-        expr: Index<PatternExprNode>,
+        param: Identifier,
+        expr: Option<Index<PatternExprNode>>,
     },
-    // Array literal.
-    // [(<expr>,)*]
+    // Array literal; e.g. `[bd,sd,hh]`
+    // Format: `[(<expr>,)*]`
     Array {
         args: Multiple<PatternExprNode>,
     },
-    // Unit.
+    // Expression unit; for details and format see [ExprUnit].
     Unit(ExprUnit),
 }
 
+/// Expression unit; can be an identifier e.g. `cat` or `x`; a fixed-point
+/// cycle time number e.g. `-5.12`; or a singly-quoted string `'foo'`.
 #[derive(derive_more::From, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ExprUnit {
     // Identifier with pattern data attached.
     // Format: <ident>
-    Ident { name: Index<Identifier>, as_pattern: Option<Pattern> },
-    // All numbers are represented as a cycle time.
+    Ident { name: Identifier, as_pattern: Option<Pattern> },
+    // Number represented as a cycle time.
     // Format: <number>
     Number(CycleTime),
     // Singly quoted strings; i.e. 'https://...'

@@ -11,7 +11,7 @@ impl<const N: usize> ConvertConst for ConstToU8<N> {
     type Output = u8;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ParserVec<T, const CAP: usize> {
     inner: Vec<T, CAP, <ConstToU8<CAP> as ConvertConst>::Output>,
     exceeded: bool,
