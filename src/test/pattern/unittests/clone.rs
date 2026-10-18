@@ -17,6 +17,7 @@ use crate::mem::Chain;
 use crate::mem::Cow;
 use crate::mem::GrowableArena;
 use crate::mem::Index;
+use crate::mem::LinkedContainer;
 use crate::mem::Multiple;
 use crate::mem::SharedArena;
 
@@ -171,21 +172,21 @@ fn test_clone_with_three_subpatterns(
             pattern: multiple_to_pattern(Multiple::new()),
         })
         .unwrap();
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         parent_index.clone(),
         make_letter(NoteLetter::A),
     )
     .unwrap();
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         parent_index.clone(),
         make_letter(NoteLetter::B),
     )
     .unwrap();
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1.clone(),
         &mut shared_arena_ref_2.clone(),
         parent_index.clone(),

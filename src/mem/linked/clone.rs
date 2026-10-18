@@ -1,4 +1,5 @@
 use core::marker::PhantomData;
+use core::mem::take;
 
 use crate::mem::Arena;
 use crate::mem::ArenaError;
@@ -6,9 +7,10 @@ use crate::mem::ArenaResult;
 use crate::mem::Chain;
 use crate::mem::Cow;
 use crate::mem::Index;
-use crate::mem::Multiple;
+use crate::mem::LinkedContainer;
 use crate::mem::SharedArena;
 use crate::mem::SharedArenaRef;
+use crate::mem::linked::ChildMut;
 use crate::mem::linked::Linked;
 use crate::mem::linked::drop::drop_linked;
 use crate::mem::linked::traversal_state::TraversalState;
@@ -63,13 +65,16 @@ where
         debug_assert!(self.copied_node.is_none());
 
         let mut copied_node = (self.clone_handler)(cur_node);
-        // `Multiple` will allocate and push back the element.
-        // To prepare, clear the copied node's parent and sibling
+        // The linked container will handle allocating and pushing back the
+        // element. To prepare, clear the copied node's parent and sibling
         // indices.
         copied_node.get_mut_parent().take();
         *copied_node.get_mut_sibling_chain() = Chain::new();
-        if let Some(multiple) = Node::get_mut_children(&mut copied_node) {
-            *multiple = Multiple::new();
+        if let Some(children) = Node::get_mut_children(&mut copied_node) {
+            match children {
+                ChildMut::Single(opt_child) => drop(take(opt_child)),
+                ChildMut::Multiple(multiple) => drop(take(multiple)),
+            }
         }
 
         self.copied_node = Some(copied_node);
@@ -94,18 +99,16 @@ where
 
         // Allocate the child node, this will be the "next parent" when
         // traversing downwards
-        let next_parent = if let Some(parent) = self.dest_parent.take() {
+        let next_parent = if let Some(parent_index) = self.dest_parent.take() {
             let shared_arena = SharedArena::new(&mut *self.dest_arena);
             let mut shared_ref_1 = shared_arena.make_ref();
             let mut shared_ref_2 = shared_arena.make_ref();
-            let new_node_index = Multiple::push_back(
+            Node::push_child(
                 &mut shared_ref_1,
                 &mut shared_ref_2,
-                parent,
+                parent_index,
                 Cow::Owned(copied_node),
-            )?;
-            // We might enter the index's children: update the parent
-            new_node_index
+            )?
         } else {
             // Just allocate the root node on its own because there cannot
             // be any sibling nodes that need to be modified.

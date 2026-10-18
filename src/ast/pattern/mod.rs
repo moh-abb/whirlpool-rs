@@ -23,7 +23,7 @@ pub(super) mod parser;
 /// pattern which expects [TimedStep] elements; i.e. [Pattern::TimeCat] or
 /// [Pattern::Arrange].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct TimedStep(pub CycleTime, pub Multiple<PatternNode>);
+pub struct TimedStep(pub CycleTime, pub Option<Index<PatternNode>>);
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Pattern {

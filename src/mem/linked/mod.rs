@@ -1,3 +1,5 @@
+use derive_where::derive_where;
+
 use crate::mem::Arena;
 use crate::mem::ArenaItem;
 use crate::mem::Chain;
@@ -11,6 +13,22 @@ pub mod drop;
 pub mod traversal_state;
 pub mod visit_type;
 pub mod visitor;
+
+#[derive(derive_more::Debug)]
+#[debug(bound())]
+#[derive_where(PartialEq, Eq, PartialOrd, Ord)]
+pub enum ChildRef<'a, T> {
+    Multiple(&'a Multiple<T>),
+    Single(&'a Option<Index<T>>),
+}
+
+#[derive(derive_more::Debug)]
+#[debug(bound())]
+#[derive_where(PartialEq, Eq, PartialOrd, Ord)]
+pub enum ChildMut<'a, T> {
+    Multiple(&'a mut Multiple<T>),
+    Single(&'a mut Option<Index<T>>),
+}
 
 /// Represents a structure which is linked to other elements such that:
 /// - It can have a parent which owns its children via a [Multiple]
@@ -34,6 +52,6 @@ where
     fn get_sibling_chain(&self) -> &Chain<Self>;
     fn get_mut_sibling_chain(&mut self) -> &mut Chain<Self>;
 
-    fn get_children(parent: &Parent) -> Option<&Multiple<Self>>;
-    fn get_mut_children(parent: &mut Parent) -> Option<&mut Multiple<Self>>;
+    fn get_children(parent: &Parent) -> Option<ChildRef<'_, Self>>;
+    fn get_mut_children(parent: &mut Parent) -> Option<ChildMut<'_, Self>>;
 }

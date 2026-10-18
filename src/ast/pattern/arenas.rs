@@ -9,6 +9,7 @@ use crate::mem::Arena;
 use crate::mem::ArenaError;
 use crate::mem::Cow;
 use crate::mem::Index;
+use crate::mem::LinkedContainer;
 use crate::mem::Multiple;
 use crate::mem::SharedArenaRef;
 
@@ -83,7 +84,7 @@ impl<'r, A: PatternArenas> PatternArenasExt for SharedArenaRef<'r, A> {
         time: CycleTime,
         child_adapter: PatternDropAdapter<Self>,
     ) -> PatternPushBackResult<()> {
-        let timed_step = Pattern::TimedStep(TimedStep(time, Multiple::new()));
+        let timed_step = Pattern::TimedStep(TimedStep(time, None));
         let timed_step_adapter = self.clone().push_dropping(timed_step)?;
 
         let timed_step_index = timed_step_adapter
@@ -108,7 +109,7 @@ impl<'r, A: PatternArenas> PatternArenasExt for SharedArenaRef<'r, A> {
         // Link the pattern to the provided parent.
         let mut shared_arena_ref_1 = self.clone();
         let mut shared_arena_ref_2 = self.clone();
-        Multiple::push_back(
+        PatternNode::push_child(
             &mut shared_arena_ref_1,
             &mut shared_arena_ref_2,
             parent_index,

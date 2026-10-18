@@ -5,7 +5,7 @@ use crate::ast::pattern::parser::ParsePatternError;
 use crate::ast::pattern::parser::ParsePatternResult;
 use crate::ast::time::CycleTime;
 use crate::mem::Index;
-use crate::mem::Multiple;
+use crate::mem::LinkedContainer;
 use crate::mem::SharedArenaRef;
 use crate::mem::debug_unwrap;
 
@@ -37,10 +37,11 @@ impl<'src, A: PatternArenas> Drop for CollectIntoPattern<'src, A> {
             }
         };
         while let Some(next_count) = self.pushed_count.checked_sub(1) {
-            let pop_result = Multiple::pop_back(
+            let pop_result = PatternNode::pop_child(
                 &mut arena.clone(),
                 &mut arena.clone(),
                 parent_index.clone(),
+                true,
             );
             debug_unwrap(pop_result.map(|_| ()));
             self.pushed_count = next_count;

@@ -4,7 +4,8 @@ use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::mem::Chain;
 use crate::mem::Index;
-use crate::mem::Multiple;
+use crate::mem::linked::ChildMut;
+use crate::mem::linked::ChildRef;
 use crate::mem::linked::Linked;
 
 impl<Arenas: PatternArenas> Linked<PatternNode, Arenas, Arenas>
@@ -26,32 +27,36 @@ impl<Arenas: PatternArenas> Linked<PatternNode, Arenas, Arenas>
         &mut self.sibling_chain
     }
 
-    fn get_children(parent: &PatternNode) -> Option<&Multiple<Self>> {
+    fn get_children(parent: &PatternNode) -> Option<ChildRef<'_, PatternNode>> {
         match &parent.pattern {
             Pattern::Cat(multiple)
             | Pattern::Seq(multiple)
             | Pattern::Stack(multiple)
-            | Pattern::TimeCat { total_cycle_length: _, multiple }
-            | Pattern::Arrange { total_cycle_length: _, multiple } => {
-                Some(multiple)
+            | Pattern::TimeCat { multiple, .. }
+            | Pattern::Arrange { multiple, .. } => {
+                Some(ChildRef::Multiple(multiple))
             }
-            Pattern::TimedStep(TimedStep(_, multiple)) => Some(multiple),
+            Pattern::TimedStep(TimedStep(_, opt_child)) => {
+                Some(ChildRef::Single(opt_child))
+            }
             Pattern::Note(_) | Pattern::Silence => None,
         }
     }
 
     fn get_mut_children(
         parent: &mut PatternNode,
-    ) -> Option<&mut Multiple<Self>> {
+    ) -> Option<ChildMut<'_, Self>> {
         match &mut parent.pattern {
             Pattern::Cat(multiple)
             | Pattern::Seq(multiple)
             | Pattern::Stack(multiple)
-            | Pattern::TimeCat { total_cycle_length: _, multiple }
-            | Pattern::Arrange { total_cycle_length: _, multiple } => {
-                Some(multiple)
+            | Pattern::TimeCat { multiple, .. }
+            | Pattern::Arrange { multiple, .. } => {
+                Some(ChildMut::Multiple(multiple))
             }
-            Pattern::TimedStep(TimedStep(_, multiple)) => Some(multiple),
+            Pattern::TimedStep(TimedStep(_, opt_child)) => {
+                Some(ChildMut::Single(opt_child))
+            }
             Pattern::Note(_) | Pattern::Silence => None,
         }
     }

@@ -12,6 +12,7 @@ use crate::mem::Arena;
 use crate::mem::Cow;
 use crate::mem::FixableArena;
 use crate::mem::Index;
+use crate::mem::LinkedContainer;
 use crate::mem::Multiple;
 use crate::mem::SharedArena;
 
@@ -28,10 +29,7 @@ fn silence_node() -> Cow<PatternNode> {
 }
 
 fn timed_step_node(length: CycleTime) -> Cow<PatternNode> {
-    Cow::Owned(PatternNode::new(Pattern::TimedStep(TimedStep(
-        length,
-        Multiple::new(),
-    ))))
+    Cow::Owned(PatternNode::new(Pattern::TimedStep(TimedStep(length, None))))
 }
 
 fn one_cycle_with(
@@ -75,7 +73,7 @@ pub fn binary_tree_depth_two(
         .push(PatternNode::new(root(Multiple::new())))
         .unwrap();
 
-    let left = Multiple::push_back(
+    let left = PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         root_index.clone(),
@@ -83,7 +81,7 @@ pub fn binary_tree_depth_two(
     )
     .unwrap();
 
-    let right = Multiple::push_back(
+    let right = PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         root_index.clone(),
@@ -91,7 +89,7 @@ pub fn binary_tree_depth_two(
     )
     .unwrap();
 
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         left.clone(),
@@ -99,7 +97,7 @@ pub fn binary_tree_depth_two(
     )
     .unwrap();
 
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         left.clone(),
@@ -107,7 +105,7 @@ pub fn binary_tree_depth_two(
     )
     .unwrap();
 
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         right.clone(),
@@ -115,7 +113,7 @@ pub fn binary_tree_depth_two(
     )
     .unwrap();
 
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         right.clone(),
@@ -147,7 +145,7 @@ pub fn half_binary_tree_depth_two(
         .push(PatternNode::new(root(Multiple::new())))
         .unwrap();
 
-    let left_tree = Multiple::push_back(
+    let left_tree = PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         root_tree.clone(),
@@ -155,14 +153,14 @@ pub fn half_binary_tree_depth_two(
     )
     .unwrap();
 
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         left_tree.clone(),
         note_unit_node(NoteLetter::A),
     )
     .unwrap();
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         left_tree.clone(),
@@ -170,7 +168,7 @@ pub fn half_binary_tree_depth_two(
     )
     .unwrap();
 
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         root_tree.clone(),
@@ -199,7 +197,7 @@ pub fn multiple_of_three_units(
         .push(PatternNode::new(root(Multiple::new())))
         .unwrap();
 
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         root_tree.clone(),
@@ -207,7 +205,7 @@ pub fn multiple_of_three_units(
     )
     .unwrap();
 
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         root_tree.clone(),
@@ -215,7 +213,7 @@ pub fn multiple_of_three_units(
     )
     .unwrap();
 
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         root_tree.clone(),
@@ -244,7 +242,7 @@ pub fn multiple_of_unit_then_silence_then_unit(
         .push(PatternNode::new(root(Multiple::new())))
         .unwrap();
 
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         root_tree.clone(),
@@ -252,7 +250,7 @@ pub fn multiple_of_unit_then_silence_then_unit(
     )
     .unwrap();
 
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         root_tree.clone(),
@@ -260,7 +258,7 @@ pub fn multiple_of_unit_then_silence_then_unit(
     )
     .unwrap();
 
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         root_tree.clone(),
@@ -298,7 +296,7 @@ pub fn multiple_of_four_timed_steps(
         .unwrap();
 
     for (elem_length, letter) in elem_lengths.into_iter().zip(letters) {
-        let timed_step_index = Multiple::push_back(
+        let timed_step_index = PatternNode::push_child(
             &mut shared_arena_ref_1,
             &mut shared_arena_ref_2,
             root_tree.clone(),
@@ -307,7 +305,7 @@ pub fn multiple_of_four_timed_steps(
         .unwrap();
 
         // Add a single child to the timed step.
-        Multiple::push_back(
+        PatternNode::push_child(
             &mut shared_arena_ref_1,
             &mut shared_arena_ref_2,
             timed_step_index,
@@ -360,7 +358,7 @@ pub fn half_binary_tree_depth_two_with_timed_steps(
         .unwrap();
 
     let root_timed_steps = root_elem_lengths.map(|elem_length| {
-        Multiple::push_back(
+        PatternNode::push_child(
             &mut shared_arena_ref_1,
             &mut shared_arena_ref_2,
             root_tree.clone(),
@@ -371,7 +369,7 @@ pub fn half_binary_tree_depth_two_with_timed_steps(
 
     let [root_timed_step_1, root_timed_step_2] = root_timed_steps;
 
-    let child_tree = Multiple::push_back(
+    let child_tree = PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         root_timed_step_1,
@@ -379,7 +377,7 @@ pub fn half_binary_tree_depth_two_with_timed_steps(
     )
     .unwrap();
 
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         root_timed_step_2.clone(),
@@ -388,7 +386,7 @@ pub fn half_binary_tree_depth_two_with_timed_steps(
     .unwrap();
 
     let child_timed_steps = child_elem_lengths.map(|elem_length| {
-        Multiple::push_back(
+        PatternNode::push_child(
             &mut shared_arena_ref_1,
             &mut shared_arena_ref_2,
             child_tree.clone(),
@@ -399,14 +397,14 @@ pub fn half_binary_tree_depth_two_with_timed_steps(
 
     let [child_timed_step_1, child_timed_step_2] = child_timed_steps;
 
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         child_timed_step_1.clone(),
         note_unit_node(NoteLetter::A),
     )
     .unwrap();
-    Multiple::push_back(
+    PatternNode::push_child(
         &mut shared_arena_ref_1,
         &mut shared_arena_ref_2,
         child_timed_step_2.clone(),

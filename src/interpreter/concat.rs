@@ -132,12 +132,8 @@ where
         return Err(PatternInterpreterError::ExpectedTimedStep);
     };
     let TimedStep(elem_length, multiple) = timed_step.clone();
-    if multiple.length() > 1 {
-        return Err(PatternInterpreterError::OverOneChildInTimedStep);
-    }
-    let child = multiple
-        .start()
-        .ok_or(PatternInterpreterError::ExpectedNonemptyTimedStep)?;
+    let child =
+        multiple.ok_or(PatternInterpreterError::ExpectedNonemptyTimedStep)?;
 
     PatternInterpreterResult::Ok(make_sim_elem(elem_length, child)?)
 }
