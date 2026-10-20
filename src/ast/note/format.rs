@@ -15,7 +15,7 @@ pub enum DisplayNoteUnitError {
 
 impl fmt::Display for NoteUnit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        debug_unwrap(<Self as AstDisplay>::fmt(
+        debug_unwrap(<Self as AstDisplay>::fmt_ast(
             self,
             f,
             &AstDisplayFlags::default(),
@@ -27,7 +27,7 @@ impl fmt::Display for NoteUnit {
 impl AstDisplay for NoteUnit {
     type Error = DisplayNoteUnitError;
 
-    fn fmt(
+    fn fmt_ast(
         &self,
         f: &mut fmt::Formatter<'_>,
         _flags: &AstDisplayFlags,

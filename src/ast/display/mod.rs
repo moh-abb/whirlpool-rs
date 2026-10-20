@@ -6,7 +6,7 @@ pub struct AstDisplayFlags {}
 pub trait AstDisplay: fmt::Display {
     type Error: From<fmt::Error>;
 
-    fn fmt(
+    fn fmt_ast(
         &self,
         f: &mut fmt::Formatter<'_>,
         _flags: &AstDisplayFlags,
