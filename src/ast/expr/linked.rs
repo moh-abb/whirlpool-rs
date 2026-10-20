@@ -8,6 +8,10 @@ use crate::mem::linked::ChildMut;
 use crate::mem::linked::ChildRef;
 use crate::mem::linked::Linked;
 
+/// Convenience trait for arenas of expressions.
+pub trait ExprArenas: Arena<ExprNode> {}
+impl<A: Arena<ExprNode>> ExprArenas for A {}
+
 impl<Arenas> Linked<ExprNode, Arenas, Arenas> for ExprNode
 where
     Self: ArenaItem + Sized,
