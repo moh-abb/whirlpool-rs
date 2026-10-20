@@ -5,6 +5,7 @@ use crate::mem::Chain;
 use crate::mem::Index;
 use crate::mem::Multiple;
 
+pub mod format;
 pub mod ident;
 pub mod linked;
 
