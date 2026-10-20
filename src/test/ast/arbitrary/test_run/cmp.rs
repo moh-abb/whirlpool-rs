@@ -12,7 +12,7 @@ use crate::mem::arena::test::ArenaTest;
 use crate::mem::arena::test::ArenaTest2;
 use crate::mem::arena::test::arenas_test_run;
 use crate::mem::arena::test::double_arenas_test_run;
-use crate::test::pattern::arbitrary::strategy::AnyPatternStrategy;
+use crate::test::ast::arbitrary::strategy::AnyPatternStrategy;
 
 struct EqualToItself;
 impl<Arenas: PatternArenas> ArenaTest<Index<PatternNode>, Arenas>

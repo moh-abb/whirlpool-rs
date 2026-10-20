@@ -11,7 +11,7 @@ use crate::mem::Index;
 use crate::mem::SharedArenaRef;
 use crate::mem::arena::test::ArenaTest;
 use crate::mem::arena::test::arenas_test_run;
-use crate::test::pattern::arbitrary::strategy::AnyPatternStrategy;
+use crate::test::ast::arbitrary::strategy::AnyPatternStrategy;
 
 struct DoNothing;
 impl<Arenas: PatternArenas> ArenaTest<Index<PatternNode>, Arenas>
