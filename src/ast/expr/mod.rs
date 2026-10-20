@@ -1,16 +1,12 @@
-use crate::ast::parser::array::ParserVec;
+use crate::ast::expr::ident::Identifier;
 use crate::ast::pattern::Pattern;
 use crate::ast::time::CycleTime;
 use crate::mem::Chain;
 use crate::mem::Index;
 use crate::mem::Multiple;
 
+pub mod ident;
 pub mod linked;
-
-pub const MAX_IDENT_LENGTH: usize = 20;
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Identifier(pub ParserVec<u8, MAX_IDENT_LENGTH>);
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StringLiteral;
