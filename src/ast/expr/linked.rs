@@ -1,5 +1,5 @@
-use crate::ast::expr::PatternExpr;
-use crate::ast::expr::PatternExprNode;
+use crate::ast::expr::Expr;
+use crate::ast::expr::ExprNode;
 use crate::mem::Arena;
 use crate::mem::ArenaItem;
 use crate::mem::Chain;
@@ -8,17 +8,17 @@ use crate::mem::linked::ChildMut;
 use crate::mem::linked::ChildRef;
 use crate::mem::linked::Linked;
 
-impl<Arenas> Linked<PatternExprNode, Arenas, Arenas> for PatternExprNode
+impl<Arenas> Linked<ExprNode, Arenas, Arenas> for ExprNode
 where
     Self: ArenaItem + Sized,
-    PatternExprNode: ArenaItem + Sized,
+    ExprNode: ArenaItem + Sized,
     Arenas: Arena<Self>,
 {
-    fn get_parent(&self) -> &Option<Index<PatternExprNode>> {
+    fn get_parent(&self) -> &Option<Index<ExprNode>> {
         &self.parent
     }
 
-    fn get_mut_parent(&mut self) -> &mut Option<Index<PatternExprNode>> {
+    fn get_mut_parent(&mut self) -> &mut Option<Index<ExprNode>> {
         &mut self.parent
     }
 
@@ -30,25 +30,23 @@ where
         &mut self.sibling_chain
     }
 
-    fn get_children(parent: &PatternExprNode) -> Option<ChildRef<'_, Self>> {
+    fn get_children(parent: &ExprNode) -> Option<ChildRef<'_, Self>> {
         match &parent.expr {
-            PatternExpr::Call { args, .. } | PatternExpr::Array { args } => {
+            Expr::Call { args, .. } | Expr::Array { args } => {
                 Some(ChildRef::Multiple(args))
             }
-            PatternExpr::Lambda { expr, .. } => Some(ChildRef::Single(expr)),
-            PatternExpr::Unit(_) => None,
+            Expr::Lambda { expr, .. } => Some(ChildRef::Single(expr)),
+            Expr::Unit(_) => None,
         }
     }
 
-    fn get_mut_children(
-        parent: &mut PatternExprNode,
-    ) -> Option<ChildMut<'_, Self>> {
+    fn get_mut_children(parent: &mut ExprNode) -> Option<ChildMut<'_, Self>> {
         match &mut parent.expr {
-            PatternExpr::Call { args, .. } | PatternExpr::Array { args } => {
+            Expr::Call { args, .. } | Expr::Array { args } => {
                 Some(ChildMut::Multiple(args))
             }
-            PatternExpr::Lambda { expr, .. } => Some(ChildMut::Single(expr)),
-            PatternExpr::Unit(_) => None,
+            Expr::Lambda { expr, .. } => Some(ChildMut::Single(expr)),
+            Expr::Unit(_) => None,
         }
     }
 }

@@ -16,7 +16,7 @@ pub struct Identifier(pub ParserVec<u8, MAX_IDENT_LENGTH>);
 pub struct StringLiteral;
 
 #[derive(derive_more::From, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum PatternExpr {
+pub enum Expr {
     /// Function call; e.g. `cat(A5,B5,C5)`.
     /// Formats:
     /// - Non-method: `<ident>((<expr>,)*)`
@@ -24,15 +24,15 @@ pub enum PatternExpr {
     Call {
         is_method: bool,
         name: Identifier,
-        args: Multiple<PatternExprNode>,
+        args: Multiple<ExprNode>,
         opt_pattern: Option<Pattern>,
     },
     /// Lambda function; e.g. `x=>cat(x,A5)`.
     /// Format: `<ident>=><expr>`
-    Lambda { param: Identifier, expr: Option<Index<PatternExprNode>> },
+    Lambda { param: Identifier, expr: Option<Index<ExprNode>> },
     /// Array literal; e.g. `[bd,sd,hh]`
     /// Format: `[(<expr>,)*]`
-    Array { args: Multiple<PatternExprNode> },
+    Array { args: Multiple<ExprNode> },
     /// Expression unit; for details and format see [ExprUnit].
     Unit(ExprUnit),
 }
@@ -55,14 +55,14 @@ pub enum ExprUnit {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct PatternExprNode {
+pub struct ExprNode {
     pub parent: Option<Index<Self>>,
     pub sibling_chain: Chain<Self>,
-    pub expr: PatternExpr,
+    pub expr: Expr,
 }
 
-impl PatternExprNode {
-    pub const fn new(expr: PatternExpr) -> Self {
+impl ExprNode {
+    pub const fn new(expr: Expr) -> Self {
         Self { parent: None, sibling_chain: Chain::new(), expr }
     }
 }
