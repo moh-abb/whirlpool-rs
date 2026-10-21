@@ -19,12 +19,14 @@ pub struct StringLiteral;
 #[derive(derive_more::From, Debug, Clone)]
 #[derive_where(PartialEq, Eq, PartialOrd, Ord)]
 pub enum Expr {
-    /// Function call; e.g. `cat(A5,B5,C5)`.
+    /// Function call; e.g. `cat(A5,B5,C5)`, or method, `xs.fast(2)`.
+    /// If the function is a method, then `receiver` is set to the name of the
+    /// item that the method is called on.
     /// Formats:
     /// - Non-method: `<ident>((<expr>,)*)`
     /// - Method: `<expr>.<ident>((<expr>,)*)`
     Call {
-        is_method: bool,
+        receiver: Option<Identifier>,
         name: Identifier,
         #[derive_where(skip)]
         args: Multiple<ExprNode>,
