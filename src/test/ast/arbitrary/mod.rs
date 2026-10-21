@@ -1,2 +1,3 @@
+mod adapter;
+mod cmp;
 pub mod strategy;
-mod test_run;

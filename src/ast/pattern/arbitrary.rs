@@ -10,10 +10,10 @@ use proptest::prop_oneof;
 use crate::ast::note::arbitrary::arb_note_unit;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::PatternNode;
+use crate::ast::pattern::adapter::PatternArenaAdapter;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::arenas::PatternArenasExt;
 use crate::ast::pattern::arenas::PatternPushBackError;
-use crate::ast::pattern::drop::PatternDropAdapter;
 use crate::ast::time::CycleTime;
 use crate::ast::time::arbitrary::arb_positive_cycle_time;
 use crate::mem::ArenaError;
@@ -37,7 +37,7 @@ fn arb_pattern_leaf() -> impl Strategy<Value = Pattern> {
 pub type ArenasToPatternDropAdapter<'r, Arenas> = ArenasTo<
     'r,
     Arenas,
-    PatternDropAdapter<SharedArenaRef<'r, Arenas>>,
+    PatternArenaAdapter<SharedArenaRef<'r, Arenas>>,
     ArbPatternError,
 >;
 pub type ArenasToPatternIndex<'r, Arenas> =
@@ -58,7 +58,7 @@ fn pattern_to_time_cat_or_arrange<'r, Arenas: PatternArenas + 'r>(
         let result_adapter = arenas
             .clone()
             .push_dropping(f(total_cycle_time, Multiple::new()))?;
-        let result_index = result_adapter.clone_index().unwrap();
+        let result_index = result_adapter.clone_index()?.unwrap();
 
         xs.iter()
             .cloned()
@@ -89,7 +89,7 @@ fn pattern_to_multiple_pattern<'r, Arenas: PatternArenas + 'r>(
             .clone()
             .push_dropping(f(Multiple::new()))?;
 
-        let result_index = result_adapter.clone_index().unwrap();
+        let result_index = result_adapter.clone_index()?.unwrap();
 
         xs.iter().cloned().try_for_each(|x| {
             let child_adapter = x.call(arenas.clone())?;
@@ -109,7 +109,7 @@ fn arenas_to_index<'r, Arenas: PatternArenas + 'r>(
 ) -> ArenasToPatternIndex<'r, Arenas> {
     ArenasTo::new(move |arenas| {
         let mut adapter = arenas_to_adapter.call(arenas)?;
-        Ok(adapter.take_index().unwrap())
+        Ok(adapter.take_index()?.unwrap())
     })
 }
 

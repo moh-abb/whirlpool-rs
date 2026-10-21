@@ -1,3 +1,5 @@
+use derive_where::derive_where;
+
 use crate::ast::expr::ident::Identifier;
 use crate::ast::pattern::Pattern;
 use crate::ast::time::CycleTime;
@@ -5,6 +7,8 @@ use crate::mem::Chain;
 use crate::mem::Index;
 use crate::mem::Multiple;
 
+pub mod adapter;
+pub mod cmp;
 pub mod format;
 pub mod ident;
 pub mod linked;
@@ -12,7 +16,8 @@ pub mod linked;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StringLiteral;
 
-#[derive(derive_more::From, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(derive_more::From, Debug, Clone)]
+#[derive_where(PartialEq, Eq, PartialOrd, Ord)]
 pub enum Expr {
     /// Function call; e.g. `cat(A5,B5,C5)`.
     /// Formats:
@@ -21,15 +26,23 @@ pub enum Expr {
     Call {
         is_method: bool,
         name: Identifier,
+        #[derive_where(skip)]
         args: Multiple<ExprNode>,
         opt_pattern: Option<Pattern>,
     },
     /// Lambda function; e.g. `x=>cat(x,A5)`.
     /// Format: `<ident>=><expr>`
-    Lambda { param: Identifier, expr: Option<Index<ExprNode>> },
+    Lambda {
+        param: Identifier,
+        #[derive_where(skip)]
+        expr: Option<Index<ExprNode>>,
+    },
     /// Array literal; e.g. `[bd,sd,hh]`
     /// Format: `[(<expr>,)*]`
-    Array { args: Multiple<ExprNode> },
+    Array {
+        #[derive_where(skip)]
+        args: Multiple<ExprNode>,
+    },
     /// Expression unit; for details and format see [ExprUnit].
     Unit(ExprUnit),
 }

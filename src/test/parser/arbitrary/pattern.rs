@@ -4,10 +4,10 @@ use core::fmt::Debug;
 use combine::EasyParser;
 
 use crate::ast::pattern::PatternNode;
+use crate::ast::pattern::adapter::PatternArenaAdapter;
 use crate::ast::pattern::arbitrary::ArbPatternError;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::cmp::PatternOrdAdapter;
-use crate::ast::pattern::drop::PatternDropAdapter;
 use crate::ast::pattern::format::PatternDisplayAdapter;
 use crate::mem::GrowableArena;
 use crate::mem::Index;
@@ -27,7 +27,7 @@ impl<Arenas: PatternArenas + Debug> ArenaTest<Index<PatternNode>, Arenas>
         let display_adapter =
             PatternDisplayAdapter::new(orig_index.clone(), &shared_arena_ref);
         let orig_formatted = format!("{display_adapter}");
-        let mut parser = PatternDropAdapter::parser(shared_arena_ref.clone());
+        let mut parser = PatternArenaAdapter::parser(shared_arena_ref.clone());
         let mut result_adapter = parser
             .easy_parse(orig_formatted.as_bytes())
             .unwrap_or_else(|e| {
@@ -45,6 +45,7 @@ impl<Arenas: PatternArenas + Debug> ArenaTest<Index<PatternNode>, Arenas>
             });
         let result_index = result_adapter
             .take_index()
+            .expect("Adapter should not store an error")
             .expect("Should have a full item inside the adapter");
         let result_formatted =
             PatternDisplayAdapter::new(result_index.clone(), &shared_arena_ref);

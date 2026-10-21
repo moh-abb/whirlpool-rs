@@ -1,8 +1,7 @@
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::PatternNode;
 use crate::ast::pattern::TimedStep;
-use crate::ast::pattern::clone::PatternCloneDropAdapter;
-use crate::ast::pattern::drop::PatternDropAdapter;
+use crate::ast::pattern::adapter::PatternArenaAdapter;
 use crate::ast::time::CycleTime;
 use crate::ast::time::OverflowError;
 use crate::mem::Arena;
@@ -43,52 +42,52 @@ pub trait PatternArenasExt: PatternArenas + Sized {
         &mut self,
         parent_index: Index<PatternNode>,
         time: CycleTime,
-        child_adapter: PatternDropAdapter<Self>,
+        child_adapter: PatternArenaAdapter<Self>,
     ) -> PatternPushBackResult<()>;
 
     fn push_pattern_adapter(
         &mut self,
         parent_index: Index<PatternNode>,
-        child_adapter: PatternDropAdapter<Self>,
+        child_adapter: PatternArenaAdapter<Self>,
     ) -> PatternPushBackResult<()>;
 
     fn push_dropping(
         &mut self,
         pattern: Pattern,
-    ) -> PatternPushBackResult<PatternDropAdapter<Self>>;
+    ) -> PatternPushBackResult<PatternArenaAdapter<Self>>;
 
     fn push_cloning(
         &mut self,
         pattern: Pattern,
-    ) -> PatternPushBackResult<PatternCloneDropAdapter<Self>>;
+    ) -> PatternPushBackResult<PatternArenaAdapter<Self>>;
 }
 
 impl<'r, A: PatternArenas> PatternArenasExt for SharedArenaRef<'r, A> {
     fn push_dropping(
         &mut self,
         pattern: Pattern,
-    ) -> PatternPushBackResult<PatternDropAdapter<Self>> {
-        Ok(PatternDropAdapter::new(self.push_raw(pattern)?, self.clone()))
+    ) -> PatternPushBackResult<PatternArenaAdapter<Self>> {
+        Ok(PatternArenaAdapter::new(self.push_raw(pattern)?, self.clone()))
     }
 
     fn push_cloning(
         &mut self,
         pattern: Pattern,
-    ) -> PatternPushBackResult<PatternCloneDropAdapter<Self>> {
-        Ok(PatternCloneDropAdapter::new(self.push_raw(pattern)?, self.clone()))
+    ) -> PatternPushBackResult<PatternArenaAdapter<Self>> {
+        Ok(PatternArenaAdapter::new(self.push_raw(pattern)?, self.clone()))
     }
 
     fn push_timed_step_adapter(
         &mut self,
         parent_index: Index<PatternNode>,
         time: CycleTime,
-        child_adapter: PatternDropAdapter<Self>,
+        child_adapter: PatternArenaAdapter<Self>,
     ) -> PatternPushBackResult<()> {
         let timed_step = Pattern::TimedStep(TimedStep(time, None));
         let timed_step_adapter = self.clone().push_dropping(timed_step)?;
 
         let timed_step_index = timed_step_adapter
-            .clone_index()
+            .clone_index()?
             .ok_or(PatternPushBackError::ExpectedFullAdapter)?;
 
         self.push_pattern_adapter(timed_step_index, child_adapter)?;
@@ -100,10 +99,10 @@ impl<'r, A: PatternArenas> PatternArenasExt for SharedArenaRef<'r, A> {
     fn push_pattern_adapter(
         &mut self,
         parent_index: Index<PatternNode>,
-        mut child_adapter: PatternDropAdapter<Self>,
+        mut child_adapter: PatternArenaAdapter<Self>,
     ) -> PatternPushBackResult<()> {
         let child_index = child_adapter
-            .clone_index()
+            .clone_index()?
             .ok_or(PatternPushBackError::ExpectedFullAdapter)?;
 
         // Link the pattern to the provided parent.
@@ -117,7 +116,7 @@ impl<'r, A: PatternArenas> PatternArenasExt for SharedArenaRef<'r, A> {
         )?;
 
         // Avoid dropping the newly-linked child
-        child_adapter.take_index();
+        child_adapter.take_index()?;
 
         Ok(())
     }

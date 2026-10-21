@@ -69,7 +69,7 @@ impl<'src, A: PatternArenas> CollectIntoPattern<'src, A> {
             .map_err(Clone::clone)
             .and_then(|parent| {
                 parent
-                    .clone_index()
+                    .clone_index()?
                     .ok_or(ParsePatternError::ExpectedSetParent)
             })
     }

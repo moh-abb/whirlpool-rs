@@ -4,11 +4,10 @@ use crate::mem::Chain;
 use crate::mem::Index;
 use crate::mem::Multiple;
 
+pub mod adapter;
 pub mod arbitrary;
 pub mod arenas;
-pub mod clone;
 pub mod cmp;
-pub mod drop;
 pub mod examples;
 pub mod format;
 pub mod linked;

@@ -19,12 +19,12 @@ use crate::ast::parser::collect::PatternToCollect;
 use crate::ast::parser::collect::TimedStepToCollect;
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::PatternNode;
+use crate::ast::pattern::adapter::PatternArenaAdapter;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::arenas::PatternArenasExt;
 use crate::ast::pattern::arenas::PatternPushBackError;
 use crate::ast::pattern::arenas::SumCycleLengthError;
 use crate::ast::pattern::arenas::timed_step_total_cycle_length;
-use crate::ast::pattern::drop::PatternDropAdapter;
 use crate::ast::time::CycleTime;
 use crate::ast::time::parser::ParseCycleTimeError;
 use crate::mem::Arena;
@@ -58,7 +58,7 @@ fn timed_step_func_fields<'a>(
 }
 
 type ParseResult<T> = Result<T, ParsePatternError>;
-type ParsedPattern<'src, A> = PatternDropAdapter<SharedArenaRef<'src, A>>;
+type ParsedPattern<'src, A> = PatternArenaAdapter<SharedArenaRef<'src, A>>;
 
 pub type ParsePatternResult<'src, A> = ParseResult<ParsedPattern<'src, A>>;
 
@@ -99,9 +99,9 @@ fn update_total_cycle_length<'src, A: PatternArenas>(
     func_result: ParsePatternResult<'src, A>,
 ) -> ParsePatternResult<'src, A> {
     // Set the total length of the result.
-    let parent_adapter: PatternDropAdapter<_> = func_result?;
+    let parent_adapter: PatternArenaAdapter<_> = func_result?;
     let parent_index = parent_adapter
-        .clone_index()
+        .clone_index()?
         .ok_or(ParsePatternError::ExpectedFullAdapter)?;
 
     let mut cloned_arena_ref = shared_arena_ref.clone();
