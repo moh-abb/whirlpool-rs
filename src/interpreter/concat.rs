@@ -1,6 +1,8 @@
 use core::debug_assert_matches;
 use core::iter;
-use core::ops::ControlFlow;
+
+use fallible_iterator as fiter;
+use fiter::FallibleIterator;
 
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::PatternNode;
@@ -31,11 +33,13 @@ pub enum ConcatFrame<'a, Arenas: PatternArenas> {
     Arrange(ArrangeFrame<'a, Arenas>),
 }
 
-type CatOrSeqIter<'a, Arenas> = iter::Map<
-    multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
-    fn(
-        ArenaResult<Index<PatternNode>>,
-    ) -> PatternInterpreterResult<ElemProps<Index<PatternNode>>>,
+type CatOrSeqIter<'a, Arenas> = fiter::Convert<
+    iter::Map<
+        multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
+        fn(
+            ArenaResult<Index<PatternNode>>,
+        ) -> PatternInterpreterResult<ElemProps<Index<PatternNode>>>,
+    >,
 >;
 
 #[derive(Debug)]
@@ -43,11 +47,12 @@ pub struct CatOrSeqFrame<'a, Arenas: PatternArenas>(
     PlayMultiple<Index<PatternNode>, CatOrSeqIter<'a, Arenas>>,
 );
 
-type StackIter<'a, Arenas> =
-    multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>;
+type StackIter<'a, Arenas> = fiter::Convert<
+    multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
+>;
 
 #[derive(Debug)]
-pub struct StackFrame<'a, Arenas>(PlayElemArgs<()>, StackIter<'a, Arenas>);
+pub struct StackFrame<'a, Arenas>(StackIter<'a, Arenas>, PlayElemArgs<()>);
 
 impl<'a, Arenas: PatternArenas> CatOrSeqFrame<'a, Arenas> {
     fn new(
@@ -72,9 +77,11 @@ impl<'a, Arenas: PatternArenas> CatOrSeqFrame<'a, Arenas> {
 
         let args_with_iterator = play_args.map(|()| ElemProps {
             elem: move || {
-                multiple
-                    .checked_iter(arenas)
-                    .map(opt_index_to_props)
+                fiter::convert(
+                    multiple
+                        .checked_iter(arenas)
+                        .map(opt_index_to_props),
+                )
             },
             sim_duration: length,
             played_duration: length,
@@ -94,18 +101,22 @@ impl<'a, Arenas: PatternArenas> StackFrame<'a, Arenas> {
             return Err(PatternInterpreterError::MultipleEmpty);
         }
 
-        let frame = Self(play_args, multiple.checked_iter(arenas));
+        let frame =
+            Self(fiter::convert(multiple.checked_iter(arenas)), play_args);
         Ok(frame)
     }
 }
 
-type TimeCatIter<'a, Arenas> = iter::Scan<
-    multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
-    (CycleTime, CycleTime, &'a Arenas),
-    fn(
-        &mut (CycleTime, CycleTime, &'a Arenas),
-        ArenaResult<Index<PatternNode>>,
-    ) -> Option<PatternInterpreterResult<ElemProps<Index<PatternNode>>>>,
+type TimeCatIter<'a, Arenas> = fiter::Convert<
+    iter::Scan<
+        multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
+        (CycleTime, CycleTime, &'a Arenas),
+        fn(
+            &mut (CycleTime, CycleTime, &'a Arenas),
+            ArenaResult<Index<PatternNode>>,
+        )
+            -> Option<PatternInterpreterResult<ElemProps<Index<PatternNode>>>>,
+    >,
 >;
 
 #[derive(Debug)]
@@ -184,11 +195,13 @@ impl<'a, Arenas: PatternArenas> TimeCatFrame<'a, Arenas> {
                 Some(make_sim_elem_in_arenas(arenas, opt_index, make_sim_elem))
             };
 
-        let get_elements = || {
-            multiple
-                .checked_iter(arenas)
-                .scan((total_cycle_length, multiple_length, arenas), scan_func)
-        };
+        let get_elements =
+            || {
+                fiter::convert(multiple.checked_iter(arenas).scan(
+                    (total_cycle_length, multiple_length, arenas),
+                    scan_func,
+                ))
+            };
 
         let args_with_iterator = play_args.map(|()| ElemProps {
             elem: get_elements,
@@ -200,13 +213,16 @@ impl<'a, Arenas: PatternArenas> TimeCatFrame<'a, Arenas> {
     }
 }
 
-type ArrangeIter<'a, Arenas> = iter::Scan<
-    multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
-    &'a Arenas,
-    fn(
-        &mut &'a Arenas,
-        ArenaResult<Index<PatternNode>>,
-    ) -> Option<PatternInterpreterResult<ElemProps<Index<PatternNode>>>>,
+type ArrangeIter<'a, Arenas> = fiter::Convert<
+    iter::Scan<
+        multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
+        &'a Arenas,
+        fn(
+            &mut &'a Arenas,
+            ArenaResult<Index<PatternNode>>,
+        )
+            -> Option<PatternInterpreterResult<ElemProps<Index<PatternNode>>>>,
+    >,
 >;
 
 #[derive(Debug)]
@@ -246,9 +262,11 @@ impl<'a, Arenas: PatternArenas> ArrangeFrame<'a, Arenas> {
             };
 
         let get_elements = || {
-            multiple
-                .checked_iter(arenas)
-                .scan(arenas, scan_func)
+            fiter::convert(
+                multiple
+                    .checked_iter(arenas)
+                    .scan(arenas, scan_func),
+            )
         };
 
         let args_with_iterator = play_args.map(|()| ElemProps {
@@ -327,13 +345,7 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
         _: &mut impl UnitScheduler,
         _: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
-        match self.0.next() {
-            None => Ok(ControlFlow::Break(None)),
-            Some(Err(err)) => Err(err),
-            Some(Ok(args)) => {
-                Ok(ControlFlow::Continue(Some(query_frame(args))))
-            }
-        }
+        Ok(self.0.next()?.map(query_frame))
     }
 }
 
@@ -345,17 +357,11 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
         _: &mut impl UnitScheduler,
         _: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
-        let checked_iter = &mut self.1;
-        match checked_iter.next() {
-            None => Ok(ControlFlow::Break(None)),
-            Some(Err(err)) => Err(err.into()),
-            Some(Ok(index)) => {
-                let args = self.0.clone();
-                Ok(ControlFlow::Continue(Some(query_frame(
-                    args.map(|()| index),
-                ))))
-            }
-        }
+        let args = self.1.clone();
+        Ok(self
+            .0
+            .next()?
+            .map(|index| query_frame(args.map(|()| index))))
     }
 }
 
@@ -367,13 +373,7 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
         _: &mut impl UnitScheduler,
         _: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
-        match self.0.next() {
-            None => Ok(ControlFlow::Break(None)),
-            Some(Err(err)) => Err(err),
-            Some(Ok(args)) => {
-                Ok(ControlFlow::Continue(Some(query_frame(args))))
-            }
-        }
+        Ok(self.0.next()?.map(query_frame))
     }
 }
 
@@ -385,12 +385,6 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
         _: &mut impl UnitScheduler,
         _: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
-        match self.0.next() {
-            None => Ok(ControlFlow::Break(None)),
-            Some(Err(err)) => Err(err),
-            Some(Ok(args)) => {
-                Ok(ControlFlow::Continue(Some(query_frame(args))))
-            }
-        }
+        Ok(self.0.next()?.map(query_frame))
     }
 }

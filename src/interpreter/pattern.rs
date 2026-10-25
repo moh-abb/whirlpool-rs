@@ -1,6 +1,5 @@
 use core::cell::RefCell;
 use core::marker::PhantomData;
-use core::ops::ControlFlow;
 use core::ops::DerefMut;
 
 use crate::ast::pattern::PatternNode;
@@ -168,18 +167,14 @@ where
                 frame.step(borrowed_scheduler.deref_mut(), self.arenas)
             })?;
             let Some(step_result) = opt_step_result else {
+                // The stack is empty, so we are done.
                 break;
             };
 
-            let opt_new_frame = match step_result? {
-                ControlFlow::Break(opt_new_frame) => {
-                    frames.pop();
-                    opt_new_frame
-                }
-                ControlFlow::Continue(opt_new_frame) => opt_new_frame,
-            };
-            if let Some(new_frame) = opt_new_frame {
+            if let Some(new_frame) = step_result? {
                 frames.push(new_frame)?;
+            } else {
+                frames.pop()?;
             }
         }
 

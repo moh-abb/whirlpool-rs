@@ -1,5 +1,3 @@
-use core::ops::ControlFlow;
-
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::PatternNode;
 use crate::ast::pattern::arenas::PatternArenas;
@@ -22,19 +20,12 @@ enum FrameInner<'a, Arenas: PatternArenas> {
 pub struct InterpreterFrame<'a, Arenas: PatternArenas>(FrameInner<'a, Arenas>);
 
 /// Indicates the result of interpreting one frame.
-/// If we return `Err(err)` then this indicates that interpreting has failed
-/// with the given error. Otherwise, `Ok(Continue(None))` indicates to
-/// continue stepping without pushing any more frames onto the stack, and
-/// `Ok(Continue(Some(frame)))` indicates that `frame` should be pushed onto
-/// the stack. Likewise, `Break(None)` is a normal break (exit from the current
-/// frame), while `Break(Some(frame))` indicates to exit and remove this frame
-/// and push the next frame to replace it.
-pub type InterpreterResult<'a, Arenas> = PatternInterpreterResult<
-    ControlFlow<
-        Option<InterpreterFrame<'a, Arenas>>,
-        Option<InterpreterFrame<'a, Arenas>>,
-    >,
->;
+/// If we return `Err(err)`, then interpretation has failed with the given
+/// error. Otherwise `Ok(None)` indicates that interpretation of the current
+/// frame is complete, and `Ok(Some(frame))` indicates to keep this frame on
+/// the stack and interpret the new one on top.
+pub type InterpreterResult<'a, Arenas> =
+    PatternInterpreterResult<Option<InterpreterFrame<'a, Arenas>>>;
 
 pub(super) trait EvaluateFrame<'a, Arenas: PatternArenas> {
     fn step(
@@ -47,12 +38,13 @@ pub(super) trait EvaluateFrame<'a, Arenas: PatternArenas> {
 #[derive(Debug)]
 pub(super) struct QueryFrame {
     play_args: PlayElemArgs<Index<PatternNode>>,
+    finished: bool,
 }
 
 pub(super) fn query_frame<'a, Arenas: PatternArenas>(
     play_args: PlayElemArgs<Index<PatternNode>>,
 ) -> InterpreterFrame<'a, Arenas> {
-    InterpreterFrame((QueryFrame { play_args }).into())
+    InterpreterFrame((QueryFrame { play_args, finished: false }).into())
 }
 
 impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
@@ -61,6 +53,10 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
         _: &mut impl UnitScheduler,
         arenas: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
+        // Check if we are done.
+        if self.finished {
+            return Ok(None);
+        }
         let index = self.play_args.elem.clone();
         let play_args = self.play_args.clone().map(|_| ());
         let cloned_pattern = arenas.map(index, Clone::clone)?.pattern;
@@ -102,8 +98,9 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
             }
             Pattern::Silence => LeafFrame::silence()?.into(),
         };
-        // Indicate to pop this frame and push the next frame.
-        Ok(ControlFlow::Break(Some(InterpreterFrame(next_frame))))
+        // Indicate that we will delete this frame after the child frame exits.
+        self.finished = true;
+        Ok(Some(InterpreterFrame(next_frame)))
     }
 }
 

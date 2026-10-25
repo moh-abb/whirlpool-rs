@@ -1,11 +1,17 @@
 use core::fmt::Debug;
-use core::iter;
 use core::ops::RangeInclusive;
+use core::option;
+
+use fallible_iterator as fiter;
+use fallible_iterator::FallibleIterator;
 
 use crate::ast::pattern::arenas::sum_cycle_length;
 use crate::ast::time::CycleTime;
 use crate::ast::time::interval::CycleInterval;
+use crate::interpreter::error::PatternInterpreterError;
 use crate::interpreter::error::PatternInterpreterResult;
+use crate::interpreter::iterator::GenPure;
+use crate::interpreter::iterator::Generator;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
 
@@ -55,13 +61,13 @@ struct OuterIterData {
     total_multiplier: CycleTime,
 }
 
-type OuterIter<T, Iter> = iter::Scan<
+type OuterIter<T, Iter> = fiter::Scan<
     Iter,
     OuterIterData,
     fn(
         &mut OuterIterData,
-        PatternInterpreterResult<ElemProps<T>>,
-    ) -> Option<PatternInterpreterResult<RepIterData<T>>>,
+        ElemProps<T>,
+    ) -> PatternInterpreterResult<Option<RepIterData<T>>>,
 >;
 
 fn make_outer_iter<T, Iter>(
@@ -72,7 +78,7 @@ fn make_outer_iter<T, Iter>(
 ) -> OuterIter<T, Iter>
 where
     T: Debug + Clone,
-    Iter: Iterator<Item = PatternInterpreterResult<ElemProps<T>>>,
+    Iter: Generator<Item = ElemProps<T>>,
 {
     // Cat and similar patterns play alternating elements.
     // This is achieved by looking at the "repetitions" of each element.
@@ -138,93 +144,87 @@ where
     };
 
     let scan_func: fn(&mut _, _) -> _ =
-        |state: &mut OuterIterData,
-         opt_cur: PatternInterpreterResult<ElemProps<T>>| {
-            let yield_reps = || {
-                let cur = opt_cur?;
-                // INV: played_start == P(i - 1)
-                // elem_interval = [P(i - 1), P(i))
-                let elem_interval = CycleInterval::new(
-                    state.played_start,
-                    state
-                        .played_start
-                        .add(cur.played_duration)?,
-                );
+        |state: &mut OuterIterData, cur: ElemProps<T>| {
+            // INV: played_start == P(i - 1)
+            // elem_interval = [P(i - 1), P(i))
+            let elem_interval = CycleInterval::new(
+                state.played_start,
+                state
+                    .played_start
+                    .add(cur.played_duration)?,
+            );
 
-                // Upper and lower bounds of rep.
-                // Not all of these will be inside the played interval,
-                // so we need to verify its intersection.
-                let max_start_difference = state
-                    .interval
-                    .start()
-                    .floor()?
-                    .sub(elem_interval.start().ceil()?)?;
-                let max_end_difference = state
-                    .interval
-                    .end()
-                    .ceil()?
-                    .sub(elem_interval.end().floor()?)?;
-                let first_rep = max_start_difference
-                    .div(state.total.played_duration)?
-                    .floor()?;
-                let last_rep = max_end_difference
-                    .div(state.total.played_duration)?
-                    .ceil()?;
+            // Upper and lower bounds of rep.
+            // Not all of these will be inside the played interval,
+            // so we need to verify its intersection.
+            let max_start_difference = state
+                .interval
+                .start()
+                .floor()?
+                .sub(elem_interval.start().ceil()?)?;
+            let max_end_difference = state
+                .interval
+                .end()
+                .ceil()?
+                .sub(elem_interval.end().floor()?)?;
+            let first_rep = max_start_difference
+                .div(state.total.played_duration)?
+                .floor()?;
+            let last_rep = max_end_difference
+                .div(state.total.played_duration)?
+                .ceil()?;
 
-                debug_assert!(
-                    state
-                        .played_start
-                        .add(first_rep.mul(state.total.played_duration)?)?
-                        <= state.interval.start(),
-                    "first repetition to try should start on or before interval"
-                );
-                debug_assert!(
-                    state
-                        .played_start
-                        .add(last_rep.mul(state.total.played_duration)?)?
-                        .add(cur.played_duration)?
-                        >= state.interval.end(),
-                    "last repetition to try should end on or after interval"
-                );
+            debug_assert!(
+                state
+                    .played_start
+                    .add(first_rep.mul(state.total.played_duration)?)?
+                    <= state.interval.start(),
+                "first repetition to try should start on or before interval"
+            );
+            debug_assert!(
+                state
+                    .played_start
+                    .add(last_rep.mul(state.total.played_duration)?)?
+                    .add(cur.played_duration)?
+                    >= state.interval.end(),
+                "last repetition to try should end on or after interval"
+            );
 
-                // elem_multiplier = m_s = (s_i / p_i) * m_t
-                let multiplier_scale = cur
-                    .sim_duration
-                    .div(cur.played_duration)?;
-                let elem_multiplier =
-                    multiplier_scale.mul(state.total_multiplier)?;
+            // elem_multiplier = m_s = (s_i / p_i) * m_t
+            let multiplier_scale = cur
+                .sim_duration
+                .div(cur.played_duration)?;
+            let elem_multiplier =
+                multiplier_scale.mul(state.total_multiplier)?;
 
-                // INV: rep_start = rep * PL + P(i - 1)
-                let rep_start = first_rep
-                    .mul(state.total.played_duration)?
-                    .add(state.played_start)?;
+            // INV: rep_start = rep * PL + P(i - 1)
+            let rep_start = first_rep
+                .mul(state.total.played_duration)?
+                .add(state.played_start)?;
 
-                let outer_data_without_iter = OuterIterData {
-                    played_start: state.played_start,
-                    interval: state.interval,
-                    total: ElemProps {
-                        elem: (),
-                        sim_duration: state.total.sim_duration,
-                        played_duration: state.total.played_duration,
-                    },
-                    offset: state.offset,
-                    total_multiplier: state.total_multiplier,
-                };
-
-                state.played_start = elem_interval.end();
-
-                PatternInterpreterResult::Ok(RepIterData {
-                    outer: outer_data_without_iter,
-                    rep_start,
-                    first_rep: first_rep.to_int(),
-                    last_rep: last_rep.to_int(),
-                    cur,
-                    multiplier_scale,
-                    elem_multiplier,
-                })
+            let outer_data_without_iter = OuterIterData {
+                played_start: state.played_start,
+                interval: state.interval,
+                total: ElemProps {
+                    elem: (),
+                    sim_duration: state.total.sim_duration,
+                    played_duration: state.total.played_duration,
+                },
+                offset: state.offset,
+                total_multiplier: state.total_multiplier,
             };
 
-            Some(yield_reps())
+            state.played_start = elem_interval.end();
+
+            PatternInterpreterResult::Ok(Some(RepIterData {
+                outer: outer_data_without_iter,
+                rep_start,
+                first_rep: first_rep.to_int(),
+                last_rep: last_rep.to_int(),
+                cur,
+                multiplier_scale,
+                elem_multiplier,
+            }))
         };
 
     total
@@ -243,21 +243,29 @@ struct RepIterData<T> {
     elem_multiplier: CycleTime,
 }
 
-type RepsIter<T> = iter::Scan<
-    RangeInclusive<i32>,
+type OptRepIter<T> =
+    GenPure<option::IntoIter<PlayElemArgs<T>>, PatternInterpreterError>;
+
+type RepsIter<T> = fiter::Scan<
+    GenPure<RangeInclusive<i32>, PatternInterpreterError>,
     RepIterData<T>,
     fn(
         &mut RepIterData<T>,
         i32,
-    ) -> Option<PatternInterpreterResult<Option<PlayElemArgs<T>>>>,
+    ) -> PatternInterpreterResult<Option<OptRepIter<T>>>,
 >;
 
 fn make_reps_iter<T: Debug + Clone>(
     rep_iter_data: RepIterData<T>,
 ) -> RepsIter<T> {
-    let rep_indices = rep_iter_data.first_rep..=rep_iter_data.last_rep;
-    let scan_func = |state: &mut RepIterData<T>, rep_index| {
-        let mut yield_intersections = || {
+    GenPure::new(rep_iter_data.first_rep..=rep_iter_data.last_rep).scan(
+        rep_iter_data,
+        |state: &mut RepIterData<T>, rep_index| {
+            let make_opt_rep_iter =
+                |opt_intersection: Option<PlayElemArgs<T>>| {
+                    Ok(Some(GenPure::new(opt_intersection.into_iter())))
+                };
+
             let rep = CycleTime::checked_from_int(rep_index)?;
             // Verify invariant for rep_start
             debug_assert_eq!(
@@ -288,7 +296,7 @@ fn make_reps_iter<T: Debug + Clone>(
                 .add(state.outer.total.played_duration)?;
 
             let Some(rep_intersection) = opt_rep_intersection else {
-                return Ok(None);
+                return make_opt_rep_iter(None);
             };
 
             // sim_interval == [r*s_i, (r+1)*s_i)
@@ -307,29 +315,18 @@ fn make_reps_iter<T: Debug + Clone>(
                 state.elem_multiplier,
             )?;
 
-            Ok(opt_intersection)
-        };
-
-        Some(yield_intersections())
-    };
-
-    rep_indices.scan(rep_iter_data, scan_func)
+            make_opt_rep_iter(opt_intersection)
+        },
+    )
 }
 
-#[derive(Debug)]
-pub struct PlayMultiple<T, Iter>(PlayMultipleIter<T, Iter>)
-where
-    Iter: Iterator<Item = PatternInterpreterResult<ElemProps<T>>>;
+#[derive(derive_more::Debug)]
+pub struct PlayMultiple<T, Iter>(#[debug(skip)] PlayMultipleIter<T, Iter>);
 
-type PlayMultipleIter<T, Iter> = iter::FilterMap<
-    iter::FlatMap<
-        iter::Flatten<OuterIter<T, Iter>>,
-        RepsIter<T>,
-        fn(RepIterData<T>) -> RepsIter<T>,
-    >,
-    fn(
-        PatternInterpreterResult<Option<PlayElemArgs<T>>>,
-    ) -> Option<PatternInterpreterResult<PlayElemArgs<T>>>,
+type PlayMultipleIter<T, Iter> = fiter::FlatMap<
+    OuterIter<T, Iter>,
+    fiter::Flatten<RepsIter<T>>,
+    fn(RepIterData<T>) -> PatternInterpreterResult<fiter::Flatten<RepsIter<T>>>,
 >;
 
 fn make_play_multiple<T, Iter>(
@@ -337,28 +334,20 @@ fn make_play_multiple<T, Iter>(
 ) -> PlayMultipleIter<T, Iter>
 where
     T: Debug + Clone,
-    Iter: Iterator<Item = PatternInterpreterResult<ElemProps<T>>>,
+    Iter: Generator<Item = ElemProps<T>>,
 {
-    let filter_args: fn(_) -> _ = |opt_args| match opt_args {
-        Ok(Some(intersection)) => Some(Ok(intersection)),
-        Ok(None) => None,
-        Err(err) => Some(Err(err)),
-    };
-
-    outer_iter
-        .flatten()
-        .flat_map(make_reps_iter as fn(_) -> _)
-        .filter_map(filter_args)
+    outer_iter.flat_map(|outer_data| Ok(make_reps_iter(outer_data).flatten()))
 }
 
-impl<T, Iter> Iterator for PlayMultiple<T, Iter>
+impl<T, Iter> FallibleIterator for PlayMultiple<T, Iter>
 where
     T: Debug + Clone,
-    Iter: Iterator<Item = PatternInterpreterResult<ElemProps<T>>>,
+    Iter: Generator<Item = ElemProps<T>>,
 {
-    type Item = PatternInterpreterResult<PlayElemArgs<T>>;
+    type Error = PatternInterpreterError;
+    type Item = PlayElemArgs<T>;
 
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next(&mut self) -> Result<Option<Self::Item>, Self::Error> {
         self.0.next()
     }
 }
@@ -401,7 +390,7 @@ where
 #[inline]
 pub fn play_multiple_elements<
     T: Debug + Clone,
-    Iter: Iterator<Item = PatternInterpreterResult<ElemProps<T>>>,
+    Iter: Generator<Item = ElemProps<T>>,
 >(
     play_args: PlayElemArgs<ElemProps<impl Fn() -> Iter>>,
     is_fast: bool,
@@ -409,7 +398,11 @@ pub fn play_multiple_elements<
     let PlayElemArgs { elem: total, mut interval, mut offset, mut multiplier } =
         play_args;
 
-    check_elem_lengths(&total.elem, total.sim_duration, total.played_duration)?;
+    check_elem_lengths(
+        || (total.elem)().iterator(),
+        total.sim_duration,
+        total.played_duration,
+    )?;
 
     let total_props = ElemProps {
         elem: (total.elem)(),
