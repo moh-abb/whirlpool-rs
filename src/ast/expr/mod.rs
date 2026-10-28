@@ -3,9 +3,9 @@ use derive_where::derive_where;
 use crate::ast::expr::ident::Identifier;
 use crate::ast::pattern::Pattern;
 use crate::ast::time::CycleTime;
-use crate::mem::Chain;
 use crate::mem::Index;
 use crate::mem::Multiple;
+use crate::mem::linked::LinkedNode;
 
 pub mod adapter;
 pub mod cmp;
@@ -67,14 +67,4 @@ pub enum ExprUnit {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ExprNode {
-    pub parent: Option<Index<Self>>,
-    pub sibling_chain: Chain<Self>,
-    pub expr: Expr,
-}
-
-impl ExprNode {
-    pub const fn new(expr: Expr) -> Self {
-        Self { parent: None, sibling_chain: Chain::new(), expr }
-    }
-}
+pub struct ExprNode(pub LinkedNode<Expr, Self, Self>);

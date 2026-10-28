@@ -30,6 +30,19 @@ pub enum ChildMut<'a, T> {
     Single(&'a mut Option<Index<T>>),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct LinkedNode<Item, Node, Parent> {
+    pub parent: Option<Index<Parent>>,
+    pub sibling_chain: Chain<Node>,
+    pub item: Item,
+}
+
+impl<Item, Node, Parent> LinkedNode<Item, Node, Parent> {
+    pub const fn new(item: Item) -> Self {
+        Self { parent: None, sibling_chain: Chain::new(), item }
+    }
+}
+
 /// Represents a structure which is linked to other elements such that:
 /// - It can have a parent which owns its children via a [Multiple]
 /// - It can have siblings which are referenced via a [Chain]

@@ -16,6 +16,7 @@ use crate::mem::ArenaError;
 use crate::mem::Index;
 use crate::mem::arena::test::ArenasTo;
 use crate::mem::arena::test::StrategyWithArena;
+use crate::mem::linked::LinkedNode;
 
 pub struct AnyPatternStrategy;
 impl<Arenas: PatternArenas>
@@ -44,9 +45,9 @@ impl<Arenas: ExprArenas> StrategyWithArena<Index<ExprNode>, Arenas, ArenaError>
             // TODO: Add more cases than simply an expression of Zero.
             arenas
                 .clone()
-                .push(ExprNode::new(Expr::Unit(ExprUnit::Number(
+                .push(ExprNode(LinkedNode::new(Expr::Unit(ExprUnit::Number(
                     CycleTime::ZERO,
-                ))))
+                )))))
         }))
     }
 }
