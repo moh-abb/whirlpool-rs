@@ -198,18 +198,21 @@ fn test_expectations_with_interpreter_setup_and_start_time<
     let expect_note_unit = |expectation: ScheduledExpectation| {
         let ScheduledExpectation { start_time, duration, note_unit } =
             expectation;
-        let sound_unit = SoundUnit::new(note_unit, duration);
         let add_expectation = |borrowed_scheduler: &mut MockUnitScheduler| {
             let abs_diff = |x: CycleTime, y: CycleTime| {
                 if x <= y { y - x } else { x - y }
             };
-            let approx_eq_start_time =
-                predicate::function(move |time: &CycleTime| {
-                    abs_diff(start_time, *time) <= CycleTime::EPSILON
+            let approx_eq_unit =
+                predicate::function(move |sound_unit: &SoundUnit| {
+                    sound_unit.unit() == note_unit
+                        && abs_diff(sound_unit.duration(), duration)
+                            <= CycleTime::EPSILON
+                        && abs_diff(sound_unit.start(), start_time)
+                            <= CycleTime::EPSILON
                 });
             borrowed_scheduler
                 .expect_add()
-                .with(predicate::eq(sound_unit.clone()), approx_eq_start_time)
+                .with(approx_eq_unit)
                 .once()
                 .return_const(());
         };

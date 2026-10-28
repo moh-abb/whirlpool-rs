@@ -62,7 +62,6 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for NoteFrame {
             // We could potentially cache the scheduled sound unit if this
             // affects performance.
             let unit_duration = args.multiplier.recip()?;
-            let sound_unit = SoundUnit::new(args.elem, unit_duration);
             // Only play exact integer times, aligned to a single cycle
             let start = args.interval.start();
             if start != start.floor()? {
@@ -71,7 +70,9 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for NoteFrame {
             let scaled_start = start
                 .add(args.offset)?
                 .div(args.multiplier)?;
-            scheduler.add(sound_unit.clone(), scaled_start);
+            let sound_unit =
+                SoundUnit::new(args.elem, scaled_start, unit_duration);
+            scheduler.add(sound_unit.clone());
         }
     }
 }

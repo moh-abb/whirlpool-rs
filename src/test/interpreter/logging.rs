@@ -1,4 +1,3 @@
-use crate::ast::time::CycleTime;
 use crate::synth::scheduler::UnitScheduler;
 use crate::synth::unit::SoundUnit;
 
@@ -27,15 +26,15 @@ impl<'a, Scheduler: UnitScheduler> LoggingScheduler<'a, Scheduler> {
 }
 
 impl<'a, P: UnitScheduler> UnitScheduler for LoggingScheduler<'a, P> {
-    fn add(&mut self, sound: SoundUnit, start: CycleTime) {
+    fn add(&mut self, sound: SoundUnit) {
         if !self.inner_enabled {
             return;
         }
 
         if self.log_enabled {
-            println!("LoggingScheduler: Playing {sound:?} at {start:?}");
+            println!("LoggingScheduler: Playing {sound:?}");
         }
 
-        self.scheduler.add(sound, start);
+        self.scheduler.add(sound);
     }
 }
