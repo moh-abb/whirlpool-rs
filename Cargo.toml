@@ -7,6 +7,7 @@ edition = "2024"
 combine = "4.6.8"
 derive-where = "1.7.0"
 derive_more = { version = "2", default-features = false, features = [ "full" ] }
+derive-new = { version = "0.7", default-features = false }
 fallible-iterator = "0.3.0"
 fixed = "1.29.0"
 heapless = "0.9.3"
