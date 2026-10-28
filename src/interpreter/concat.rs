@@ -16,9 +16,9 @@ use crate::interpreter::error::PatternInterpreterError;
 use crate::interpreter::error::PatternInterpreterResult;
 use crate::interpreter::frame::EvaluateFrame;
 use crate::interpreter::frame::InterpreterResult;
-use crate::interpreter::frame::query_frame;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
+use crate::interpreter::query::QueryFrame;
 use crate::mem::ArenaResult;
 use crate::mem::Index;
 use crate::mem::Multiple;
@@ -280,7 +280,7 @@ impl<'a, Arenas: PatternArenas> ArrangeFrame<'a, Arenas> {
 }
 
 impl<'a, Arenas: PatternArenas> ConcatFrame<'a, Arenas> {
-    pub fn cat_frame(
+    pub fn new_cat(
         multiple: &Multiple<PatternNode>,
         arenas: &'a Arenas,
         play_args: PlayElemArgs<()>,
@@ -290,7 +290,7 @@ impl<'a, Arenas: PatternArenas> ConcatFrame<'a, Arenas> {
         )?))
     }
 
-    pub fn seq_frame(
+    pub fn new_seq(
         multiple: &Multiple<PatternNode>,
         arenas: &'a Arenas,
         play_args: PlayElemArgs<()>,
@@ -300,7 +300,7 @@ impl<'a, Arenas: PatternArenas> ConcatFrame<'a, Arenas> {
         )?))
     }
 
-    pub fn stack_frame(
+    pub fn new_stack(
         multiple: &Multiple<PatternNode>,
         arenas: &'a Arenas,
         play_args: PlayElemArgs<()>,
@@ -308,7 +308,7 @@ impl<'a, Arenas: PatternArenas> ConcatFrame<'a, Arenas> {
         Ok(Self::Stack(StackFrame::new(multiple, arenas, play_args)?))
     }
 
-    pub fn time_cat_frame(
+    pub fn new_time_cat(
         multiple: &Multiple<PatternNode>,
         total_cycle_length: &CycleTime,
         arenas: &'a Arenas,
@@ -322,7 +322,7 @@ impl<'a, Arenas: PatternArenas> ConcatFrame<'a, Arenas> {
         )?))
     }
 
-    pub fn arrange_frame(
+    pub fn new_arrange(
         multiple: &Multiple<PatternNode>,
         total_cycle_length: &CycleTime,
         arenas: &'a Arenas,
@@ -345,7 +345,11 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
         _: &mut impl UnitScheduler,
         _: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
-        Ok(self.0.next()?.map(query_frame))
+        Ok(self
+            .0
+            .next()?
+            .map(QueryFrame::new)
+            .map(Into::into))
     }
 }
 
@@ -361,7 +365,7 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
         Ok(self
             .0
             .next()?
-            .map(|index| query_frame(args.map(|()| index))))
+            .map(|index| QueryFrame::new(args.map(|()| index)).into()))
     }
 }
 
@@ -373,7 +377,11 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
         _: &mut impl UnitScheduler,
         _: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
-        Ok(self.0.next()?.map(query_frame))
+        Ok(self
+            .0
+            .next()?
+            .map(QueryFrame::new)
+            .map(Into::into))
     }
 }
 
@@ -385,6 +393,10 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
         _: &mut impl UnitScheduler,
         _: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
-        Ok(self.0.next()?.map(query_frame))
+        Ok(self
+            .0
+            .next()?
+            .map(QueryFrame::new)
+            .map(Into::into))
     }
 }

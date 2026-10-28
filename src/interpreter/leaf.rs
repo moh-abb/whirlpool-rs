@@ -90,14 +90,14 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for SilenceFrame {
 }
 
 impl LeafFrame {
-    pub fn note_frame(
+    pub fn new_note(
         note: &NoteUnit,
         play_args: PlayElemArgs<()>,
     ) -> PatternInterpreterResult<Self> {
         Ok(Self::Note(NoteFrame::new(note.clone(), play_args)?))
     }
 
-    pub fn silence() -> PatternInterpreterResult<Self> {
+    pub fn new_silence() -> PatternInterpreterResult<Self> {
         Ok(Self::Silence(SilenceFrame))
     }
 }

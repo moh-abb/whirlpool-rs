@@ -11,8 +11,8 @@ use crate::interpreter::borrow::BorrowAdapter;
 use crate::interpreter::error::PatternInterpreterError;
 use crate::interpreter::frame::EvaluateFrame;
 use crate::interpreter::frame::InterpreterFrame;
-use crate::interpreter::frame::query_frame;
 use crate::interpreter::props::PlayElemArgs;
+use crate::interpreter::query::QueryFrame;
 use crate::mem::Arena;
 use crate::mem::Index;
 use crate::mem::Stack;
@@ -155,12 +155,15 @@ where
         let mut borrowed_arena = self.frame_arena.try_borrow_mut()?;
         let mut frames = Stack::new(borrowed_arena.deref_mut());
         // Add the start simulation arguments for the pattern.
-        frames.push(query_frame(PlayElemArgs {
-            elem: self.pattern_index.clone(),
-            interval: CycleInterval::new(self.cur_time, next_time),
-            offset: self.base_offset,
-            multiplier: self.base_multiplier,
-        }))?;
+        frames.push(
+            QueryFrame::new(PlayElemArgs {
+                elem: self.pattern_index.clone(),
+                interval: CycleInterval::new(self.cur_time, next_time),
+                offset: self.base_offset,
+                multiplier: self.base_multiplier,
+            })
+            .into(),
+        )?;
 
         loop {
             let opt_step_result = frames.map_mut(|frame| {
