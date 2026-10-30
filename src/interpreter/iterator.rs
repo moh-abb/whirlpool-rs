@@ -1,5 +1,3 @@
-use core::marker::PhantomData;
-
 use fallible_iterator::FallibleIterator;
 
 use crate::interpreter::error::PatternInterpreterError;
@@ -18,17 +16,17 @@ impl<T, I> Generator for I where
 /// Adapts an iterator that returns values of type `T` into values of type
 /// `Result::<T, E>::Ok(T)`.
 #[derive(Debug)]
-pub struct GenPure<I: Iterator, E>(I, PhantomData<E>);
+pub struct GenPure<I: Iterator>(I);
 
-impl<I: Iterator, E> GenPure<I, E> {
+impl<I: Iterator> GenPure<I> {
     pub fn new(iter: I) -> Self {
-        Self(iter, PhantomData)
+        Self(iter)
     }
 }
 
-impl<I: Iterator, E> FallibleIterator for GenPure<I, E> {
+impl<I: Iterator> FallibleIterator for GenPure<I> {
     type Item = I::Item;
-    type Error = E;
+    type Error = PatternInterpreterError;
 
     fn next(&mut self) -> Result<Option<Self::Item>, Self::Error> {
         Ok(self.0.next())

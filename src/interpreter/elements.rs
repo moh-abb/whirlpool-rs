@@ -243,11 +243,10 @@ struct RepIterData<T> {
     elem_multiplier: CycleTime,
 }
 
-type OptRepIter<T> =
-    GenPure<option::IntoIter<PlayElemArgs<T>>, PatternInterpreterError>;
+type OptRepIter<T> = GenPure<option::IntoIter<PlayElemArgs<T>>>;
 
 type RepsIter<T> = fiter::Scan<
-    GenPure<RangeInclusive<i32>, PatternInterpreterError>,
+    GenPure<RangeInclusive<i32>>,
     RepIterData<T>,
     fn(
         &mut RepIterData<T>,
