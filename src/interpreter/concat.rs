@@ -1,5 +1,4 @@
 use core::debug_assert_matches;
-use core::iter;
 
 use fallible_iterator as fiter;
 use fiter::FallibleIterator;
@@ -10,6 +9,7 @@ use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::arenas::timed_step_total_cycle_length;
 use crate::ast::time::CycleTime;
+use crate::gen_custom;
 use crate::interpreter::elements::PlayMultiple;
 use crate::interpreter::elements::play_multiple_elements;
 use crate::interpreter::error::PatternInterpreterError;
@@ -33,26 +33,44 @@ pub enum ConcatFrame<'a, Arenas: PatternArenas> {
     Arrange(ArrangeFrame<'a, Arenas>),
 }
 
-type CatOrSeqIter<'a, Arenas> = fiter::Convert<
-    iter::Map<
-        multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
-        fn(
-            ArenaResult<Index<PatternNode>>,
-        ) -> PatternInterpreterResult<ElemProps<Index<PatternNode>>>,
-    >,
->;
-
 #[derive(Debug)]
 pub struct CatOrSeqFrame<'a, Arenas: PatternArenas>(
-    PlayMultiple<Index<PatternNode>, CatOrSeqIter<'a, Arenas>>,
+    PlayMultiple<
+        Index<PatternNode>,
+        CatOrSeqProps<
+            multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
+        >,
+    >,
 );
 
-type StackIter<'a, Arenas> = fiter::Convert<
-    multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
->;
-
 #[derive(Debug)]
-pub struct StackFrame<'a, Arenas>(StackIter<'a, Arenas>, PlayElemArgs<()>);
+pub struct StackFrame<'a, Arenas>(
+    fiter::Convert<
+        multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
+    >,
+    PlayElemArgs<()>,
+);
+
+gen_custom! {
+    #[derive(Debug)]
+    struct CatOrSeqProps[Iter](
+        opt_opt_index: Iter,
+        _state: (),
+    ) -> ElemProps<Index<PatternNode>>
+    where struct []
+    where iter [Iter: Iterator<Item = ArenaResult<Index<PatternNode>>>]
+    {
+        let Some(opt_index) = opt_opt_index else {
+            return Ok(None);
+        };
+
+        Ok(Some(ElemProps {
+            elem: opt_index?,
+            sim_duration: CycleTime::ONE,
+            played_duration: CycleTime::ONE,
+        }))
+    }
+}
 
 impl<'a, Arenas: PatternArenas> CatOrSeqFrame<'a, Arenas> {
     fn new(
@@ -67,27 +85,13 @@ impl<'a, Arenas: PatternArenas> CatOrSeqFrame<'a, Arenas> {
 
         let length = CycleTime::checked_from_int(i32::from(multiple.length()))?;
 
-        let opt_index_to_props: fn(_) -> _ = |opt_index| {
-            PatternInterpreterResult::Ok(ElemProps {
-                elem: opt_index?,
-                sim_duration: CycleTime::ONE,
-                played_duration: CycleTime::ONE,
-            })
-        };
-
         let args_with_iterator = play_args.map(|()| ElemProps {
-            elem: move || {
-                fiter::convert(
-                    multiple
-                        .checked_iter(arenas)
-                        .map(opt_index_to_props),
-                )
-            },
+            elem: move || CatOrSeqProps(multiple.checked_iter(arenas), ()),
             sim_duration: length,
             played_duration: length,
         });
-        let frame = Self(play_multiple_elements(args_with_iterator, is_fast)?);
-        Ok(frame)
+
+        Ok(Self(play_multiple_elements(args_with_iterator, is_fast)?))
     }
 }
 
@@ -107,21 +111,16 @@ impl<'a, Arenas: PatternArenas> StackFrame<'a, Arenas> {
     }
 }
 
-type TimeCatIter<'a, Arenas> = fiter::Convert<
-    iter::Scan<
-        multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
-        (CycleTime, CycleTime, &'a Arenas),
-        fn(
-            &mut (CycleTime, CycleTime, &'a Arenas),
-            ArenaResult<Index<PatternNode>>,
-        )
-            -> Option<PatternInterpreterResult<ElemProps<Index<PatternNode>>>>,
-    >,
->;
-
 #[derive(Debug)]
 pub struct TimeCatFrame<'a, Arenas: PatternArenas>(
-    PlayMultiple<Index<PatternNode>, TimeCatIter<'a, Arenas>>,
+    PlayMultiple<
+        Index<PatternNode>,
+        TimeCatIter<
+            'a,
+            Arenas,
+            multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
+        >,
+    >,
 );
 
 fn make_sim_elem_in_arenas<'a, Arenas, F>(
@@ -149,6 +148,46 @@ where
     PatternInterpreterResult::Ok(make_sim_elem(elem_length, child)?)
 }
 
+gen_custom! {
+    struct TimeCatIter['a, Arenas, Iter](
+        opt_opt_index: Iter,
+        state: (CycleTime, CycleTime, &'a Arenas)
+    ) -> ElemProps<Index<PatternNode>>
+    where struct []
+    where iter [
+        Iter: Iterator<Item = ArenaResult<Index<PatternNode>>>,
+        Arenas: PatternArenas,
+    ]
+    {
+        let Some(opt_index) = opt_opt_index else {
+            return Ok(None);
+        };
+        let &(total_length, multiple_length, arenas) = &*state;
+
+        // If we have a [TimeCat], then we simulate over each one cycle
+        // in the [Multiple] and then scale each element individually
+        // by its proportion of the total;
+        // e.g. TimeCat([1, "A"], [2, "B"], [3, "C"])
+        // will have element lengths 1*3/6, 2*3/6, 3*3/6
+        // (which adds to 3, the number of elements).
+        let get_scaled_length = |elem_length: CycleTime| {
+            elem_length
+                .mul(multiple_length)?
+                .div(total_length)
+        };
+
+        let make_sim_elem = |elem_length, child_index| {
+            Result::<_, PatternInterpreterError>::Ok(ElemProps {
+                elem: child_index,
+                sim_duration: CycleTime::ONE,
+                played_duration: get_scaled_length(elem_length)?,
+            })
+        };
+
+        Ok(Some(make_sim_elem_in_arenas(arenas, opt_index, make_sim_elem)?))
+    }
+}
+
 impl<'a, Arenas: PatternArenas> TimeCatFrame<'a, Arenas> {
     fn new(
         multiple: &Multiple<PatternNode>,
@@ -168,67 +207,60 @@ impl<'a, Arenas: PatternArenas> TimeCatFrame<'a, Arenas> {
         let multiple_length =
             CycleTime::checked_from_int(i32::from(multiple.length()))?;
 
-        let scan_func: fn(&mut _, _) -> _ =
-            |state: &mut (CycleTime, CycleTime, &'a Arenas), opt_index| {
-                let &(total_length, multiple_length, arenas) = &*state;
-
-                // If we have a [TimeCat], then we simulate over each one cycle
-                // in the [Multiple] and then scale each element individually
-                // by its proportion of the total;
-                // e.g. TimeCat([1, "A"], [2, "B"], [3, "C"])
-                // will have element lengths 1*3/6, 2*3/6, 3*3/6
-                // (which adds to 3, the number of elements).
-                let get_scaled_length = |elem_length: CycleTime| {
-                    elem_length
-                        .mul(multiple_length)?
-                        .div(total_length)
-                };
-
-                let make_sim_elem = |elem_length, child_index| {
-                    Result::<_, PatternInterpreterError>::Ok(ElemProps {
-                        elem: child_index,
-                        sim_duration: CycleTime::ONE,
-                        played_duration: get_scaled_length(elem_length)?,
-                    })
-                };
-
-                Some(make_sim_elem_in_arenas(arenas, opt_index, make_sim_elem))
-            };
-
-        let get_elements =
-            || {
-                fiter::convert(multiple.checked_iter(arenas).scan(
-                    (total_cycle_length, multiple_length, arenas),
-                    scan_func,
-                ))
-            };
-
         let args_with_iterator = play_args.map(|()| ElemProps {
-            elem: get_elements,
+            elem: || {
+                TimeCatIter(
+                    multiple.checked_iter(arenas),
+                    (total_cycle_length, multiple_length, arenas),
+                )
+            },
             sim_duration: multiple_length,
             played_duration: multiple_length,
         });
-        let frame = Self(play_multiple_elements(args_with_iterator, true)?);
-        Ok(frame)
+
+        Ok(Self(play_multiple_elements(args_with_iterator, true)?))
     }
 }
 
-type ArrangeIter<'a, Arenas> = fiter::Convert<
-    iter::Scan<
-        multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
-        &'a Arenas,
-        fn(
-            &mut &'a Arenas,
-            ArenaResult<Index<PatternNode>>,
-        )
-            -> Option<PatternInterpreterResult<ElemProps<Index<PatternNode>>>>,
-    >,
->;
-
 #[derive(Debug)]
 pub struct ArrangeFrame<'a, Arenas: PatternArenas>(
-    PlayMultiple<Index<PatternNode>, ArrangeIter<'a, Arenas>>,
+    PlayMultiple<
+        Index<PatternNode>,
+        ArrangeIter<
+            'a,
+            Arenas,
+            multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
+        >,
+    >,
 );
+
+gen_custom! {
+    struct ArrangeIter['a, Arenas, Iter](
+        opt_opt_index: Iter,
+        state: &'a Arenas,
+    ) -> ElemProps<Index<PatternNode>>
+    where struct []
+    where iter [
+        Iter: Iterator<Item = ArenaResult<Index<PatternNode>>>,
+        Arenas: PatternArenas,
+    ]
+    {
+        let arenas = *state;
+        let Some(opt_index) = opt_opt_index else {
+            return Ok(None);
+        };
+
+        let make_sim_elem = |elem_length, child_index| {
+            Ok(ElemProps {
+                elem: child_index,
+                sim_duration: elem_length,
+                played_duration: elem_length,
+            })
+        };
+
+        Ok(Some(make_sim_elem_in_arenas(arenas, opt_index, make_sim_elem)?))
+    }
+}
 
 impl<'a, Arenas: PatternArenas> ArrangeFrame<'a, Arenas> {
     fn new(
@@ -246,36 +278,13 @@ impl<'a, Arenas: PatternArenas> ArrangeFrame<'a, Arenas> {
             Ok(length) if length == total_cycle_length,
         );
 
-        let scan_func: fn(&mut _, _) -> _ =
-            |state: &mut &'a Arenas, opt_index| {
-                let &arenas = &*state;
-
-                let make_sim_elem = |elem_length, child_index| {
-                    Ok(ElemProps {
-                        elem: child_index,
-                        sim_duration: elem_length,
-                        played_duration: elem_length,
-                    })
-                };
-
-                Some(make_sim_elem_in_arenas(arenas, opt_index, make_sim_elem))
-            };
-
-        let get_elements = || {
-            fiter::convert(
-                multiple
-                    .checked_iter(arenas)
-                    .scan(arenas, scan_func),
-            )
-        };
-
         let args_with_iterator = play_args.map(|()| ElemProps {
-            elem: get_elements,
+            elem: || ArrangeIter(multiple.checked_iter(arenas), arenas),
             sim_duration: total_cycle_length,
             played_duration: total_cycle_length,
         });
-        let frame = Self(play_multiple_elements(args_with_iterator, false)?);
-        Ok(frame)
+
+        Ok(Self(play_multiple_elements(args_with_iterator, false)?))
     }
 }
 
