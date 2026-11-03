@@ -3,7 +3,7 @@ use crate::interpreter::concat::ConcatFrame;
 use crate::interpreter::error::PatternInterpreterResult;
 use crate::interpreter::leaf::LeafFrame;
 use crate::interpreter::query::QueryFrame;
-use crate::synth::scheduler::UnitScheduler;
+use crate::interpreter::value::ValueStack;
 
 #[derive(derive_more::From, Debug)]
 enum FrameInner<'a, Arenas: PatternArenas> {
@@ -34,7 +34,7 @@ pub type InterpreterResult<'a, Arenas> =
 pub(super) trait EvaluateFrame<'a, Arenas: PatternArenas> {
     fn step(
         &mut self,
-        scheduler: &mut impl UnitScheduler,
+        value_stack: &mut impl ValueStack,
         arenas: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas>;
 }
@@ -44,29 +44,29 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
 {
     fn step(
         &mut self,
-        scheduler: &mut impl UnitScheduler,
+        value_stack: &mut impl ValueStack,
         arenas: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
         // TODO: Automatically delegate this step.
         match &mut self.0 {
-            FrameInner::Query(frame) => frame.step(scheduler, arenas),
+            FrameInner::Query(frame) => frame.step(value_stack, arenas),
             FrameInner::Concat(ConcatFrame::CatOrSeq(frame)) => {
-                frame.step(scheduler, arenas)
+                frame.step(value_stack, arenas)
             }
             FrameInner::Concat(ConcatFrame::Stack(frame)) => {
-                frame.step(scheduler, arenas)
+                frame.step(value_stack, arenas)
             }
             FrameInner::Concat(ConcatFrame::TimeCat(frame)) => {
-                frame.step(scheduler, arenas)
+                frame.step(value_stack, arenas)
             }
             FrameInner::Concat(ConcatFrame::Arrange(frame)) => {
-                frame.step(scheduler, arenas)
+                frame.step(value_stack, arenas)
             }
             FrameInner::Leaf(LeafFrame::Note(frame)) => {
-                frame.step(scheduler, arenas)
+                frame.step(value_stack, arenas)
             }
             FrameInner::Leaf(LeafFrame::Silence(frame)) => {
-                frame.step(scheduler, arenas)
+                frame.step(value_stack, arenas)
             }
         }
     }

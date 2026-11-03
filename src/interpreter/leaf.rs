@@ -12,7 +12,7 @@ use crate::interpreter::frame::EvaluateFrame;
 use crate::interpreter::frame::InterpreterResult;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
-use crate::synth::scheduler::UnitScheduler;
+use crate::interpreter::value::ValueStack;
 use crate::synth::unit::SoundUnit;
 
 #[derive(derive_more::From, Debug)]
@@ -52,7 +52,7 @@ impl NoteFrame {
 impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for NoteFrame {
     fn step(
         &mut self,
-        scheduler: &mut impl UnitScheduler,
+        value_stack: &mut impl ValueStack,
         _: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
         loop {
@@ -72,7 +72,7 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for NoteFrame {
                 .div(args.multiplier)?;
             let sound_unit =
                 SoundUnit::new(args.elem, scaled_start, unit_duration);
-            scheduler.add(sound_unit.clone());
+            value_stack.push_sound_unit(sound_unit.clone())?;
         }
     }
 }
@@ -83,7 +83,7 @@ pub struct SilenceFrame;
 impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for SilenceFrame {
     fn step(
         &mut self,
-        _: &mut impl UnitScheduler,
+        _: &mut impl ValueStack,
         _: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
         Ok(None)

@@ -11,13 +11,13 @@ use crate::ast::time::CycleTime;
 use crate::interpreter::Interpreter;
 use crate::interpreter::frame::InterpreterFrame;
 use crate::interpreter::pattern::PatternInterpreter;
+use crate::interpreter::value::MockValueStack;
 use crate::mem::Arena;
 use crate::mem::GrowableArena;
 use crate::mem::Index;
 use crate::mem::structures::stack::StackChain;
-use crate::synth::scheduler::MockUnitScheduler;
 use crate::synth::unit::SoundUnit;
-use crate::test::interpreter::logging::LoggingScheduler;
+use crate::test::interpreter::logging::LoggingValueStack;
 
 mod arbitrary;
 mod logging;
@@ -152,10 +152,10 @@ fn test_expectations_with_interpreter_setup_and_start_time<
     expected_schedule_actions: Expectations,
     test_setup: impl TestSetupStrategy,
 ) {
-    let mut mock_scheduler = MockUnitScheduler::new();
+    let mut mock_value_stack = MockValueStack::new();
     let logging_scheduler =
-        RefCell::new(LoggingScheduler::new(&mut mock_scheduler));
-    let with_mock_scheduler = |f: &dyn Fn(&mut MockUnitScheduler)| {
+        RefCell::new(LoggingValueStack::new(&mut mock_value_stack));
+    let with_mock_scheduler = |f: &dyn Fn(&mut MockValueStack)| {
         let mut borrowed_logger = logging_scheduler.borrow_mut();
         let borrowed_scheduler = borrowed_logger.get_mut_scheduler();
         f(borrowed_scheduler)
@@ -198,7 +198,7 @@ fn test_expectations_with_interpreter_setup_and_start_time<
     let expect_note_unit = |expectation: ScheduledExpectation| {
         let ScheduledExpectation { start_time, duration, note_unit } =
             expectation;
-        let add_expectation = |borrowed_scheduler: &mut MockUnitScheduler| {
+        let add_expectation = |borrowed_scheduler: &mut MockValueStack| {
             let abs_diff = |x: CycleTime, y: CycleTime| {
                 if x <= y { y - x } else { x - y }
             };
@@ -211,10 +211,10 @@ fn test_expectations_with_interpreter_setup_and_start_time<
                             <= CycleTime::EPSILON
                 });
             borrowed_scheduler
-                .expect_add()
+                .expect_push_sound_unit()
                 .with(approx_eq_unit)
                 .once()
-                .return_const(());
+                .returning(|_| Ok(()));
         };
         with_mock_scheduler(&add_expectation)
     };

@@ -8,8 +8,8 @@ use crate::interpreter::frame::InterpreterFrame;
 use crate::interpreter::frame::InterpreterResult;
 use crate::interpreter::leaf::LeafFrame;
 use crate::interpreter::props::PlayElemArgs;
+use crate::interpreter::value::ValueStack;
 use crate::mem::Index;
-use crate::synth::scheduler::UnitScheduler;
 
 #[derive(Debug, derive_new::new)]
 pub(super) struct QueryFrame {
@@ -21,7 +21,7 @@ pub(super) struct QueryFrame {
 impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
     fn step(
         &mut self,
-        _: &mut impl UnitScheduler,
+        _: &mut impl ValueStack,
         arenas: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
         // Check if we are done.

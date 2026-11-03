@@ -19,11 +19,11 @@ use crate::interpreter::frame::InterpreterResult;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
 use crate::interpreter::query::QueryFrame;
+use crate::interpreter::value::ValueStack;
 use crate::mem::ArenaResult;
 use crate::mem::Index;
 use crate::mem::Multiple;
 use crate::mem::structures::multiple;
-use crate::synth::scheduler::UnitScheduler;
 
 #[derive(derive_more::From, Debug)]
 pub enum ConcatFrame<'a, Arenas: PatternArenas> {
@@ -351,7 +351,7 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
 {
     fn step(
         &mut self,
-        _: &mut impl UnitScheduler,
+        _: &mut impl ValueStack,
         _: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
         Ok(self
@@ -367,7 +367,7 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
 {
     fn step(
         &mut self,
-        _: &mut impl UnitScheduler,
+        _: &mut impl ValueStack,
         _: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
         let args = self.1.clone();
@@ -383,7 +383,7 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
 {
     fn step(
         &mut self,
-        _: &mut impl UnitScheduler,
+        _: &mut impl ValueStack,
         _: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
         Ok(self
@@ -399,7 +399,7 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
 {
     fn step(
         &mut self,
-        _: &mut impl UnitScheduler,
+        _: &mut impl ValueStack,
         _: &'a Arenas,
     ) -> InterpreterResult<'a, Arenas> {
         Ok(self

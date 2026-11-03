@@ -1,14 +1,15 @@
-use crate::synth::scheduler::UnitScheduler;
+use crate::interpreter::error::PatternInterpreterResult;
+use crate::interpreter::value::ValueStack;
 use crate::synth::unit::SoundUnit;
 
-pub struct LoggingScheduler<'a, Scheduler> {
-    scheduler: &'a mut Scheduler,
+pub struct LoggingValueStack<'a, ValStack> {
+    scheduler: &'a mut ValStack,
     inner_enabled: bool,
     log_enabled: bool,
 }
 
-impl<'a, Scheduler: UnitScheduler> LoggingScheduler<'a, Scheduler> {
-    pub fn new(scheduler: &'a mut Scheduler) -> Self {
+impl<'a, ValStack: ValueStack> LoggingValueStack<'a, ValStack> {
+    pub fn new(scheduler: &'a mut ValStack) -> Self {
         Self { scheduler, inner_enabled: true, log_enabled: false }
     }
 
@@ -20,21 +21,25 @@ impl<'a, Scheduler: UnitScheduler> LoggingScheduler<'a, Scheduler> {
         self.log_enabled = log_enabled;
     }
 
-    pub fn get_mut_scheduler(&mut self) -> &mut Scheduler {
+    pub fn get_mut_scheduler(&mut self) -> &mut ValStack {
         &mut self.scheduler
     }
 }
 
-impl<'a, P: UnitScheduler> UnitScheduler for LoggingScheduler<'a, P> {
-    fn add(&mut self, sound: SoundUnit) {
+impl<'a, ValStack: ValueStack> ValueStack for LoggingValueStack<'a, ValStack> {
+    fn push_sound_unit(
+        &mut self,
+        sound_unit: SoundUnit,
+    ) -> PatternInterpreterResult<()> {
         if !self.inner_enabled {
-            return;
+            return Ok(());
         }
 
         if self.log_enabled {
-            println!("LoggingScheduler: Playing {sound:?}");
+            println!("LoggingScheduler: Playing {sound_unit:?}");
         }
 
-        self.scheduler.add(sound);
+        self.scheduler
+            .push_sound_unit(sound_unit)
     }
 }

@@ -13,11 +13,11 @@ use crate::interpreter::frame::EvaluateFrame;
 use crate::interpreter::frame::InterpreterFrame;
 use crate::interpreter::props::PlayElemArgs;
 use crate::interpreter::query::QueryFrame;
+use crate::interpreter::value::ValueStack;
 use crate::mem::Arena;
 use crate::mem::Index;
 use crate::mem::Stack;
 use crate::mem::structures::stack::StackChain;
-use crate::synth::scheduler::UnitScheduler;
 
 /// An interpreter of [Pattern]s, which keeps track of a current time and
 /// plays units (traversing the [Pattern]'s tree) when new units are
@@ -25,44 +25,44 @@ use crate::synth::scheduler::UnitScheduler;
 pub struct PatternInterpreter<
     'a,
     Arenas,
-    Scheduler,
+    ValStack,
     FrameArena,
-    SchedulerBorrow,
+    ValStackBorrow,
     FrameArenaBorrow,
 > {
     pattern_index: Index<PatternNode>,
     arenas: &'a Arenas,
-    scheduler: SchedulerBorrow,
+    value_stack: ValStackBorrow,
     frame_arena: FrameArenaBorrow,
     cur_time: CycleTime,
     base_multiplier: CycleTime,
     base_offset: CycleTime,
-    phantom: PhantomData<(Scheduler, FrameArena)>,
+    phantom: PhantomData<(ValStack, FrameArena)>,
 }
 
-impl<'a, Arenas, Scheduler, FrameArena>
+impl<'a, Arenas, ValStack, FrameArena>
     PatternInterpreter<
         'a,
         Arenas,
-        Scheduler,
+        ValStack,
         FrameArena,
-        &'a mut Scheduler,
+        &'a mut ValStack,
         &'a mut FrameArena,
     >
 {
     /// Constructs an interpreter with the given root index, arenas (to
-    /// traverse the pattern structure), scheduler, and starting scope.
+    /// traverse the pattern structure), value stack, and starting scope.
     #[allow(unused)]
     pub fn new(
         pattern_index: Index<PatternNode>,
         arenas: &'a Arenas,
-        scheduler: &'a mut Scheduler,
+        value_stack: &'a mut ValStack,
         frame_arena: &'a mut FrameArena,
     ) -> Self {
         Self {
             pattern_index,
             arenas,
-            scheduler,
+            value_stack,
             frame_arena,
             cur_time: CycleTime::ZERO,
             base_multiplier: CycleTime::ONE,
@@ -72,29 +72,29 @@ impl<'a, Arenas, Scheduler, FrameArena>
     }
 }
 
-impl<'a, Arenas, Scheduler, FrameArena>
+impl<'a, Arenas, ValStack, FrameArena>
     PatternInterpreter<
         'a,
         Arenas,
-        Scheduler,
+        ValStack,
         FrameArena,
-        &'a RefCell<Scheduler>,
+        &'a RefCell<ValStack>,
         &'a RefCell<FrameArena>,
     >
 {
-    /// Like [Self::new], but with a [RefCell] to allow for a mock scheduler
+    /// Like [Self::new], but with a [RefCell] to allow for a mock value stack
     /// and mock scope.
     #[allow(unused)]
     pub fn new_with_refcell(
         pattern_index: Index<PatternNode>,
         arenas: &'a Arenas,
-        scheduler: &'a RefCell<Scheduler>,
+        value_stack: &'a RefCell<ValStack>,
         frame_arena: &'a RefCell<FrameArena>,
     ) -> Self {
         Self {
             pattern_index,
             arenas,
-            scheduler,
+            value_stack,
             frame_arena,
             cur_time: CycleTime::ZERO,
             base_multiplier: CycleTime::ONE,
@@ -104,13 +104,13 @@ impl<'a, Arenas, Scheduler, FrameArena>
     }
 }
 
-impl<'a, Arenas, Scheduler, FrameArena, SchedulerBorrow, FrameArenaBorrow>
+impl<'a, Arenas, ValStack, FrameArena, ValStackBorrow, FrameArenaBorrow>
     PatternInterpreter<
         'a,
         Arenas,
-        Scheduler,
+        ValStack,
         FrameArena,
-        SchedulerBorrow,
+        ValStackBorrow,
         FrameArenaBorrow,
     >
 {
@@ -127,20 +127,20 @@ impl<'a, Arenas, Scheduler, FrameArena, SchedulerBorrow, FrameArenaBorrow>
     }
 }
 
-impl<'a, Arenas, Scheduler, FrameArena, SchedulerBorrow, FrameArenaBorrow>
+impl<'a, Arenas, ValStack, FrameArena, ValStackBorrow, FrameArenaBorrow>
     Interpreter
     for PatternInterpreter<
         'a,
         Arenas,
-        Scheduler,
+        ValStack,
         FrameArena,
-        SchedulerBorrow,
+        ValStackBorrow,
         FrameArenaBorrow,
     >
 where
     Arenas: PatternArenas,
-    Scheduler: UnitScheduler,
-    SchedulerBorrow: BorrowAdapter<Scheduler>,
+    ValStack: ValueStack,
+    ValStackBorrow: BorrowAdapter<ValStack>,
     FrameArenaBorrow: BorrowAdapter<FrameArena>,
     FrameArena: Arena<StackChain<InterpreterFrame<'a, Arenas>>>,
 {
@@ -151,7 +151,7 @@ where
     fn update_time(&mut self, next_time: CycleTime) -> Self::Output {
         // The time should be monotonically increasing.
         debug_assert!(next_time >= self.cur_time);
-        let mut borrowed_scheduler = self.scheduler.try_borrow_mut()?;
+        let mut borrowed_value_stack = self.value_stack.try_borrow_mut()?;
         let mut borrowed_arena = self.frame_arena.try_borrow_mut()?;
         let mut frames = Stack::new(borrowed_arena.deref_mut());
         // Add the start simulation arguments for the pattern.
@@ -167,7 +167,7 @@ where
 
         loop {
             let opt_step_result = frames.map_mut(|frame| {
-                frame.step(borrowed_scheduler.deref_mut(), self.arenas)
+                frame.step(borrowed_value_stack.deref_mut(), self.arenas)
             })?;
             let Some(step_result) = opt_step_result else {
                 // The stack is empty, so we are done.

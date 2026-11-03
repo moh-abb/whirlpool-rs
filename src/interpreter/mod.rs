@@ -11,6 +11,7 @@ mod leaf;
 pub mod pattern;
 pub mod props;
 mod query;
+pub mod value;
 
 pub trait Interpreter {
     type Output;
