@@ -4,14 +4,14 @@ use fallible_iterator::FallibleIterator;
 use crate::ast::note::NoteUnit;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::time::CycleTime;
-use crate::interpreter::elements::PlayMultiple;
-use crate::interpreter::elements::play_multiple_elements;
 use crate::interpreter::error::PatternInterpreterError;
 use crate::interpreter::error::PatternInterpreterResult;
 use crate::interpreter::frame::EvaluateFrame;
 use crate::interpreter::frame::InterpreterResult;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
+use crate::interpreter::repeat::PlayMultiple;
+use crate::interpreter::repeat::play_multiple_elements;
 use crate::interpreter::value::ValueStack;
 use crate::synth::unit::SoundUnit;
 
