@@ -12,11 +12,10 @@ use crate::mem::linked::Linked;
 pub trait ExprArenas: Arena<ExprNode> {}
 impl<A: Arena<ExprNode>> ExprArenas for A {}
 
-impl<Arenas> Linked<ExprNode, Arenas, Arenas> for ExprNode
+impl Linked<ExprNode> for ExprNode
 where
     Self: ArenaItem + Sized,
     ExprNode: ArenaItem + Sized,
-    Arenas: Arena<Self>,
 {
     fn get_parent(&self) -> &Option<Index<ExprNode>> {
         &self.0.parent

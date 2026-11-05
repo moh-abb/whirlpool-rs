@@ -16,7 +16,7 @@ where
     Parent: ArenaItem,
     ChildArena: Arena<Self>,
     ParentArena: Arena<Parent>,
-    Self: Linked<Parent, ChildArena, ParentArena>,
+    Self: Linked<Parent>,
 {
     fn push_child(
         child_arena: &mut ChildArena,
@@ -150,6 +150,6 @@ where
     Parent: ArenaItem,
     ChildArena: Arena<Self>,
     ParentArena: Arena<Parent>,
-    Self: Linked<Parent, ChildArena, ParentArena>,
+    Self: Linked<Parent>,
 {
 }

@@ -108,15 +108,14 @@ impl<Child: ArenaItem> Multiple<Child> {
         self.length = self.length.wrapping_sub(1);
     }
 
-    pub fn checked_iter<'a, Parent, ChildArena, ParentArena>(
+    pub fn checked_iter<'a, Parent, ChildArena>(
         &self,
         child_arena: &'a ChildArena,
-    ) -> IterChecked<'a, Child, Parent, ChildArena, ParentArena>
+    ) -> IterChecked<'a, Child, Parent, ChildArena>
     where
+        Child: Linked<Parent>,
         Parent: ArenaItem,
         ChildArena: Arena<Child>,
-        ParentArena: Arena<Parent>,
-        Child: Linked<Parent, ChildArena, ParentArena>,
     {
         IterChecked {
             start_end: self.start_end.clone(),
@@ -128,20 +127,17 @@ impl<Child: ArenaItem> Multiple<Child> {
 
 /// An iterator for which the elements consist of `ArenaResult<Index<Item>>`.
 #[derive(Debug, Clone)]
-pub struct IterChecked<'a, Child, Parent, ChildArena, ParentArena> {
+pub struct IterChecked<'a, Child, Parent, ChildArena> {
     start_end: StartEnd<Child>,
     child_arena: &'a ChildArena,
-    phantom: PhantomData<(Parent, ParentArena)>,
+    phantom: PhantomData<Parent>,
 }
 
-impl<'a, Child, Parent, ChildArena, ParentArena>
-    IterChecked<'a, Child, Parent, ChildArena, ParentArena>
+impl<'a, Child, Parent, ChildArena> IterChecked<'a, Child, Parent, ChildArena>
 where
-    Child: ArenaItem,
+    Child: Linked<Parent>,
     Parent: ArenaItem,
     ChildArena: Arena<Child>,
-    ParentArena: Arena<Parent>,
-    Child: Linked<Parent, ChildArena, ParentArena>,
 {
     fn next_or_next_back(
         &mut self,
@@ -182,14 +178,12 @@ where
     }
 }
 
-impl<'a, Child, Parent, ChildArena, ParentArena> Iterator
-    for IterChecked<'a, Child, Parent, ChildArena, ParentArena>
+impl<'a, Child, Parent, ChildArena> Iterator
+    for IterChecked<'a, Child, Parent, ChildArena>
 where
-    Child: ArenaItem,
+    Child: Linked<Parent>,
     Parent: ArenaItem,
     ChildArena: Arena<Child>,
-    ParentArena: Arena<Parent>,
-    Child: Linked<Parent, ChildArena, ParentArena>,
 {
     type Item = ArenaResult<Index<Child>>;
 
@@ -198,14 +192,12 @@ where
     }
 }
 
-impl<'a, Child, Parent, ChildArena, ParentArena> DoubleEndedIterator
-    for IterChecked<'a, Child, Parent, ChildArena, ParentArena>
+impl<'a, Child, Parent, ChildArena> DoubleEndedIterator
+    for IterChecked<'a, Child, Parent, ChildArena>
 where
-    Child: ArenaItem,
+    Child: Linked<Parent>,
     Parent: ArenaItem,
     ChildArena: Arena<Child>,
-    ParentArena: Arena<Parent>,
-    Child: Linked<Parent, ChildArena, ParentArena>,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.next_or_next_back(true)

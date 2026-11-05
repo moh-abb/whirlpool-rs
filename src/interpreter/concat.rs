@@ -38,16 +38,14 @@ pub struct CatOrSeqFrame<'a, Arenas: PatternArenas>(
     PlayMultiple<
         Index<PatternNode>,
         CatOrSeqProps<
-            multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
+            multiple::IterChecked<'a, PatternNode, PatternNode, Arenas>,
         >,
     >,
 );
 
 #[derive(Debug)]
 pub struct StackFrame<'a, Arenas>(
-    fiter::Convert<
-        multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
-    >,
+    fiter::Convert<multiple::IterChecked<'a, PatternNode, PatternNode, Arenas>>,
     PlayElemArgs<()>,
 );
 
@@ -118,7 +116,7 @@ pub struct TimeCatFrame<'a, Arenas: PatternArenas>(
         TimeCatIter<
             'a,
             Arenas,
-            multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
+            multiple::IterChecked<'a, PatternNode, PatternNode, Arenas>,
         >,
     >,
 );
@@ -229,7 +227,7 @@ pub struct ArrangeFrame<'a, Arenas: PatternArenas>(
         ArrangeIter<
             'a,
             Arenas,
-            multiple::IterChecked<'a, PatternNode, PatternNode, Arenas, Arenas>,
+            multiple::IterChecked<'a, PatternNode, PatternNode, Arenas>,
         >,
     >,
 );

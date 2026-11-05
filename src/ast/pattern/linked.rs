@@ -1,16 +1,13 @@
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::PatternNode;
 use crate::ast::pattern::TimedStep;
-use crate::ast::pattern::arenas::PatternArenas;
 use crate::mem::Chain;
 use crate::mem::Index;
 use crate::mem::linked::ChildMut;
 use crate::mem::linked::ChildRef;
 use crate::mem::linked::Linked;
 
-impl<Arenas: PatternArenas> Linked<PatternNode, Arenas, Arenas>
-    for PatternNode
-{
+impl Linked<PatternNode> for PatternNode {
     fn get_parent(&self) -> &Option<Index<PatternNode>> {
         &self.parent
     }

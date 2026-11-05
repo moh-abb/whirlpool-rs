@@ -45,7 +45,7 @@ pub(super) mod private {
             where
                 Node: ArenaItem,
                 NodeArena: Arena<Node> + 'a,
-                Node: Linked<Node, NodeArena, NodeArena>,
+                Node: Linked<Node>,
                 TravState: TraversalState<Node, Visit = Self, Output = bool>
                 $body
         };
@@ -77,7 +77,7 @@ pub(super) mod private {
                         }
                         // Get the first child, if there are any children
                         let opt_first_child =
-                            <Node as Linked<_, _, _>>::get_children(
+                            <Node as Linked<_>>::get_children(
                                 cur_node.deref(),
                             )
                             .map(get_child_start)
@@ -109,7 +109,7 @@ pub(super) mod private {
             where
                 Node: ArenaItem,
                 NodeArena: Arena<Node> + 'a,
-                Node: Linked<Node, NodeArena, NodeArena>,
+                Node: Linked<Node>,
                 TravState: TraversalState<Node, Visit = Self, Output = bool>
                 $body
         };

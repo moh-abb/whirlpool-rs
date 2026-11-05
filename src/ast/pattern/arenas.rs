@@ -139,9 +139,9 @@ pub fn sum_cycle_length<T, E: From<OverflowError>>(
     })
 }
 
-pub fn timed_step_total_cycle_length(
+pub fn timed_step_total_cycle_length<Arenas: PatternArenas>(
     multiple: Multiple<PatternNode>,
-    arenas: &impl PatternArenas,
+    arenas: &Arenas,
 ) -> Result<CycleTime, SumCycleLengthError> {
     sum_cycle_length(
         multiple

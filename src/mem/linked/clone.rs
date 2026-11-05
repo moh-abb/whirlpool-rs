@@ -9,7 +9,6 @@ use crate::mem::Cow;
 use crate::mem::Index;
 use crate::mem::LinkedContainer;
 use crate::mem::SharedArena;
-use crate::mem::SharedArenaRef;
 use crate::mem::linked::ChildMut;
 use crate::mem::linked::Linked;
 use crate::mem::linked::drop::drop_linked;
@@ -47,11 +46,7 @@ impl<'a, Node, SourceArena, DestArena, CloneF> TraversalState<Node>
 where
     SourceArena: Arena<Node>,
     DestArena: Arena<Node>,
-    for<'r, 'b> Node: Linked<
-            Node,
-            SharedArenaRef<'r, &'b mut DestArena>,
-            SharedArenaRef<'r, &'b mut DestArena>,
-        >,
+    Node: Linked<Node>,
     CloneF: FnMut(&Node) -> Node,
 {
     type Visit = VisitRef;
@@ -164,13 +159,7 @@ pub fn clone_linked<Node, SourceArena, DestArena>(
 where
     SourceArena: Arena<Node>,
     DestArena: Arena<Node>,
-    Node: Linked<Node, SourceArena, SourceArena>,
-    Node: Linked<Node, DestArena, DestArena>,
-    for<'r, 'b> Node: Linked<
-            Node,
-            SharedArenaRef<'r, &'b mut DestArena>,
-            SharedArenaRef<'r, &'b mut DestArena>,
-        >,
+    Node: Linked<Node>,
 {
     let mut state = CloneHandler {
         dest_arena,

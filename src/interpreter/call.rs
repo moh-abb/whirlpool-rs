@@ -34,7 +34,7 @@ pub struct CallArgsIter<'a, Arenas>(
         fiter::Convert<option::IntoIter<ArenaResult<CallArg>>>,
         fiter::Map<
             fiter::Convert<
-                multiple::IterChecked<'a, ExprNode, ExprNode, Arenas, Arenas>,
+                multiple::IterChecked<'a, ExprNode, ExprNode, Arenas>,
             >,
             fn(Index<ExprNode>) -> ArenaResult<CallArg>,
         >,

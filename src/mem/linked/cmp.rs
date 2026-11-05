@@ -111,8 +111,8 @@ pub fn cmp_linked<Node, ArenaX, ArenaY>(
 where
     ArenaX: Arena<Node>,
     ArenaY: Arena<Node>,
-    Node: Linked<Node, ArenaX, ArenaX>,
-    Node: Linked<Node, ArenaY, ArenaY>,
+    Node: Linked<Node>,
+    Node: Linked<Node>,
 {
     let mut state = OrdHandler {
         cmp_func,

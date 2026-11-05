@@ -1,6 +1,5 @@
 use derive_where::derive_where;
 
-use crate::mem::Arena;
 use crate::mem::ArenaItem;
 use crate::mem::Chain;
 use crate::mem::Index;
@@ -52,12 +51,10 @@ impl<Item, Node, Parent> LinkedNode<Item, Node, Parent> {
 /// "Statement", such that the "Statement"'s parent is the "Program".
 /// Here, we would implement [Linked] with `Child` as `Statement` and
 /// `Parent` as `Program`.
-pub trait Linked<Parent, ChildArena, ParentArena>
+pub trait Linked<Parent>
 where
     Self: ArenaItem + Sized,
     Parent: ArenaItem + Sized,
-    ChildArena: Arena<Self>,
-    ParentArena: Arena<Parent>,
 {
     fn get_parent(&self) -> &Option<Index<Parent>>;
     fn get_mut_parent(&mut self) -> &mut Option<Index<Parent>>;

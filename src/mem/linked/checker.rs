@@ -69,7 +69,7 @@ where
 pub fn check_acyclic<Node, Arenas>(start_index: Index<Node>, arenas: &Arenas)
 where
     Arenas: Arena<Node>,
-    Node: Linked<Node, Arenas, Arenas> + Clone + Debug,
+    Node: Linked<Node> + Clone + Debug,
 {
     let mut state = CycleFinderState { visited: BTreeSet::new() };
     visit_linked(start_index, &mut state, arenas).unwrap();

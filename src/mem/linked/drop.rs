@@ -14,7 +14,7 @@ struct DropTraversalState<Arenas>(PhantomData<Arenas>);
 impl<Node, NodeArena> TraversalState<Node> for DropTraversalState<NodeArena>
 where
     NodeArena: Arena<Node>,
-    Node: Linked<Node, NodeArena, NodeArena>,
+    Node: Linked<Node>,
 {
     type Visit = VisitMut;
     type Output = ();
@@ -56,8 +56,8 @@ pub fn drop_linked<Node, NodeArena>(
 ) -> ArenaResult<()>
 where
     NodeArena: Arena<Node>,
-    Node: Linked<Node, NodeArena, NodeArena>,
+    Node: Linked<Node>,
 {
-    let mut start_state = DropTraversalState(PhantomData);
+    let mut start_state = DropTraversalState::<NodeArena>(PhantomData);
     visit_linked_mut(start_index, &mut start_state, arenas)
 }
