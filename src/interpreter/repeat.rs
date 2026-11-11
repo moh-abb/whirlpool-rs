@@ -68,6 +68,38 @@ use crate::interpreter::iterator::GenPure;
 use crate::interpreter::iterator::Generator;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
+use crate::interpreter::value::ValueStack;
+
+/// Defines the strategy to obtain the duration of a given concatenated
+/// element. This is done by either giving a constant value via
+/// [TimingSource::Constant], or another frame via [TimingSource::ViaFrame]
+/// that, when executed, will place the constant value onto the stack.
+pub trait TimingStrategy {
+    type Item: Clone;
+
+    fn next_item(
+        &mut self,
+        arenas: &impl PatternArenas,
+    ) -> PatternInterpreterResult<Option<TimingSource<ElemProps<Self::Item>>>>;
+
+    fn total_props(
+        &mut self,
+        arenas: &impl PatternArenas,
+    ) -> PatternInterpreterResult<TimingSource<ElemProps<()>>>;
+
+    fn eval_item(
+        &mut self,
+        intersection: PlayElemArgs<Self::Item>,
+    ) -> PatternInterpreterResult<InterpreterFrame>;
+}
+
+/// Determines how the timing data for the frame will be calculated.
+/// See [TimingStrategy].
+pub enum TimingSource<T> {
+    Const(T),
+    #[allow(unused)]
+    ViaFrame(InterpreterFrame),
+}
 
 #[inline]
 fn play_intersection<T>(
