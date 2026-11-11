@@ -4,9 +4,11 @@ use core::mem::swap;
 use derive_where::derive_where;
 
 use crate::mem::Arena;
+use crate::mem::ArenaError;
 use crate::mem::ArenaItem;
 use crate::mem::ArenaResult;
 use crate::mem::Index;
+use crate::mem::arena::iterator::ArenaIterator;
 use crate::mem::linked::Linked;
 
 #[derive(derive_more::Debug)]
@@ -108,98 +110,77 @@ impl<Child: ArenaItem> Multiple<Child> {
         self.length = self.length.wrapping_sub(1);
     }
 
-    pub fn checked_iter<'a, Parent, ChildArena>(
-        &self,
-        child_arena: &'a ChildArena,
-    ) -> IterChecked<'a, Child, Parent, ChildArena>
-    where
-        Child: Linked<Parent>,
-        Parent: ArenaItem,
-        ChildArena: Arena<Child>,
-    {
-        IterChecked {
-            start_end: self.start_end.clone(),
-            child_arena,
-            phantom: PhantomData,
-        }
+    /// Returns a "bare iterator" yielding values of
+    /// `ArenaResult<Option<Index<Item>>>`, but needs the reference to the
+    /// arena to be provided manually to advance each time.
+    /// Saves on memory overhead of the pointer to the arena.
+    pub fn iter<Parent>(&self) -> Iter<Child, Parent> {
+        Iter { start_end: self.start_end.clone(), phantom: PhantomData }
     }
 }
 
-/// An iterator for which the elements consist of `ArenaResult<Index<Item>>`.
-#[derive(Debug, Clone)]
-pub struct IterChecked<'a, Child, Parent, ChildArena> {
-    start_end: StartEnd<Child>,
+fn next_or_next_back<'a, Child, Parent, ChildArena>(
+    start_end: &mut StartEnd<Child>,
     child_arena: &'a ChildArena,
+    is_next_back: bool,
+) -> ArenaResult<Option<Index<Child>>>
+where
+    Child: Linked<Parent>,
+    Parent: ArenaItem,
+    ChildArena: Arena<Child>,
+{
+    let cloned_start_end = start_end.clone();
+    let StartEnd::Full { start, end } = cloned_start_end else {
+        return Ok(None);
+    };
+    let (mut changing_end, mut constant_end) = (start, end);
+    if is_next_back {
+        swap(&mut changing_end, &mut constant_end);
+    }
+
+    let result = child_arena
+        .map(changing_end.clone(), |child| child.get_sibling_chain().clone())
+        .map(|chain| {
+            let old_end = changing_end.clone();
+            *start_end = if is_next_back {
+                if let Some(prev) = chain.prev {
+                    StartEnd::Full { start: constant_end, end: prev }
+                } else {
+                    StartEnd::Empty
+                }
+            } else {
+                if let Some(next) = chain.next {
+                    StartEnd::Full { start: next, end: constant_end }
+                } else {
+                    StartEnd::Empty
+                }
+            };
+            old_end
+        });
+    result.map(Some)
+}
+
+/// An iterator for which the elements consist of
+/// `ArenaResult<Option<Index<Item>>>`.
+#[derive(Debug, Clone)]
+pub struct Iter<Child, Parent> {
+    start_end: StartEnd<Child>,
     phantom: PhantomData<Parent>,
 }
 
-impl<'a, Child, Parent, ChildArena> IterChecked<'a, Child, Parent, ChildArena>
+impl<'a, Child, Parent> ArenaIterator for Iter<Child, Parent>
 where
     Child: Linked<Parent>,
     Parent: ArenaItem,
-    ChildArena: Arena<Child>,
 {
-    fn next_or_next_back(
+    type Input = Child;
+    type Output = Index<Child>;
+    type Error = ArenaError;
+
+    fn next_in_arena(
         &mut self,
-        is_next_back: bool,
-    ) -> Option<ArenaResult<Index<Child>>> {
-        let cloned_start_end = self.start_end.clone();
-        let StartEnd::Full { start, end } = cloned_start_end else {
-            return None;
-        };
-        let (mut changing_end, mut constant_end) = (start, end);
-        if is_next_back {
-            swap(&mut changing_end, &mut constant_end);
-        }
-
-        let result = self
-            .child_arena
-            .map(changing_end.clone(), |child| {
-                child.get_sibling_chain().clone()
-            })
-            .map(|chain| {
-                let old_end = changing_end.clone();
-                self.start_end = if is_next_back {
-                    if let Some(prev) = chain.prev {
-                        StartEnd::Full { start: constant_end, end: prev }
-                    } else {
-                        StartEnd::Empty
-                    }
-                } else {
-                    if let Some(next) = chain.next {
-                        StartEnd::Full { start: next, end: constant_end }
-                    } else {
-                        StartEnd::Empty
-                    }
-                };
-                old_end
-            });
-        Some(result)
-    }
-}
-
-impl<'a, Child, Parent, ChildArena> Iterator
-    for IterChecked<'a, Child, Parent, ChildArena>
-where
-    Child: Linked<Parent>,
-    Parent: ArenaItem,
-    ChildArena: Arena<Child>,
-{
-    type Item = ArenaResult<Index<Child>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next_or_next_back(false)
-    }
-}
-
-impl<'a, Child, Parent, ChildArena> DoubleEndedIterator
-    for IterChecked<'a, Child, Parent, ChildArena>
-where
-    Child: Linked<Parent>,
-    Parent: ArenaItem,
-    ChildArena: Arena<Child>,
-{
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.next_or_next_back(true)
+        child_arena: &impl Arena<Self::Input>,
+    ) -> Result<Option<Self::Output>, Self::Error> {
+        next_or_next_back(&mut self.start_end, child_arena, false)
     }
 }
