@@ -5,7 +5,6 @@ mod call;
 mod concat;
 pub mod error;
 pub mod frame;
-mod iterator;
 mod leaf;
 pub mod pattern;
 pub mod props;
