@@ -10,10 +10,14 @@ use fallible_iterator::FallibleIterator;
 use crate::ast::expr::ExprNode;
 use crate::ast::expr::ident::Identifier;
 use crate::ast::expr::linked::ExprArenas;
+use crate::mem::Arena;
 use crate::mem::ArenaError;
+use crate::mem::ArenaItem;
 use crate::mem::ArenaResult;
 use crate::mem::Index;
 use crate::mem::Multiple;
+use crate::mem::arena::iterator::ArenaIterator;
+use crate::mem::linked::Linked;
 use crate::mem::structures::multiple;
 
 #[derive(Debug, Clone)]
@@ -29,17 +33,10 @@ pub struct CallArgs {
 }
 
 #[derive(Debug)]
-pub struct CallArgsIter<'a, Arenas>(
-    fiter::Chain<
-        fiter::Convert<option::IntoIter<ArenaResult<CallArg>>>,
-        fiter::Map<
-            fiter::Convert<
-                multiple::IterChecked<'a, ExprNode, ExprNode, Arenas>,
-            >,
-            fn(Index<ExprNode>) -> ArenaResult<CallArg>,
-        >,
-    >,
-);
+pub struct CallArgsIter<Parent> {
+    head: Option<CallArg>,
+    tail: multiple::Iter<ExprNode, Parent>,
+}
 
 impl CallArgs {
     pub fn new(args: Multiple<ExprNode>) -> Self {
@@ -54,32 +51,59 @@ impl CallArgs {
         u16::from(self.head.is_none()).saturating_add(self.tail.length())
     }
 
-    pub fn iter<'a, Arenas: ExprArenas>(
-        &self,
-        arenas: &'a Arenas,
-    ) -> CallArgsIter<'a, Arenas> {
-        CallArgsIter(
-            fiter::convert(self.head.clone().map(Ok).into_iter()).chain(
-                fiter::convert(self.tail.checked_iter(arenas))
-                    .map(|index| Ok(CallArg::Index(index))),
-            ),
-        )
+    pub fn iter<Parent>(&self) -> CallArgsIter<Parent> {
+        CallArgsIter { head: self.head.clone(), tail: self.tail.iter() }
     }
 }
 
-impl<'a, Arenas: ExprArenas> FallibleIterator for CallArgsIter<'a, Arenas> {
-    type Item = CallArg;
+impl<'a, Parent> CallArgsIter<Parent>
+where
+    Parent: ArenaItem,
+    ExprNode: Linked<Parent>,
+{
+    fn fst_snd<'r, F, A>(
+        &'r mut self,
+        child_arena: &'a A,
+        advance_func: F,
+    ) -> (
+        impl FnOnce() -> ArenaResult<Option<CallArg>> + 'r,
+        impl FnOnce() -> ArenaResult<Option<CallArg>> + 'r,
+    )
+    where
+        'a: 'r,
+        A: Arena<ExprNode>,
+        F: FnOnce(
+                &mut multiple::Iter<ExprNode, Parent>,
+                &'a A,
+            ) -> ArenaResult<Option<Index<ExprNode>>>
+            + 'r,
+    {
+        let mut fst = || Ok(self.head.take());
+        let tail = &mut self.tail;
+        let mut snd = move || {
+            advance_func(tail, child_arena)
+                .map(|opt_index| opt_index.map(CallArg::Index))
+        };
+        (fst, snd)
+    }
+}
+
+impl<Parent> ArenaIterator for CallArgsIter<Parent>
+where
+    Parent: ArenaItem,
+    ExprNode: Linked<Parent>,
+{
+    type Input = ExprNode;
+    type Output = CallArg;
     type Error = ArenaError;
 
-    fn next(&mut self) -> Result<Option<Self::Item>, Self::Error> {
-        self.0.next()
-    }
-}
+    fn next_in_arena(
+        &mut self,
+        arena: &impl Arena<Self::Input>,
+    ) -> Result<Option<Self::Output>, Self::Error> {
+        let (mut fst, mut snd) =
+            self.fst_snd(arena, multiple::Iter::next_in_arena);
 
-impl<'a, Arenas: ExprArenas> DoubleEndedFallibleIterator
-    for CallArgsIter<'a, Arenas>
-{
-    fn next_back(&mut self) -> Result<Option<Self::Item>, Self::Error> {
-        self.0.next_back()
+        if let Some(arg) = fst()? { Ok(Some(arg)) } else { snd() }
     }
 }
