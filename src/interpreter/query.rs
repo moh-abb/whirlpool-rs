@@ -11,7 +11,7 @@ use crate::interpreter::props::PlayElemArgs;
 use crate::interpreter::value::ValueStack;
 use crate::mem::Index;
 
-#[derive(Debug, derive_new::new)]
+#[derive(derive_new::new, Debug, Clone)]
 pub(super) struct QueryFrame {
     play_args: PlayElemArgs<Index<PatternNode>>,
     #[new(value = "false")]

@@ -5,14 +5,14 @@ use crate::interpreter::leaf::LeafFrame;
 use crate::interpreter::query::QueryFrame;
 use crate::interpreter::value::ValueStack;
 
-#[derive(derive_more::From, Debug)]
+#[derive(derive_more::From, Debug, Clone)]
 enum FrameInner {
     Query(QueryFrame),
     Concat(ConcatFrame),
     Leaf(LeafFrame),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InterpreterFrame(FrameInner);
 
 impl<T: Into<FrameInner>> From<T> for InterpreterFrame {

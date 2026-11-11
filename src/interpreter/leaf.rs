@@ -13,23 +13,23 @@ use crate::interpreter::repeat::TimingStrategy;
 use crate::interpreter::value::ValueStack;
 use crate::synth::unit::SoundUnit;
 
-#[derive(derive_more::From, Debug)]
+#[derive(derive_more::From, Debug, Clone)]
 pub enum LeafFrame {
     QueryNote(QueryNoteFrame),
     PlayNote(PlayNoteFrame),
     Silence(SilenceFrame),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct QueryNoteFrame(PlayMultiple<OneCycle>);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PlayNoteFrame(PlayElemArgs<NoteUnit>);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SilenceFrame;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct OneCycle(Option<NoteUnit>);
 
 impl TimingStrategy for OneCycle {

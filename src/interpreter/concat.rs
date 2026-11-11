@@ -20,7 +20,7 @@ use crate::mem::Multiple;
 use crate::mem::arena::iterator::ArenaIterator;
 use crate::mem::structures::multiple;
 
-#[derive(derive_more::From, Debug)]
+#[derive(derive_more::From, Debug, Clone)]
 pub enum ConcatFrame {
     CatOrSeq(CatOrSeqFrame),
     Stack(StackFrame),
@@ -28,23 +28,23 @@ pub enum ConcatFrame {
     Arrange(ArrangeFrame),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CatOrSeqFrame(PlayMultiple<MultipleOfOneCycle>);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StackFrame(
     multiple::Iter<PatternNode, PatternNode>,
     PlayElemArgs<()>,
 );
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TimeCatFrame(PlayMultiple<TimeCatCycle>);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ArrangeFrame(PlayMultiple<ArrangeCycle>);
 
 /// Denotes that each element has one cycle simulated and played.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct MultipleOfOneCycle {
     iter: multiple::Iter<PatternNode, PatternNode>,
     total_cycle_length: CycleTime,
@@ -54,7 +54,7 @@ struct MultipleOfOneCycle {
 /// only played for one cycle. Used only with `Pattern::TimeCat`.
 /// Needs the total cycle length as well, in order to scale down the played
 /// intersection.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct TimeCatCycle {
     multiple_length: CycleTime,
     total_cycle_length: CycleTime,
@@ -63,7 +63,7 @@ struct TimeCatCycle {
 
 /// Denotes that given a timed step, the number of cycles is both played and
 /// simulated. Used only with `Pattern::Arrange`.
-#[derive(derive_new::new, Debug)]
+#[derive(derive_new::new, Debug, Clone)]
 struct ArrangeCycle {
     total_cycle_length: CycleTime,
     iter: multiple::Iter<PatternNode, PatternNode>,

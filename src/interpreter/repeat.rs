@@ -96,7 +96,7 @@ pub enum TimingSource<T> {
     ViaFrame(InterpreterFrame),
 }
 
-#[derive(derive_more::Debug, Default)]
+#[derive(derive_more::Debug, Default, Clone)]
 enum State<Elem> {
     /// The start state.
     #[default]
@@ -117,7 +117,7 @@ enum State<Elem> {
     Finish { outer_data: OuterIterData },
 }
 
-#[derive(derive_new::new, derive_more::Debug)]
+#[derive(derive_new::new, derive_more::Debug, Clone)]
 pub struct PlayMultiple<Timing: TimingStrategy> {
     play_args: PlayElemArgs<()>,
 
@@ -166,7 +166,7 @@ fn play_intersection<T>(
     }))
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct OuterIterData {
     /// Used to calculate intersections of alternating elements.
     /// Not used for each repetition of an element.
@@ -192,11 +192,7 @@ impl OuterIterData {
             interval,
             offset,
             total_multiplier,
-            total: ElemProps {
-                elem: (),
-                sim_duration: total.sim_duration,
-                played_duration: total.played_duration,
-            },
+            total,
         }
     }
 }
@@ -277,7 +273,7 @@ impl OuterIterData {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct RepIterData<T> {
     /// Played start from the outer scope.
     /// Used for each repetition of an element.
