@@ -1,3 +1,6 @@
+use fallible_iterator as fiter;
+use fiter::FallibleIterator;
+
 use crate::ast::pattern::Pattern;
 use crate::ast::pattern::PatternNode;
 use crate::ast::pattern::TimedStep;
@@ -11,6 +14,7 @@ use crate::mem::Index;
 use crate::mem::LinkedContainer;
 use crate::mem::Multiple;
 use crate::mem::SharedArenaRef;
+use crate::mem::arena::iterator::ArenaIterator;
 
 pub trait PatternArenas: Arena<PatternNode> {}
 
@@ -143,16 +147,22 @@ pub fn timed_step_total_cycle_length<Arenas: PatternArenas>(
     multiple: Multiple<PatternNode>,
     arenas: &Arenas,
 ) -> Result<CycleTime, SumCycleLengthError> {
+    let mut bare_iter = multiple.iter();
+    let indices = fiter::from_fn(|| {
+        bare_iter
+            .next_in_arena(arenas)
+            .map_err(Into::into)
+    });
     sum_cycle_length(
-        multiple
-            .checked_iter(arenas)
+        indices
             .map(|opt_node_index| {
-                let node = arenas.map(opt_node_index?, Clone::clone)?;
+                let node = arenas.map(opt_node_index, Clone::clone)?;
                 let Pattern::TimedStep(timed_step) = node.pattern else {
                     return Err(SumCycleLengthError::ExpectedTimedStep);
                 };
                 Ok(timed_step)
-            }),
+            })
+            .iterator(),
         |TimedStep(dur, _)| dur,
     )
 }
