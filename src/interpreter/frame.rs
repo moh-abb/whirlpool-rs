@@ -6,18 +6,16 @@ use crate::interpreter::query::QueryFrame;
 use crate::interpreter::value::ValueStack;
 
 #[derive(derive_more::From, Debug)]
-enum FrameInner<'a, Arenas: PatternArenas> {
+enum FrameInner {
     Query(QueryFrame),
-    Concat(ConcatFrame<'a, Arenas>),
+    Concat(ConcatFrame),
     Leaf(LeafFrame),
 }
 
 #[derive(Debug)]
-pub struct InterpreterFrame<'a, Arenas: PatternArenas>(FrameInner<'a, Arenas>);
+pub struct InterpreterFrame(FrameInner);
 
-impl<'a, Arenas: PatternArenas, T: Into<FrameInner<'a, Arenas>>> From<T>
-    for InterpreterFrame<'a, Arenas>
-{
+impl<T: Into<FrameInner>> From<T> for InterpreterFrame {
     fn from(value: T) -> Self {
         Self(value.into())
     }
@@ -28,46 +26,27 @@ impl<'a, Arenas: PatternArenas, T: Into<FrameInner<'a, Arenas>>> From<T>
 /// error. Otherwise `Ok(None)` indicates that interpretation of the current
 /// frame is complete, and `Ok(Some(frame))` indicates to keep this frame on
 /// the stack and interpret the new one on top.
-pub type InterpreterResult<'a, Arenas> =
-    PatternInterpreterResult<Option<InterpreterFrame<'a, Arenas>>>;
+pub type InterpreterResult = PatternInterpreterResult<Option<InterpreterFrame>>;
 
-pub(super) trait EvaluateFrame<'a, Arenas: PatternArenas> {
+pub(super) trait EvaluateFrame {
     fn step(
         &mut self,
         value_stack: &mut impl ValueStack,
-        arenas: &'a Arenas,
-    ) -> InterpreterResult<'a, Arenas>;
+        arenas: &impl PatternArenas,
+    ) -> InterpreterResult;
 }
 
-impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
-    for InterpreterFrame<'a, Arenas>
-{
+impl EvaluateFrame for InterpreterFrame {
     fn step(
         &mut self,
         value_stack: &mut impl ValueStack,
-        arenas: &'a Arenas,
-    ) -> InterpreterResult<'a, Arenas> {
+        arenas: &impl PatternArenas,
+    ) -> InterpreterResult {
         // TODO: Automatically delegate this step.
         match &mut self.0 {
             FrameInner::Query(frame) => frame.step(value_stack, arenas),
-            FrameInner::Concat(ConcatFrame::CatOrSeq(frame)) => {
-                frame.step(value_stack, arenas)
-            }
-            FrameInner::Concat(ConcatFrame::Stack(frame)) => {
-                frame.step(value_stack, arenas)
-            }
-            FrameInner::Concat(ConcatFrame::TimeCat(frame)) => {
-                frame.step(value_stack, arenas)
-            }
-            FrameInner::Concat(ConcatFrame::Arrange(frame)) => {
-                frame.step(value_stack, arenas)
-            }
-            FrameInner::Leaf(LeafFrame::Note(frame)) => {
-                frame.step(value_stack, arenas)
-            }
-            FrameInner::Leaf(LeafFrame::Silence(frame)) => {
-                frame.step(value_stack, arenas)
-            }
+            FrameInner::Concat(frame) => frame.step(value_stack, arenas),
+            FrameInner::Leaf(frame) => frame.step(value_stack, arenas),
         }
     }
 }

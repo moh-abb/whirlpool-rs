@@ -142,7 +142,7 @@ where
     ValStack: ValueStack,
     ValStackBorrow: BorrowAdapter<ValStack>,
     FrameArenaBorrow: BorrowAdapter<FrameArena>,
-    FrameArena: Arena<StackChain<InterpreterFrame<'a, Arenas>>>,
+    FrameArena: Arena<StackChain<InterpreterFrame>>,
 {
     type Output = Result<(), PatternInterpreterError>;
 

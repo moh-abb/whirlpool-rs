@@ -18,12 +18,12 @@ pub(super) struct QueryFrame {
     finished: bool,
 }
 
-impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
+impl EvaluateFrame for QueryFrame {
     fn step(
         &mut self,
         _: &mut impl ValueStack,
-        arenas: &'a Arenas,
-    ) -> InterpreterResult<'a, Arenas> {
+        arenas: &impl PatternArenas,
+    ) -> InterpreterResult {
         // Check if we are done.
         if self.finished {
             return Ok(None);
@@ -31,21 +31,20 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
         let index = self.play_args.elem.clone();
         let play_args = self.play_args.clone().map(|_| ());
         let cloned_pattern = arenas.map(index, Clone::clone)?.pattern;
-        let next_frame: InterpreterFrame<'a, Arenas> = match &cloned_pattern {
+        let next_frame: InterpreterFrame = match &cloned_pattern {
             Pattern::Cat(multiple) => {
-                ConcatFrame::new_cat(multiple, arenas, play_args)?.into()
+                ConcatFrame::new_cat(multiple, play_args)?.into()
             }
             Pattern::Seq(multiple) => {
-                ConcatFrame::new_seq(multiple, arenas, play_args)?.into()
+                ConcatFrame::new_seq(multiple, play_args)?.into()
             }
             Pattern::Stack(multiple) => {
-                ConcatFrame::new_stack(multiple, arenas, play_args)?.into()
+                ConcatFrame::new_stack(multiple, play_args)?.into()
             }
             Pattern::TimeCat { total_cycle_length, multiple } => {
                 ConcatFrame::new_time_cat(
                     multiple,
-                    total_cycle_length,
-                    arenas,
+                    *total_cycle_length,
                     play_args,
                 )?
                 .into()
@@ -53,8 +52,7 @@ impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
             Pattern::Arrange { total_cycle_length, multiple } => {
                 ConcatFrame::new_arrange(
                     multiple,
-                    total_cycle_length,
-                    arenas,
+                    *total_cycle_length,
                     play_args,
                 )?
                 .into()

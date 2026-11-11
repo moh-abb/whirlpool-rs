@@ -1,91 +1,113 @@
-use fallible_iterator as fiter;
-use fallible_iterator::FallibleIterator;
-
 use crate::ast::note::NoteUnit;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::time::CycleTime;
-use crate::interpreter::error::PatternInterpreterError;
 use crate::interpreter::error::PatternInterpreterResult;
 use crate::interpreter::frame::EvaluateFrame;
+use crate::interpreter::frame::InterpreterFrame;
 use crate::interpreter::frame::InterpreterResult;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
 use crate::interpreter::repeat::PlayMultiple;
-use crate::interpreter::repeat::play_multiple_elements;
+use crate::interpreter::repeat::TimingSource;
+use crate::interpreter::repeat::TimingStrategy;
 use crate::interpreter::value::ValueStack;
 use crate::synth::unit::SoundUnit;
 
 #[derive(derive_more::From, Debug)]
 pub enum LeafFrame {
-    Note(NoteFrame),
+    QueryNote(QueryNoteFrame),
+    PlayNote(PlayNoteFrame),
     Silence(SilenceFrame),
 }
 
 #[derive(Debug)]
-pub struct NoteFrame(
-    PlayMultiple<
-        NoteUnit,
-        fiter::Once<ElemProps<NoteUnit>, PatternInterpreterError>,
-    >,
-);
+pub struct QueryNoteFrame(PlayMultiple<OneCycle>);
 
-impl NoteFrame {
-    fn new(
-        note: NoteUnit,
-        play_args: PlayElemArgs<()>,
-    ) -> PatternInterpreterResult<Self> {
-        let args_with_iterator = play_args.map(|()| ElemProps {
-            elem: move || {
-                fiter::once(ElemProps {
-                    elem: note,
-                    sim_duration: CycleTime::ONE,
-                    played_duration: CycleTime::ONE,
-                })
-            },
-            sim_duration: CycleTime::ONE,
-            played_duration: CycleTime::ONE,
-        });
-        Ok(Self(play_multiple_elements(args_with_iterator, false)?))
-    }
-}
-
-impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for NoteFrame {
-    fn step(
-        &mut self,
-        value_stack: &mut impl ValueStack,
-        _: &'a Arenas,
-    ) -> InterpreterResult<'a, Arenas> {
-        loop {
-            let Some(args) = self.0.next()? else {
-                return Ok(None);
-            };
-            // We could potentially cache the scheduled sound unit if this
-            // affects performance.
-            let unit_duration = args.multiplier.recip()?;
-            // Only play exact integer times, aligned to a single cycle
-            let start = args.interval.start();
-            if start != start.floor()? {
-                continue;
-            }
-            let scaled_start = start
-                .add(args.offset)?
-                .div(args.multiplier)?;
-            let sound_unit =
-                SoundUnit::new(args.elem, scaled_start, unit_duration);
-            value_stack.push_sound_unit(sound_unit.clone())?;
-        }
-    }
-}
+#[derive(Debug)]
+pub struct PlayNoteFrame(PlayElemArgs<NoteUnit>);
 
 #[derive(Debug)]
 pub struct SilenceFrame;
 
-impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for SilenceFrame {
+#[derive(Debug)]
+struct OneCycle(Option<NoteUnit>);
+
+impl TimingStrategy for OneCycle {
+    type Item = NoteUnit;
+
+    fn next_item(
+        &mut self,
+        _: &impl PatternArenas,
+    ) -> PatternInterpreterResult<Option<TimingSource<ElemProps<Self::Item>>>>
+    {
+        Ok(self.0.take().map(|elem| {
+            TimingSource::Const(ElemProps {
+                elem,
+                sim_duration: CycleTime::ONE,
+                played_duration: CycleTime::ONE,
+            })
+        }))
+    }
+
+    fn total_props(
+        &mut self,
+        _: &impl PatternArenas,
+    ) -> PatternInterpreterResult<TimingSource<ElemProps<()>>> {
+        Ok(TimingSource::Const(ElemProps {
+            elem: (),
+            sim_duration: CycleTime::ONE,
+            played_duration: CycleTime::ONE,
+        }))
+    }
+
+    fn eval_item(
+        &mut self,
+        intersection: PlayElemArgs<Self::Item>,
+    ) -> PatternInterpreterResult<InterpreterFrame> {
+        Ok(LeafFrame::from(PlayNoteFrame(intersection)).into())
+    }
+}
+
+impl EvaluateFrame for QueryNoteFrame {
+    fn step(
+        &mut self,
+        value_stack: &mut impl ValueStack,
+        arenas: &impl PatternArenas,
+    ) -> InterpreterResult {
+        self.0.step(value_stack, arenas)
+    }
+}
+
+impl EvaluateFrame for PlayNoteFrame {
+    fn step(
+        &mut self,
+        value_stack: &mut impl ValueStack,
+        _: &impl PatternArenas,
+    ) -> InterpreterResult {
+        let args = self.0.clone();
+        // We could potentially cache the scheduled sound unit if this
+        // affects performance.
+        let unit_duration = args.multiplier.recip()?;
+        // Only play exact integer times, aligned to a single cycle
+        let start = args.interval.start();
+        if start != start.floor()? {
+            return Ok(None);
+        }
+        let scaled_start = start
+            .add(args.offset)?
+            .div(args.multiplier)?;
+        let sound_unit = SoundUnit::new(args.elem, scaled_start, unit_duration);
+        value_stack.push_sound_unit(sound_unit.clone())?;
+        return Ok(None);
+    }
+}
+
+impl EvaluateFrame for SilenceFrame {
     fn step(
         &mut self,
         _: &mut impl ValueStack,
-        _: &'a Arenas,
-    ) -> InterpreterResult<'a, Arenas> {
+        _: &impl PatternArenas,
+    ) -> InterpreterResult {
         Ok(None)
     }
 }
@@ -95,10 +117,28 @@ impl LeafFrame {
         note: &NoteUnit,
         play_args: PlayElemArgs<()>,
     ) -> PatternInterpreterResult<Self> {
-        Ok(Self::Note(NoteFrame::new(note.clone(), play_args)?))
+        Ok(Self::QueryNote(QueryNoteFrame(PlayMultiple::new(
+            play_args,
+            OneCycle(Some(note.clone())),
+            false,
+        ))))
     }
 
     pub fn new_silence() -> PatternInterpreterResult<Self> {
         Ok(Self::Silence(SilenceFrame))
+    }
+}
+
+impl EvaluateFrame for LeafFrame {
+    fn step(
+        &mut self,
+        value_stack: &mut impl ValueStack,
+        arenas: &impl PatternArenas,
+    ) -> InterpreterResult {
+        match self {
+            LeafFrame::QueryNote(frame) => frame.step(value_stack, arenas),
+            LeafFrame::PlayNote(frame) => frame.step(value_stack, arenas),
+            LeafFrame::Silence(frame) => frame.step(value_stack, arenas),
+        }
     }
 }

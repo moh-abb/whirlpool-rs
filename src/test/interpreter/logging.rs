@@ -1,4 +1,5 @@
 use crate::interpreter::error::PatternInterpreterResult;
+use crate::interpreter::props::ElemProps;
 use crate::interpreter::value::ValueStack;
 use crate::synth::unit::SoundUnit;
 
@@ -41,5 +42,25 @@ impl<'a, ValStack: ValueStack> ValueStack for LoggingValueStack<'a, ValStack> {
 
         self.scheduler
             .push_sound_unit(sound_unit)
+    }
+
+    fn push_total_props(
+        &mut self,
+        total_props: ElemProps<()>,
+    ) -> PatternInterpreterResult<()> {
+        if self.log_enabled {
+            println!("LoggingScheduler: Pushing total props {total_props:?}");
+        }
+
+        self.scheduler
+            .push_total_props(total_props)
+    }
+
+    fn pop_total_props(&mut self) -> PatternInterpreterResult<ElemProps<()>> {
+        if self.log_enabled {
+            println!("LoggingScheduler: Popping");
+        }
+
+        self.scheduler.pop_total_props()
     }
 }

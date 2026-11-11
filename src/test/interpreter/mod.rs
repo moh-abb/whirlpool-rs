@@ -161,8 +161,7 @@ fn test_expectations_with_interpreter_setup_and_start_time<
         f(borrowed_scheduler)
     };
 
-    let mut frame_arena =
-        GrowableArena::<StackChain<InterpreterFrame<'_, Arenas>>>::new();
+    let mut frame_arena = GrowableArena::<StackChain<InterpreterFrame>>::new();
     let frame_arena_refcell = RefCell::new(&mut frame_arena);
     debug_assert_eq!(frame_arena_refcell.borrow().size(), Ok(0));
 
