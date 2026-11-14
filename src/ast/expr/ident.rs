@@ -8,8 +8,19 @@ use crate::ast::parser::array::ParserVecError;
 use crate::mem::ArenaError;
 use crate::mem::debug_unwrap;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Identifier(pub ParserVec<u8, { Self::MAX_LENGTH }>);
+#[derive(
+    derive_more::AsRef,
+    derive_new::new,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+)]
+pub struct Identifier {
+    bytes: ParserVec<u8, { Self::MAX_LENGTH }>,
+}
 
 impl Identifier {
     pub const MAX_LENGTH: usize = 20;
@@ -31,7 +42,7 @@ impl AstDisplay for Identifier {
         f: &mut fmt::Formatter<'_>,
         _flags: &AstDisplayFlags,
     ) -> Result<(), Self::Error> {
-        self.0
+        self.as_ref()
             .as_slice()?
             .iter()
             .try_for_each(|&b| {
