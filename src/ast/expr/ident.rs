@@ -8,10 +8,12 @@ use crate::ast::parser::array::ParserVecError;
 use crate::mem::ArenaError;
 use crate::mem::debug_unwrap;
 
-pub const MAX_IDENT_LENGTH: usize = 20;
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Identifier(pub ParserVec<u8, MAX_IDENT_LENGTH>);
+pub struct Identifier(pub ParserVec<u8, { Self::MAX_LENGTH }>);
+
+impl Identifier {
+    pub const MAX_LENGTH: usize = 20;
+}
 
 #[derive(derive_more::From, Debug)]
 pub enum DisplayIdentError {
