@@ -1,7 +1,6 @@
 use derive_where::derive_where;
 
 use crate::ast::expr::ident::Identifier;
-use crate::ast::pattern::Pattern;
 use crate::ast::time::CycleTime;
 use crate::mem::Index;
 use crate::mem::Multiple;
@@ -30,7 +29,6 @@ pub enum Expr {
         name: Identifier,
         #[derive_where(skip)]
         args: Multiple<ExprNode>,
-        opt_pattern: Option<Pattern>,
     },
     /// Lambda function; e.g. `x=>cat(x,A5)`.
     /// Format: `<ident>=><expr>`
@@ -53,9 +51,9 @@ pub enum Expr {
 /// cycle time number e.g. `-5.12`; or a singly-quoted string `'foo'`.
 #[derive(derive_more::From, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ExprUnit {
-    /// Identifier with pattern data attached.
+    /// Identifier.
     /// Format: <ident>
-    Ident { name: Identifier, as_pattern: Option<Pattern> },
+    Ident(Identifier),
     /// Number represented as a cycle time.
     /// Format: <number>
     Number(CycleTime),

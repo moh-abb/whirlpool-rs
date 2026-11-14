@@ -70,7 +70,7 @@ impl<'a, 'b> TraversalState<ExprNode> for DisplayTraversalState<'a, 'b> {
             Expr::Array { .. } => {
                 write!(f, "[")?;
             }
-            Expr::Unit(ExprUnit::Ident { name, .. }) => {
+            Expr::Unit(ExprUnit::Ident(name)) => {
                 name.fmt_ast(f, self.flags)?;
             }
             Expr::Unit(ExprUnit::Number(cycle_num)) => {
