@@ -6,17 +6,19 @@ use crate::ast::pattern::examples::binary_tree_depth_two;
 use crate::ast::pattern::examples::half_binary_tree_depth_two;
 use crate::ast::pattern::examples::multiple_of_three_units;
 use crate::ast::time::CycleTime;
-use crate::test::interpreter::ScheduledExpectation;
+use crate::synth::unit::SoundUnit;
 use crate::test::interpreter::test_expectations;
 
 #[test]
 fn can_play_four_stacks() {
     let note_unit =
         |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
-    let single_action = |start_time, letter: NoteLetter| ScheduledExpectation {
-        start_time: CycleTime::unwrapped_from_int(start_time),
-        duration: CycleTime::ONE,
-        note_unit: note_unit(letter),
+    let single_action = |start_time, letter: NoteLetter| {
+        SoundUnit::new(
+            note_unit(letter),
+            CycleTime::unwrapped_from_int(start_time),
+            CycleTime::ONE,
+        )
     };
     let make_scheduled_actions = |start_time| {
         [NoteLetter::A, NoteLetter::B, NoteLetter::C, NoteLetter::D]
@@ -43,10 +45,12 @@ fn can_play_double_stack_with_unit() {
     let note_unit =
         |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
 
-    let single_action = |start_time, letter: NoteLetter| ScheduledExpectation {
-        start_time: CycleTime::unwrapped_from_int(start_time),
-        duration: CycleTime::ONE,
-        note_unit: note_unit(letter),
+    let single_action = |start_time, letter: NoteLetter| {
+        SoundUnit::new(
+            note_unit(letter),
+            CycleTime::unwrapped_from_int(start_time),
+            CycleTime::ONE,
+        )
     };
     let make_scheduled_actions = |start_time| {
         [NoteLetter::A, NoteLetter::B, NoteLetter::C]
@@ -71,10 +75,12 @@ fn can_play_stack_of_three_units() {
     let note_unit =
         |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
 
-    let single_action = |start_time, letter: NoteLetter| ScheduledExpectation {
-        start_time: CycleTime::unwrapped_from_int(start_time),
-        duration: CycleTime::ONE,
-        note_unit: note_unit(letter),
+    let single_action = |start_time, letter: NoteLetter| {
+        SoundUnit::new(
+            note_unit(letter),
+            CycleTime::unwrapped_from_int(start_time),
+            CycleTime::ONE,
+        )
     };
     let make_scheduled_actions = |start_time| {
         [NoteLetter::A, NoteLetter::B, NoteLetter::C]
@@ -102,10 +108,12 @@ fn can_play_stack_of_cats() {
     let note_unit =
         |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
 
-    let single_action = |start_time, letter: NoteLetter| ScheduledExpectation {
-        start_time: CycleTime::unwrapped_from_int(start_time),
-        duration: CycleTime::ONE,
-        note_unit: note_unit(letter),
+    let single_action = |start_time, letter: NoteLetter| {
+        SoundUnit::new(
+            note_unit(letter),
+            CycleTime::unwrapped_from_int(start_time),
+            CycleTime::ONE,
+        )
     };
     let even_cycle_actions = |start_time| {
         [NoteLetter::A, NoteLetter::C].map(|l| single_action(start_time, l))

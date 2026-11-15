@@ -8,7 +8,7 @@ use crate::ast::pattern::examples::half_binary_tree_depth_two_with_timed_steps;
 use crate::ast::pattern::examples::multiple_of_four_timed_steps;
 use crate::ast::time::CycleTime;
 use crate::ast::time::OverflowError;
-use crate::test::interpreter::ScheduledExpectation;
+use crate::synth::unit::SoundUnit;
 use crate::test::interpreter::test_expectations;
 
 fn play_nested_time_cats_with_elem_lengths(
@@ -39,11 +39,7 @@ fn play_nested_time_cats_with_elem_lengths(
         _ => unreachable!(),
     };
     let expectation = |start_time, letter: NoteLetter| {
-        [ScheduledExpectation {
-            start_time,
-            duration: unit_len(letter),
-            note_unit: note_unit(letter),
-        }]
+        [SoundUnit::new(note_unit(letter), start_time, unit_len(letter))]
     };
     let mut expected_schedule_actions = Vec::new();
     // Check expectations for up to two whole repetitions
@@ -123,16 +119,12 @@ fn play_linear_time_cat_with_elem_lengths(elem_lengths: [CycleTime; 4]) {
         _ => unreachable!(),
     };
     let expectation = |start_time, letter: NoteLetter| {
-        [ScheduledExpectation {
-            start_time,
-            duration: unit_len(letter),
-            note_unit: note_unit(letter),
-        }]
+        [SoundUnit::new(note_unit(letter), start_time, unit_len(letter))]
     };
     // Check expectations for up to two whole repetitions
     let max_time = 2;
     let mut expected_schedule_actions =
-        Vec::<(CycleTime, Vec<ScheduledExpectation>)>::new();
+        Vec::<(CycleTime, Vec<SoundUnit>)>::new();
     for rep in 0..max_time {
         let rep_time = CycleTime::unwrapped_from_int(rep);
         let letters =
@@ -217,11 +209,11 @@ fn can_play_nested_arranges() {
         |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
     let start_time = |num: i32| CycleTime::unwrapped_from_int(num);
     let single_action = |unscaled_start_time, letter: NoteLetter| {
-        [ScheduledExpectation {
-            start_time: start_time(unscaled_start_time),
-            duration: CycleTime::ONE,
-            note_unit: note_unit(letter),
-        }]
+        [SoundUnit::new(
+            note_unit(letter),
+            start_time(unscaled_start_time),
+            CycleTime::ONE,
+        )]
     };
     let expected_schedule_actions = [
         (start_time(01), &single_action(00, NoteLetter::A)[..]),

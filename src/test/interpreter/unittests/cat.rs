@@ -7,8 +7,8 @@ use crate::ast::pattern::examples::half_binary_tree_depth_two;
 use crate::ast::pattern::examples::multiple_of_three_units;
 use crate::ast::pattern::examples::multiple_of_unit_then_silence_then_unit;
 use crate::ast::time::CycleTime;
+use crate::synth::unit::SoundUnit;
 use crate::test::interpreter::FullInterpreterSetup;
-use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::test_expectations;
 use crate::test::interpreter::test_expectations_with_interpreter_setup;
 use crate::test::interpreter::unittests::NONZERO_OFFSET;
@@ -21,12 +21,11 @@ fn play_double_alternating_cats_with_offset_and_multiplier(
         |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
     let unit_duration = multiplier.recip().unwrap();
     let make_scheduled_action = |start_time, letter: NoteLetter| {
-        [ScheduledExpectation {
-            start_time: (CycleTime::unwrapped_from_int(start_time) + offset)
-                / multiplier,
-            duration: unit_duration,
-            note_unit: note_unit(letter),
-        }]
+        [SoundUnit::new(
+            note_unit(letter),
+            (CycleTime::unwrapped_from_int(start_time) + offset) / multiplier,
+            unit_duration,
+        )]
     };
     let times_and_actions = [
         &(1, make_scheduled_action(0, NoteLetter::A)),
@@ -110,11 +109,11 @@ fn play_double_cat_then_unit_with_multiplier(multiplier: CycleTime) {
 
     let unit_duration = multiplier.recip().unwrap();
     let make_scheduled_action = |start_time, letter: NoteLetter| {
-        [ScheduledExpectation {
-            start_time: CycleTime::unwrapped_from_int(start_time) / multiplier,
-            duration: unit_duration,
-            note_unit: note_unit(letter),
-        }]
+        [SoundUnit::new(
+            note_unit(letter),
+            CycleTime::unwrapped_from_int(start_time) / multiplier,
+            unit_duration,
+        )]
     };
     let times_and_actions = [
         &(1, make_scheduled_action(0, NoteLetter::A)),
@@ -165,12 +164,11 @@ fn play_cat_of_three_units_with_offset_and_multiplier(
         |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
 
     let make_scheduled_action = |start_time, letter: NoteLetter| {
-        [ScheduledExpectation {
-            start_time: (CycleTime::unwrapped_from_int(start_time) + offset)
-                / multiplier,
-            duration: multiplier.recip().unwrap(),
-            note_unit: note_unit(letter),
-        }]
+        [SoundUnit::new(
+            note_unit(letter),
+            (CycleTime::unwrapped_from_int(start_time) + offset) / multiplier,
+            multiplier.recip().unwrap(),
+        )]
     };
     let times_and_actions = [
         &(1, make_scheduled_action(0, NoteLetter::A)),
@@ -249,11 +247,11 @@ fn can_play_cat_of_unit_then_silence_then_unit() {
         |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
 
     let make_scheduled_action = |start_time, letter: NoteLetter| {
-        [ScheduledExpectation {
-            start_time: CycleTime::unwrapped_from_int(start_time),
-            duration: CycleTime::ONE,
-            note_unit: note_unit(letter),
-        }]
+        [SoundUnit::new(
+            note_unit(letter),
+            CycleTime::unwrapped_from_int(start_time),
+            CycleTime::ONE,
+        )]
     };
     let times_and_actions = [
         &(1, make_scheduled_action(0, NoteLetter::A)),

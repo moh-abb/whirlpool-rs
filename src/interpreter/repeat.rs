@@ -77,6 +77,11 @@ pub trait TimingStrategy {
         arenas: &impl PatternArenas,
     ) -> PatternInterpreterResult<Option<TimingSource<ElemProps<Self::Item>>>>;
 
+    fn pop_elem_props(
+        &mut self,
+        stack: &mut impl ValueStack,
+    ) -> PatternInterpreterResult<ElemProps<Self::Item>>;
+
     fn total_props(
         &mut self,
         arenas: &impl PatternArenas,
@@ -107,6 +112,9 @@ enum State<Elem> {
     /// Obtained total props but pending data for the next element to be
     /// calculated.
     ProcessingBegin { outer_data: OuterIterData },
+    /// Obtained total props but pending the next element itself to be
+    /// calculated.
+    PendingElem { outer_data: OuterIterData },
     /// Currently processing some repetitions of one specific element.
     ProcessingCurrent {
         outer_data: OuterIterData,
@@ -384,6 +392,19 @@ where
             ))
         };
 
+        let elem_props_to_state =
+            |mut outer_data: OuterIterData, cur: ElemProps<Timing::Item>| {
+                let (inner_data, indices) = outer_data.update(cur)?;
+                PatternInterpreterResult::Ok((
+                    State::ProcessingCurrent {
+                        outer_data,
+                        inner_data,
+                        indices,
+                    },
+                    Option::<InterpreterFrame>::None,
+                ))
+            };
+
         loop {
             let (next_state, opt_next_frame) = match take(&mut self.state) {
                 State::Start => {
@@ -399,24 +420,15 @@ where
                         }
                     }
                 }
-                State::ProcessingBegin { mut outer_data } => {
+                State::ProcessingBegin { outer_data } => {
                     // All repetitions done for the current element,
                     // progress to the next element
                     match self.timing.next_item(arenas)? {
                         Some(TimingSource::Const(cur)) => {
-                            let (inner_data, indices) =
-                                outer_data.update(cur)?;
-                            (
-                                State::ProcessingCurrent {
-                                    outer_data,
-                                    inner_data,
-                                    indices,
-                                },
-                                None,
-                            )
+                            elem_props_to_state(outer_data, cur)?
                         }
                         Some(TimingSource::ViaFrame(frame)) => {
-                            (State::ProcessingBegin { outer_data }, Some(frame))
+                            (State::PendingElem { outer_data }, Some(frame))
                         }
                         None => {
                             // Finished with all elements.
@@ -424,10 +436,15 @@ where
                         }
                     }
                 }
+                State::PendingElem { outer_data } => {
+                    let cur = self
+                        .timing
+                        .pop_elem_props(value_stack)?;
+                    elem_props_to_state(outer_data, cur)?
+                }
                 State::PendingTotalProps => {
-                    let outer_data = total_props_to_outer_data(
-                        value_stack.pop_total_props()?,
-                    )?;
+                    let total_props = value_stack.pop()?;
+                    let outer_data = total_props_to_outer_data(total_props)?;
                     (State::ProcessingBegin { outer_data }, None)
                 }
                 State::ProcessingCurrent {

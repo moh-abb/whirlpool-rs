@@ -7,8 +7,8 @@ use crate::ast::pattern::examples::half_binary_tree_depth_two;
 use crate::ast::pattern::examples::multiple_of_three_units;
 use crate::ast::pattern::examples::multiple_of_unit_then_silence_then_unit;
 use crate::ast::time::CycleTime;
+use crate::synth::unit::SoundUnit;
 use crate::test::interpreter::FullInterpreterSetup;
-use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::test_expectations;
 use crate::test::interpreter::test_expectations_with_interpreter_setup;
 use crate::test::interpreter::unittests::NONZERO_OFFSET;
@@ -28,14 +28,14 @@ fn play_double_sequential_seqs_with_offset_and_multiplier(
         let unit_duration = (multiple_length_product * multiplier)
             .recip()
             .unwrap();
-        [ScheduledExpectation {
-            start_time: ((CycleTime::unwrapped_from_int(start_time)
+        [SoundUnit::new(
+            note_unit(letter),
+            ((CycleTime::unwrapped_from_int(start_time)
                 / multiple_length_product)
                 + offset)
                 / multiplier,
-            duration: unit_duration,
-            note_unit: note_unit(letter),
-        }]
+            unit_duration,
+        )]
     };
     let expected_schedule_actions = [
         (interpreter_time(1), &make_scheduled_action(0, NoteLetter::A)[..]),
@@ -121,13 +121,12 @@ fn play_double_seq_then_unit_with_multiplier(multiplier: CycleTime) {
     };
     let make_scheduled_action =
         |start_time, duration_recip, letter: NoteLetter| {
-            [ScheduledExpectation {
-                start_time: CycleTime::unwrapped_from_int(start_time)
+            [SoundUnit::new(
+                note_unit(letter),
+                CycleTime::unwrapped_from_int(start_time)
                     / (multiplier * multiple_length_product),
-                duration: CycleTime::from_int_recip(duration_recip)
-                    / multiplier,
-                note_unit: note_unit(letter),
-            }]
+                CycleTime::from_int_recip(duration_recip) / multiplier,
+            )]
         };
     let expected_schedule_actions = [
         (interpreter_time(1), &make_scheduled_action(0, 4, NoteLetter::A)[..]),
@@ -176,16 +175,15 @@ fn play_seq_of_three_units_with_offset_and_multiplier(
     let multiple_length = CycleTime::unwrapped_from_int(3);
 
     let make_scheduled_action = |start_time, letter: NoteLetter| {
-        [ScheduledExpectation {
-            start_time: ((CycleTime::unwrapped_from_int(start_time)
-                / multiple_length)
+        [SoundUnit::new(
+            note_unit(letter),
+            ((CycleTime::unwrapped_from_int(start_time) / multiple_length)
                 + offset)
                 / multiplier,
-            duration: (multiplier * multiple_length)
+            (multiplier * multiple_length)
                 .recip()
                 .unwrap(),
-            note_unit: note_unit(letter),
-        }]
+        )]
     };
     let interpreter_time = |start_time| {
         CycleTime::unwrapped_from_int(start_time) / multiple_length
@@ -265,12 +263,11 @@ fn can_play_seq_of_unit_then_silence_then_unit() {
     let multiple_length = CycleTime::unwrapped_from_int(3);
 
     let make_scheduled_action = |start_time, letter: NoteLetter| {
-        [ScheduledExpectation {
-            start_time: CycleTime::unwrapped_from_int(start_time)
-                / multiple_length,
-            duration: multiple_length.recip().unwrap(),
-            note_unit: note_unit(letter),
-        }]
+        [SoundUnit::new(
+            note_unit(letter),
+            CycleTime::unwrapped_from_int(start_time) / multiple_length,
+            multiple_length.recip().unwrap(),
+        )]
     };
     let interpreter_time = |start_time| {
         CycleTime::unwrapped_from_int(start_time) / multiple_length

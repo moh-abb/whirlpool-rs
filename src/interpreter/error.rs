@@ -1,5 +1,6 @@
 use crate::ast::pattern::arenas::SumCycleLengthError;
 use crate::ast::time::OverflowError;
+use crate::interpreter::value::ValueStackError;
 use crate::mem::ArenaError;
 use crate::mem::structures::stack::StackError;
 
@@ -9,11 +10,13 @@ pub enum PatternInterpreterError {
     ArenaErr(ArenaError),
     OverflowErr(OverflowError),
     StackErr(StackError),
+    ValueStackErr(ValueStackError),
     SumCycleLengthErr(SumCycleLengthError),
     MultipleEmpty,
     ExpectedTimedStep,
     ExpectedNormalPattern,
     ExpectedNonemptyTimedStep,
+    UnexpectedPopElemProps,
 }
 
 pub type PatternInterpreterResult<T> = Result<T, PatternInterpreterError>;

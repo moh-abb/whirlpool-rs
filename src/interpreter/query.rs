@@ -41,21 +41,11 @@ impl EvaluateFrame for QueryFrame {
             Pattern::Stack(multiple) => {
                 ConcatFrame::new_stack(multiple, play_args)?.into()
             }
-            Pattern::TimeCat { total_cycle_length, multiple } => {
-                ConcatFrame::new_time_cat(
-                    multiple,
-                    *total_cycle_length,
-                    play_args,
-                )?
-                .into()
+            Pattern::TimeCat { multiple, .. } => {
+                ConcatFrame::new_time_cat(multiple, play_args)?.into()
             }
-            Pattern::Arrange { total_cycle_length, multiple } => {
-                ConcatFrame::new_arrange(
-                    multiple,
-                    *total_cycle_length,
-                    play_args,
-                )?
-                .into()
+            Pattern::Arrange { multiple, .. } => {
+                ConcatFrame::new_arrange(multiple, play_args)?.into()
             }
             Pattern::TimedStep(_) => {
                 // We shouldn't be querying a timed step without using the

@@ -1,6 +1,7 @@
 use crate::ast::note::NoteUnit;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::time::CycleTime;
+use crate::interpreter::error::PatternInterpreterError;
 use crate::interpreter::error::PatternInterpreterResult;
 use crate::interpreter::frame::EvaluateFrame;
 use crate::interpreter::frame::InterpreterFrame;
@@ -47,6 +48,15 @@ impl TimingStrategy for OneCycle {
                 played_duration: CycleTime::ONE,
             })
         }))
+    }
+
+    fn pop_elem_props(
+        &mut self,
+        _: &mut impl ValueStack,
+    ) -> PatternInterpreterResult<ElemProps<Self::Item>> {
+        // We returned a constant value from `next_item`, so shouldn't be
+        // popping anything from the stack.
+        Err(PatternInterpreterError::UnexpectedPopElemProps)
     }
 
     fn total_props(
@@ -97,8 +107,8 @@ impl EvaluateFrame for PlayNoteFrame {
             .add(args.offset)?
             .div(args.multiplier)?;
         let sound_unit = SoundUnit::new(args.elem, scaled_start, unit_duration);
-        value_stack.push_sound_unit(sound_unit.clone())?;
-        return Ok(None);
+        value_stack.push(sound_unit.clone())?;
+        Ok(None)
     }
 }
 

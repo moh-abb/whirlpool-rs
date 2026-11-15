@@ -1,18 +1,32 @@
-use crate::interpreter::error::PatternInterpreterResult;
+use crate::ast::pattern::TimedStep;
+use crate::ast::time::CycleTime;
 use crate::interpreter::props::ElemProps;
+use crate::mem::structures::stack::StackError;
 use crate::synth::unit::SoundUnit;
+
+#[derive(derive_more::TryInto, derive_more::From, Debug)]
+pub enum Value {
+    SoundUnit(SoundUnit),
+    TimedStep(TimedStep),
+    CycleTime(CycleTime),
+    TotalProps(ElemProps<()>),
+}
 
 #[cfg_attr(test, mockall::automock)]
 pub trait ValueStack {
-    fn push_sound_unit(
-        &mut self,
-        sound_unit: SoundUnit,
-    ) -> PatternInterpreterResult<()>;
+    fn push<T>(&mut self, item: T) -> Result<(), ValueStackError>
+    where
+        T: Into<Value> + 'static;
 
-    fn push_total_props(
-        &mut self,
-        total_props: ElemProps<()>,
-    ) -> PatternInterpreterResult<()>;
+    fn pop<T>(&mut self) -> Result<T, ValueStackError>
+    where
+        T: 'static,
+        Value: TryInto<T>;
+}
 
-    fn pop_total_props(&mut self) -> PatternInterpreterResult<ElemProps<()>>;
+#[derive(Debug)]
+pub enum ValueStackError {
+    StackErr(StackError),
+    StackEmpty,
+    TypeMismatch,
 }
