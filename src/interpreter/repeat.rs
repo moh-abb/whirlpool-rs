@@ -51,16 +51,14 @@
 //! INV: played_start == P(i - 1)
 
 use core::fmt::Debug;
-use core::mem::take;
 use core::ops::RangeInclusive;
 
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::time::CycleTime;
 use crate::ast::time::interval::CycleInterval;
+use crate::impl_frame;
 use crate::interpreter::error::PatternInterpreterResult;
-use crate::interpreter::frame::EvaluateFrame;
 use crate::interpreter::frame::InterpreterFrame;
-use crate::interpreter::frame::InterpreterResult;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
 use crate::interpreter::value::ValueStack;
@@ -101,42 +99,6 @@ pub enum TimingSource<T> {
     ViaFrame(InterpreterFrame),
 }
 
-#[derive(derive_more::Debug, Default, Clone)]
-enum State<Elem> {
-    /// The start state.
-    #[default]
-    Start,
-    /// Waiting to get the total elements' sim and played properties via a
-    /// frame, which will push these properties onto the value stack.
-    PendingTotalProps,
-    /// Obtained total props but pending data for the next element to be
-    /// calculated.
-    ProcessingBegin { outer_data: OuterIterData },
-    /// Obtained total props but pending the next element itself to be
-    /// calculated.
-    PendingElem { outer_data: OuterIterData },
-    /// Currently processing some repetitions of one specific element.
-    ProcessingCurrent {
-        outer_data: OuterIterData,
-        inner_data: RepIterData<Elem>,
-        indices: RangeInclusive<i32>,
-    },
-    /// No elements left to process and we are done.
-    Finish { outer_data: OuterIterData },
-}
-
-#[derive(derive_new::new, derive_more::Debug, Clone)]
-pub struct PlayMultiple<Timing: TimingStrategy> {
-    play_args: PlayElemArgs<()>,
-
-    timing: Timing,
-
-    #[new(default)]
-    state: State<Timing::Item>,
-
-    is_fast: bool,
-}
-
 #[inline]
 fn play_intersection<T>(
     elem: T,
@@ -174,35 +136,19 @@ fn play_intersection<T>(
     }))
 }
 
-#[derive(Debug, Clone)]
+#[derive(derive_new::new, Debug, Clone)]
 struct OuterIterData {
     /// Used to calculate intersections of alternating elements.
     /// Not used for each repetition of an element.
+    #[new(value = "CycleTime::ZERO")]
     played_start: CycleTime,
     /// Only used to verify the total lengths at the end of iteration.
+    #[new(value = "CycleTime::ZERO")]
     sim_start: CycleTime,
     interval: CycleInterval,
     total: ElemProps<()>,
     offset: CycleTime,
     total_multiplier: CycleTime,
-}
-
-impl OuterIterData {
-    fn new(
-        interval: CycleInterval,
-        total: ElemProps<()>,
-        offset: CycleTime,
-        total_multiplier: CycleTime,
-    ) -> Self {
-        Self {
-            played_start: CycleTime::ZERO,
-            sim_start: CycleTime::ZERO,
-            interval,
-            offset,
-            total_multiplier,
-            total,
-        }
-    }
 }
 
 impl OuterIterData {
@@ -353,145 +299,147 @@ impl<T: Clone> RepIterData<T> {
     }
 }
 
-impl<Timing: TimingStrategy> EvaluateFrame for PlayMultiple<Timing>
-where
-    Timing::Item: Clone,
-{
-    fn step(
-        &mut self,
-        value_stack: &mut impl ValueStack,
-        arenas: &impl PatternArenas,
-    ) -> InterpreterResult {
-        let mut total_props_to_outer_data = |total_props: ElemProps<()>| {
-            let PlayElemArgs {
-                elem: (),
-                ref mut interval,
-                ref mut offset,
-                ref mut multiplier,
-            } = self.play_args;
-
-            if self.is_fast {
-                // Scale up the interval, multiplier and offset by the simulated length.
-                *interval = CycleInterval::new(
-                    interval
-                        .start()
-                        .mul(total_props.sim_duration)?,
-                    interval
-                        .end()
-                        .mul(total_props.sim_duration)?,
-                );
-                *offset = offset.mul(total_props.sim_duration)?;
-                *multiplier = multiplier.mul(total_props.sim_duration)?;
-            }
-
-            PatternInterpreterResult::Ok(OuterIterData::new(
-                self.play_args.interval,
-                total_props,
-                self.play_args.offset,
-                self.play_args.multiplier,
-            ))
-        };
-
-        let elem_props_to_state =
-            |mut outer_data: OuterIterData, cur: ElemProps<Timing::Item>| {
-                let (inner_data, indices) = outer_data.update(cur)?;
-                PatternInterpreterResult::Ok((
-                    State::ProcessingCurrent {
-                        outer_data,
-                        inner_data,
-                        indices,
-                    },
-                    Option::<InterpreterFrame>::None,
-                ))
-            };
-
-        loop {
-            let (next_state, opt_next_frame) = match take(&mut self.state) {
-                State::Start => {
-                    // Find the timing data needed for all the elements.
-                    match self.timing.total_props(arenas)? {
-                        TimingSource::Const(total_props) => {
-                            let outer_data =
-                                total_props_to_outer_data(total_props)?;
-                            (State::ProcessingBegin { outer_data }, None)
-                        }
-                        TimingSource::ViaFrame(frame) => {
-                            (State::PendingTotalProps, Some(frame))
-                        }
-                    }
-                }
-                State::ProcessingBegin { outer_data } => {
-                    // All repetitions done for the current element,
-                    // progress to the next element
-                    match self.timing.next_item(arenas)? {
-                        Some(TimingSource::Const(cur)) => {
-                            elem_props_to_state(outer_data, cur)?
-                        }
-                        Some(TimingSource::ViaFrame(frame)) => {
-                            (State::PendingElem { outer_data }, Some(frame))
-                        }
-                        None => {
-                            // Finished with all elements.
-                            (State::Finish { outer_data }, None)
-                        }
-                    }
-                }
-                State::PendingElem { outer_data } => {
-                    let cur = self
-                        .timing
-                        .pop_elem_props(value_stack)?;
-                    elem_props_to_state(outer_data, cur)?
-                }
-                State::PendingTotalProps => {
-                    let total_props = value_stack.pop()?;
-                    let outer_data = total_props_to_outer_data(total_props)?;
-                    (State::ProcessingBegin { outer_data }, None)
-                }
-                State::ProcessingCurrent {
-                    outer_data,
-                    mut inner_data,
-                    mut indices,
-                } => match indices.next() {
-                    Some(rep_index) => {
-                        let opt_frame = if let Some(intersection) =
-                            inner_data.update(rep_index, &outer_data)?
-                        {
-                            Some(self.timing.eval_item(intersection)?)
-                        } else {
-                            None
-                        };
-
-                        (
-                            State::ProcessingCurrent {
-                                outer_data,
-                                inner_data,
-                                indices,
-                            },
-                            opt_frame,
-                        )
-                    }
-                    None => (State::ProcessingBegin { outer_data }, None),
-                },
-                State::Finish { outer_data } => {
-                    (State::Finish { outer_data }, None)
-                }
-            };
-            self.state = next_state;
-            if let State::Finish { outer_data } = &self.state {
-                check_elem_lengths(
-                    outer_data.sim_start,
-                    outer_data.played_start,
-                    outer_data.total.sim_duration,
-                    outer_data.total.played_duration,
+impl_frame!(
+    #[derive(derive_new::new, derive_more::Debug, Clone)]
+    pub struct PlayMultiple {
+        #[new(value = "State::start {}")]
+        state: State<Timing::Item>,
+        play_args: PlayElemArgs<()>,
+        timing: Timing,
+        is_fast: bool,
+    },
+    [Timing] = [Timing = TimingStrategy] + [Timing::Item = Clone],
+    #[derive(derive_more::Debug, Clone)]
+    enum State {},
+    [Elem] = [],
+    [self, value_stack, arenas],
+    /// The start state.
+    fn start() {
+        match self.timing.total_props(arenas)? {
+            TimingSource::Const(total_props) => {
+                let outer_data = total_props_to_outer_data(
+                    total_props,
+                    &mut self.play_args,
+                    self.is_fast,
                 )?;
-                break Ok(None);
+                (processing_begin { outer_data }, None)
             }
-            if let Some(frame) = opt_next_frame {
-                break Ok(Some(frame));
+            TimingSource::ViaFrame(frame) => {
+                (pending_total_props {}, Some(frame))
             }
-            // Continue to find the next frame.
         }
+    },
+    /// Waiting to get the total elements' sim and played properties via a
+    /// frame, which will push these properties onto the value stack.
+    fn pending_total_props() {
+        let total_props = value_stack.pop()?;
+        let outer_data = total_props_to_outer_data(
+            total_props,
+            &mut self.play_args,
+            self.is_fast,
+        )?;
+        (processing_begin { outer_data }, None)
+    },
+    /// Obtained total props but pending data for the next element to be
+    /// calculated.
+    fn processing_begin(outer_data: OuterIterData) {
+        match self.timing.next_item(arenas)? {
+            Some(TimingSource::Const(cur)) => {
+                elem_props_to_state::<Timing>(outer_data, cur)?
+            }
+            Some(TimingSource::ViaFrame(frame)) => {
+                (pending_elem { outer_data }, Some(frame))
+            }
+            None => (finish_outer { outer_data }, None),
+        }
+    },
+    /// Obtained total props but pending the next element itself to be
+    /// calculated.
+    fn pending_elem(outer_data: OuterIterData) {
+        let cur = self
+            .timing
+            .pop_elem_props(value_stack)?;
+        elem_props_to_state::<Timing>(outer_data, cur)?
+    },
+    /// Currently processing some repetitions of one specific element.
+    fn processing_current(
+        outer_data: OuterIterData,
+        inner_data: RepIterData<Elem>,
+        indices: RangeInclusive<i32>,
+    ) {
+        let mut mut_inner_data = inner_data;
+        let mut mut_indices = indices;
+        match mut_indices.next() {
+            Some(rep_index) => {
+                let opt_frame = if let Some(intersection) =
+                    mut_inner_data.update(rep_index, &outer_data)?
+                {
+                    Some(self.timing.eval_item(intersection)?)
+                } else {
+                    None
+                };
+                (
+                    processing_current {
+                        outer_data,
+                        inner_data: mut_inner_data,
+                        indices: mut_indices,
+                    },
+                    opt_frame,
+                )
+            }
+            None => (processing_begin { outer_data }, None),
+        }
+    },
+    /// No elements left to process and we are done.
+    fn finish_outer(outer_data: OuterIterData) {
+        check_elem_lengths(
+            outer_data.sim_start,
+            outer_data.played_start,
+            outer_data.total.sim_duration,
+            outer_data.total.played_duration,
+        )?;
+        (finish, None)
     }
+);
+
+fn total_props_to_outer_data(
+    total_props: ElemProps<()>,
+    play_args: &mut PlayElemArgs<()>,
+    is_fast: bool,
+) -> PatternInterpreterResult<OuterIterData> {
+    let PlayElemArgs { elem: (), interval, offset, multiplier } = play_args;
+
+    if is_fast {
+        // Scale up the interval, multiplier and offset by the simulated length.
+        *interval = CycleInterval::new(
+            interval
+                .start()
+                .mul(total_props.sim_duration)?,
+            interval
+                .end()
+                .mul(total_props.sim_duration)?,
+        );
+        *offset = offset.mul(total_props.sim_duration)?;
+        *multiplier = multiplier.mul(total_props.sim_duration)?;
+    }
+
+    PatternInterpreterResult::Ok(OuterIterData::new(
+        play_args.interval,
+        total_props,
+        play_args.offset,
+        play_args.multiplier,
+    ))
+}
+
+fn elem_props_to_state<Timing: TimingStrategy>(
+    mut outer_data: OuterIterData,
+    cur: ElemProps<Timing::Item>,
+) -> PatternInterpreterResult<(State<Timing::Item>, Option<InterpreterFrame>)> {
+    let (inner_data, indices) = outer_data.update(cur)?;
+    PatternInterpreterResult::Ok((
+        State::processing_current { outer_data, inner_data, indices },
+        Option::<InterpreterFrame>::None,
+    ))
 }
 
 /// Verifies that the elements of an iterator have the correct simulation

@@ -6,6 +6,7 @@ mod concat;
 pub mod error;
 pub mod frame;
 mod leaf;
+mod macros;
 pub mod pattern;
 pub mod props;
 mod query;

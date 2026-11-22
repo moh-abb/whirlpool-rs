@@ -4,6 +4,7 @@ use crate::ast::pattern::TimedStep;
 use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::pattern::arenas::timed_step_total_cycle_length;
 use crate::ast::time::CycleTime;
+use crate::impl_frame;
 use crate::interpreter::error::PatternInterpreterError;
 use crate::interpreter::error::PatternInterpreterResult;
 use crate::interpreter::frame::EvaluateFrame;
@@ -38,22 +39,6 @@ pub struct StackFrame(
     multiple::Iter<PatternNode, PatternNode>,
     PlayElemArgs<()>,
 );
-
-/// Given a list of timed steps, uses another frame to find the total length
-/// and then plays the repetitions.
-#[derive(Debug, Clone)]
-pub struct PlayTimeCatOrArrangeFrame(PlayTimedStepsState);
-
-#[derive(Debug, Clone)]
-enum PlayTimedStepsState {
-    Start {
-        multiple: Multiple<PatternNode>,
-        play_args: PlayElemArgs<()>,
-        is_time_cat: bool,
-        pending_total_cycles: bool,
-    },
-    PlayMultiple(PlayMultiple<TimeCatOrArrangeCycle>),
-}
 
 /// Given a list of timed steps, finds their total length and places them onto
 /// the value stack.
@@ -249,55 +234,74 @@ impl EvaluateFrame for GetTimedStep {
     }
 }
 
-impl EvaluateFrame for PlayTimeCatOrArrangeFrame {
-    fn step(
-        &mut self,
-        value_stack: &mut impl ValueStack,
-        arenas: &impl PatternArenas,
-    ) -> InterpreterResult {
-        loop {
-            match &mut self.0 {
-                PlayTimedStepsState::Start {
-                    play_args,
-                    multiple,
+impl_frame!(
+    /// Given a list of timed steps, uses another frame to find the total length
+    /// and then plays the repetitions.
+    #[derive(derive_more::Debug, Clone)]
+    pub struct PlayTimeCatOrArrangeFrame {
+        state: PlayTimeCatOrArrangeState,
+    },
+    [] = [] + [],
+    /// The state for playing `TimeCat` or `Arrange`.
+    #[derive(derive_more::Debug, Clone)]
+    enum PlayTimeCatOrArrangeState {},
+    [] = [],
+    // STATES
+    [self, value_stack, arenas],
+    /// About to obtain the total number of cycles and begin the elements.
+    fn start(
+        play_args: PlayElemArgs<()>,
+        multiple: Multiple<PatternNode>,
+        is_time_cat: bool,
+    ) {
+        (
+            pending_total_cycles {
+                play_args,
+                multiple: multiple.clone(),
+                is_time_cat,
+            },
+            Some(
+                ConcatFrame::GetTotalCycles(GetTotalCyclesFrame { multiple })
+                    .into(),
+            ),
+        )
+    },
+    /// Pending the total number of cycles to be calculated from another frame.
+    fn pending_total_cycles(
+        play_args: PlayElemArgs<()>,
+        multiple: Multiple<PatternNode>,
+        is_time_cat: bool,
+    ) {
+        let total_cycle_length = value_stack.pop()?;
+        let multiple_length =
+            CycleTime::checked_from_int(i32::from(multiple.length()))?;
+        (
+            in_play_multiple {
+                play_multiple: PlayMultiple::new(
+                    play_args.clone(),
+                    TimeCatOrArrangeCycle {
+                        multiple_length,
+                        total_cycle_length,
+                        is_time_cat,
+                        iter: multiple.iter(),
+                    },
                     is_time_cat,
-                    pending_total_cycles,
-                } => {
-                    if !*pending_total_cycles {
-                        *pending_total_cycles = true;
-                        break Ok(Some(
-                            ConcatFrame::GetTotalCycles(GetTotalCyclesFrame {
-                                multiple: multiple.clone(),
-                            })
-                            .into(),
-                        ));
-                    } else {
-                        let total_cycle_length = value_stack.pop()?;
-                        let multiple_length = CycleTime::checked_from_int(
-                            i32::from(multiple.length()),
-                        )?;
-                        self.0 = PlayTimedStepsState::PlayMultiple(
-                            PlayMultiple::new(
-                                play_args.clone(),
-                                TimeCatOrArrangeCycle {
-                                    multiple_length,
-                                    total_cycle_length,
-                                    is_time_cat: *is_time_cat,
-                                    iter: multiple.iter(),
-                                },
-                                *is_time_cat,
-                            ),
-                        );
-                        continue;
-                    }
-                }
-                PlayTimedStepsState::PlayMultiple(play_multiple) => {
-                    break play_multiple.step(value_stack, arenas);
-                }
-            }
+                ),
+            },
+            None,
+        )
+    },
+    /// Currently processing elements using [PlayMultiple].
+    fn in_play_multiple(play_multiple: PlayMultiple<TimeCatOrArrangeCycle>) {
+        let mut mut_play_multiple = play_multiple;
+        let opt_next_frame = mut_play_multiple.step(value_stack, arenas)?;
+        if let Some(frame) = opt_next_frame {
+            (in_play_multiple { play_multiple: mut_play_multiple }, Some(frame))
+        } else {
+            (finish, None)
         }
     }
-}
+);
 
 impl CatOrSeqFrame {
     fn new(
@@ -350,7 +354,6 @@ impl ConcatFrame {
 
     fn new_time_cat_or_arrange(
         multiple: &Multiple<PatternNode>,
-
         play_args: PlayElemArgs<()>,
         is_time_cat: bool,
     ) -> PatternInterpreterResult<Self> {
@@ -358,14 +361,13 @@ impl ConcatFrame {
             return Err(PatternInterpreterError::MultipleEmpty);
         }
 
-        Ok(Self::TimeCatOrArrange(PlayTimeCatOrArrangeFrame(
-            PlayTimedStepsState::Start {
+        Ok(Self::TimeCatOrArrange(PlayTimeCatOrArrangeFrame {
+            state: PlayTimeCatOrArrangeState::start {
                 multiple: multiple.clone(),
                 play_args,
                 is_time_cat,
-                pending_total_cycles: false,
             },
-        )))
+        }))
     }
 
     pub fn new_time_cat(

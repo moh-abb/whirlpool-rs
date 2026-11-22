@@ -20,7 +20,7 @@ pub struct CycleTime(Inner);
 pub struct OverflowError;
 
 macro_rules! checked {
-    ($e: expr) => {
+    ($e:expr) => {
         match $e {
             Some(x) => Ok(Self(x)),
             None => Err(OverflowError),
@@ -29,7 +29,7 @@ macro_rules! checked {
 }
 
 macro_rules! unwrapped {
-    ($e: expr) => {
+    ($e:expr) => {
         match $e {
             Err(OverflowError) => panic!("Overflow error"),
             Ok(x) => x,
