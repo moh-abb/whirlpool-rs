@@ -57,7 +57,7 @@ impl<'a, 'b> TraversalState<ExprNode> for DisplayTraversalState<'a, 'b> {
             write!(f, ",")?;
         }
         match &cur_node.0.item {
-            Expr::Call { name, .. } => {
+            Expr::Call { name, is_receiver: _, .. } => {
                 // TODO: Display method calls as taking receiver: `foo.bar(x)`.
                 name.fmt_ast(f, self.flags)?;
                 write!(f, "(")?;
@@ -89,9 +89,8 @@ impl<'a, 'b> TraversalState<ExprNode> for DisplayTraversalState<'a, 'b> {
     ) -> Result<Self::Output, Self::Error> {
         let f = &mut self.formatter;
         match &cur_node.0.item {
-            Expr::Call { name, .. } => {
+            Expr::Call { .. } => {
                 // For now, display both methods and normal calls identically.
-                name.fmt_ast(f, self.flags)?;
                 write!(f, ")")?;
             }
             Expr::Lambda { .. } => (),

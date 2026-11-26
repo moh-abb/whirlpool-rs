@@ -1,8 +1,16 @@
 use core::fmt::Write;
 use core::fmt::{self};
 
+use combine::Parser;
+use combine::many;
+use combine::one_of;
+use combine::parser::byte::alpha_num;
+use combine::parser::byte::letter;
+
 use crate::ast::display::AstDisplay;
 use crate::ast::display::AstDisplayFlags;
+use crate::ast::parser::AstInput;
+use crate::ast::parser::AstParser;
 use crate::ast::parser::array::ParserVec;
 use crate::ast::parser::array::ParserVecError;
 use crate::mem::ArenaError;
@@ -22,8 +30,35 @@ pub struct Identifier {
     bytes: ParserVec<u8, { Self::MAX_LENGTH }>,
 }
 
+impl FromIterator<u8> for Identifier {
+    fn from_iter<T: IntoIterator<Item = u8>>(iter: T) -> Self {
+        let mut bytes = ParserVec::new();
+        bytes.extend(iter);
+        Self { bytes }
+    }
+}
+
+#[derive(derive_more::From, Debug, Clone)]
+pub enum ParseIdentError {
+    ParserVecErr(ParserVecError),
+}
+
 impl Identifier {
     pub const MAX_LENGTH: usize = 20;
+
+    pub fn parser<I: AstInput>()
+    -> impl AstParser<I, Result<Self, ParseIdentError>> {
+        let first = letter().or(one_of(b"_~".iter().cloned()));
+        let rest = alpha_num().or(one_of(b"_~#^".iter().cloned()));
+        (first, many::<ParserVec<u8, { Self::MAX_LENGTH }>, _, _>(rest))
+            .map(|(x, xs)| {
+                let mut ys = ParserVec::new();
+                ys.extend([x]);
+                ys.extend(xs.as_slice()?.iter().cloned());
+                Ok(Self { bytes: ys })
+            })
+            .expected("identifier")
+    }
 }
 
 #[derive(derive_more::From, Debug)]

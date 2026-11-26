@@ -1,9 +1,9 @@
-use core::cell::RefCell;
 use core::marker::PhantomData;
 use core::ops::DerefMut;
 
-use crate::ast::pattern::PatternNode;
-use crate::ast::pattern::arenas::PatternArenas;
+use crate::ast::expr::ExprNode;
+use crate::ast::expr::call_arg::CallArg;
+use crate::ast::expr::linked::ExprArenas;
 use crate::ast::time::CycleTime;
 use crate::ast::time::interval::CycleInterval;
 use crate::interpreter::Interpreter;
@@ -13,15 +13,16 @@ use crate::interpreter::frame::EvaluateFrame;
 use crate::interpreter::frame::InterpreterFrame;
 use crate::interpreter::props::PlayElemArgs;
 use crate::interpreter::query::QueryFrame;
+use crate::interpreter::query::QueryMode;
 use crate::interpreter::value::ValueStack;
 use crate::mem::Arena;
 use crate::mem::Index;
 use crate::mem::Stack;
 use crate::mem::structures::stack::StackChain;
 
-/// An interpreter of [Pattern]s, which keeps track of a current time and
-/// plays units (traversing the [Pattern]'s tree) when new units are
-/// encountered.
+/// An interpreter of pattern expressions, which keeps track of a current time
+/// and plays units (traversing the AST) when new units are encountered.
+#[derive(derive_new::new)]
 pub struct PatternInterpreter<
     'a,
     Arenas,
@@ -30,78 +31,17 @@ pub struct PatternInterpreter<
     ValStackBorrow,
     FrameArenaBorrow,
 > {
-    pattern_index: Index<PatternNode>,
+    expr_index: Index<ExprNode>,
     arenas: &'a Arenas,
     value_stack: ValStackBorrow,
     frame_arena: FrameArenaBorrow,
+    #[new(value = "CycleTime::ZERO")]
     cur_time: CycleTime,
+    #[new(value = "CycleTime::ONE")]
     base_multiplier: CycleTime,
+    #[new(value = "CycleTime::ZERO")]
     base_offset: CycleTime,
     phantom: PhantomData<(ValStack, FrameArena)>,
-}
-
-impl<'a, Arenas, ValStack, FrameArena>
-    PatternInterpreter<
-        'a,
-        Arenas,
-        ValStack,
-        FrameArena,
-        &'a mut ValStack,
-        &'a mut FrameArena,
-    >
-{
-    /// Constructs an interpreter with the given root index, arenas (to
-    /// traverse the pattern structure), value stack, and starting scope.
-    #[allow(unused)]
-    pub fn new(
-        pattern_index: Index<PatternNode>,
-        arenas: &'a Arenas,
-        value_stack: &'a mut ValStack,
-        frame_arena: &'a mut FrameArena,
-    ) -> Self {
-        Self {
-            pattern_index,
-            arenas,
-            value_stack,
-            frame_arena,
-            cur_time: CycleTime::ZERO,
-            base_multiplier: CycleTime::ONE,
-            base_offset: CycleTime::ZERO,
-            phantom: PhantomData,
-        }
-    }
-}
-
-impl<'a, Arenas, ValStack, FrameArena>
-    PatternInterpreter<
-        'a,
-        Arenas,
-        ValStack,
-        FrameArena,
-        &'a RefCell<ValStack>,
-        &'a RefCell<FrameArena>,
-    >
-{
-    /// Like [Self::new], but with a [RefCell] to allow for a mock value stack
-    /// and mock scope.
-    #[allow(unused)]
-    pub fn new_with_refcell(
-        pattern_index: Index<PatternNode>,
-        arenas: &'a Arenas,
-        value_stack: &'a RefCell<ValStack>,
-        frame_arena: &'a RefCell<FrameArena>,
-    ) -> Self {
-        Self {
-            pattern_index,
-            arenas,
-            value_stack,
-            frame_arena,
-            cur_time: CycleTime::ZERO,
-            base_multiplier: CycleTime::ONE,
-            base_offset: CycleTime::ZERO,
-            phantom: PhantomData,
-        }
-    }
 }
 
 impl<'a, Arenas, ValStack, FrameArena, ValStackBorrow, FrameArenaBorrow>
@@ -115,13 +55,11 @@ impl<'a, Arenas, ValStack, FrameArena, ValStackBorrow, FrameArenaBorrow>
     >
 {
     #[cfg(test)]
-    #[allow(unused)]
     pub fn set_multiplier(&mut self, multiplier: CycleTime) {
         self.base_multiplier = multiplier;
     }
 
     #[cfg(test)]
-    #[allow(unused)]
     pub fn set_offset(&mut self, offset: CycleTime) {
         self.base_offset = offset;
     }
@@ -138,7 +76,7 @@ impl<'a, Arenas, ValStack, FrameArena, ValStackBorrow, FrameArenaBorrow>
         FrameArenaBorrow,
     >
 where
-    Arenas: PatternArenas,
+    Arenas: ExprArenas,
     ValStack: ValueStack,
     ValStackBorrow: BorrowAdapter<ValStack>,
     FrameArenaBorrow: BorrowAdapter<FrameArena>,
@@ -156,12 +94,16 @@ where
         let mut frames = Stack::new(borrowed_arena.deref_mut());
         // Add the start simulation arguments for the pattern.
         frames.push(
-            QueryFrame::new(PlayElemArgs {
-                elem: self.pattern_index.clone(),
-                interval: CycleInterval::new(self.cur_time, next_time),
-                offset: self.base_offset,
-                multiplier: self.base_multiplier,
-            })
+            QueryFrame::new_head(
+                CallArg::Index(self.expr_index.clone()),
+                PlayElemArgs {
+                    elem: (),
+                    interval: CycleInterval::new(self.cur_time, next_time),
+                    offset: self.base_offset,
+                    multiplier: self.base_multiplier,
+                },
+                QueryMode::Note,
+            )?
             .into(),
         )?;
 

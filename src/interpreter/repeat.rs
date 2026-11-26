@@ -53,7 +53,7 @@
 use core::fmt::Debug;
 use core::ops::RangeInclusive;
 
-use crate::ast::pattern::arenas::PatternArenas;
+use crate::ast::expr::linked::ExprArenas;
 use crate::ast::time::CycleTime;
 use crate::ast::time::interval::CycleInterval;
 use crate::impl_frame;
@@ -61,6 +61,7 @@ use crate::interpreter::error::PatternInterpreterResult;
 use crate::interpreter::frame::InterpreterFrame;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
+use crate::interpreter::query::QueryMode;
 use crate::interpreter::value::ValueStack;
 
 /// Defines the strategy to obtain the duration of a given concatenated
@@ -68,11 +69,11 @@ use crate::interpreter::value::ValueStack;
 /// [TimingSource::Constant], or another frame via [TimingSource::ViaFrame]
 /// that, when executed, will place the constant value onto the stack.
 pub trait TimingStrategy {
-    type Item: Clone;
+    type Item: Clone + Debug;
 
     fn next_item(
         &mut self,
-        arenas: &impl PatternArenas,
+        arenas: &impl ExprArenas,
     ) -> PatternInterpreterResult<Option<TimingSource<ElemProps<Self::Item>>>>;
 
     fn pop_elem_props(
@@ -82,12 +83,14 @@ pub trait TimingStrategy {
 
     fn total_props(
         &mut self,
-        arenas: &impl PatternArenas,
+        arenas: &impl ExprArenas,
     ) -> PatternInterpreterResult<TimingSource<ElemProps<()>>>;
 
     fn eval_item(
         &mut self,
-        intersection: PlayElemArgs<Self::Item>,
+        item: Self::Item,
+        intersection: PlayElemArgs<()>,
+        query_mode: QueryMode,
     ) -> PatternInterpreterResult<InterpreterFrame>;
 }
 
@@ -95,19 +98,18 @@ pub trait TimingStrategy {
 /// See [TimingStrategy].
 pub enum TimingSource<T> {
     Const(T),
-    #[allow(unused)]
     ViaFrame(InterpreterFrame),
 }
 
 #[inline]
 fn play_intersection<T>(
-    elem: T,
+    item: T,
     rep_interval: CycleInterval,
     rep_intersection: CycleInterval,
     sim_interval: CycleInterval,
     elem_offset: CycleTime,
     elem_multiplier: CycleTime,
-) -> PatternInterpreterResult<Option<PlayElemArgs<T>>> {
+) -> PatternInterpreterResult<Option<(T, PlayElemArgs<()>)>> {
     // `rep_intersection` should fit completely inside `rep_interval`.
     debug_assert_eq!(
         rep_intersection.intersection(rep_interval),
@@ -128,12 +130,15 @@ fn play_intersection<T>(
         Some(sim_intersection),
     );
 
-    Ok(Some(PlayElemArgs {
-        elem,
-        interval: sim_intersection,
-        offset: elem_offset,
-        multiplier: elem_multiplier,
-    }))
+    Ok(Some((
+        item,
+        PlayElemArgs {
+            elem: (),
+            interval: sim_intersection,
+            offset: elem_offset,
+            multiplier: elem_multiplier,
+        },
+    )))
 }
 
 #[derive(derive_new::new, Debug, Clone)]
@@ -243,7 +248,7 @@ impl<T: Clone> RepIterData<T> {
         &mut self,
         rep_index: i32,
         outer: &OuterIterData,
-    ) -> PatternInterpreterResult<Option<PlayElemArgs<T>>> {
+    ) -> PatternInterpreterResult<Option<(T, PlayElemArgs<()>)>> {
         // Because `RepIterData` was called after the played start has been
         // updated, we need to subtract it again.
         let rep = CycleTime::checked_from_int(rep_index)?;
@@ -305,6 +310,7 @@ impl_frame!(
         #[new(value = "State::start {}")]
         state: State<Timing::Item>,
         play_args: PlayElemArgs<()>,
+        query_mode: QueryMode,
         timing: Timing,
         is_fast: bool,
     },
@@ -371,10 +377,14 @@ impl_frame!(
         let mut mut_indices = indices;
         match mut_indices.next() {
             Some(rep_index) => {
-                let opt_frame = if let Some(intersection) =
+                let opt_frame = if let Some((item, intersection)) =
                     mut_inner_data.update(rep_index, &outer_data)?
                 {
-                    Some(self.timing.eval_item(intersection)?)
+                    Some(self.timing.eval_item(
+                        item,
+                        intersection,
+                        self.query_mode.clone(),
+                    )?)
                 } else {
                     None
                 };

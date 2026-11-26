@@ -1,8 +1,10 @@
-use crate::ast::pattern::Pattern;
-use crate::ast::pattern::PatternNode;
-use crate::ast::pattern::TimedStep;
-use crate::ast::pattern::arenas::PatternArenas;
-use crate::ast::pattern::arenas::timed_step_total_cycle_length;
+use crate::ast::expr::Expr;
+use crate::ast::expr::ExprNode;
+use crate::ast::expr::ExprUnit;
+use crate::ast::expr::call_arg::CallArg;
+use crate::ast::expr::call_arg::CallArgs;
+use crate::ast::expr::call_arg::CallArgsIter;
+use crate::ast::expr::linked::ExprArenas;
 use crate::ast::time::CycleTime;
 use crate::impl_frame;
 use crate::interpreter::error::PatternInterpreterError;
@@ -13,14 +15,14 @@ use crate::interpreter::frame::InterpreterResult;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
 use crate::interpreter::query::QueryFrame;
+use crate::interpreter::query::QueryMode;
 use crate::interpreter::repeat::PlayMultiple;
 use crate::interpreter::repeat::TimingSource;
 use crate::interpreter::repeat::TimingStrategy;
+use crate::interpreter::value::TimedStep;
 use crate::interpreter::value::ValueStack;
 use crate::mem::Index;
-use crate::mem::Multiple;
 use crate::mem::arena::iterator::ArenaIterator;
-use crate::mem::structures::multiple;
 
 #[derive(derive_more::From, Debug, Clone)]
 pub enum ConcatFrame {
@@ -35,27 +37,16 @@ pub enum ConcatFrame {
 pub struct CatOrSeqFrame(PlayMultiple<MultipleOfOneCycle>);
 
 #[derive(Debug, Clone)]
-pub struct StackFrame(
-    multiple::Iter<PatternNode, PatternNode>,
-    PlayElemArgs<()>,
-);
-
-/// Given a list of timed steps, finds their total length and places them onto
-/// the value stack.
-#[derive(Debug, Clone)]
-pub struct GetTotalCyclesFrame {
-    multiple: Multiple<PatternNode>,
+pub struct StackFrame {
+    call_args_iter: CallArgsIter<ExprNode>,
+    play_args: PlayElemArgs<()>,
+    query_mode: QueryMode,
 }
-
-/// Takes an index and finds the corresponding timed step, pushing it onto the
-/// value stack.
-#[derive(Debug, Clone)]
-pub struct GetTimedStep(Index<PatternNode>);
 
 /// Denotes that each element has one cycle simulated and played.
 #[derive(Debug, Clone)]
 struct MultipleOfOneCycle {
-    iter: multiple::Iter<PatternNode, PatternNode>,
+    iter: CallArgsIter<ExprNode>,
     total_cycle_length: CycleTime,
 }
 
@@ -72,15 +63,15 @@ struct TimeCatOrArrangeCycle {
     multiple_length: CycleTime,
     total_cycle_length: CycleTime,
     is_time_cat: bool,
-    iter: multiple::Iter<PatternNode, PatternNode>,
+    iter: CallArgsIter<ExprNode>,
 }
 
 impl TimingStrategy for MultipleOfOneCycle {
-    type Item = Index<PatternNode>;
+    type Item = CallArg;
 
     fn next_item(
         &mut self,
-        arenas: &impl PatternArenas,
+        arenas: &impl ExprArenas,
     ) -> PatternInterpreterResult<Option<TimingSource<ElemProps<Self::Item>>>>
     {
         let Some(elem) = self.iter.next_in_arena(arenas)? else {
@@ -104,7 +95,7 @@ impl TimingStrategy for MultipleOfOneCycle {
 
     fn total_props(
         &mut self,
-        _: &impl PatternArenas,
+        _: &impl ExprArenas,
     ) -> PatternInterpreterResult<TimingSource<ElemProps<()>>> {
         Ok(TimingSource::Const(ElemProps {
             elem: (),
@@ -115,18 +106,20 @@ impl TimingStrategy for MultipleOfOneCycle {
 
     fn eval_item(
         &mut self,
-        intersection: PlayElemArgs<Self::Item>,
+        item: Self::Item,
+        intersection: PlayElemArgs<()>,
+        query_mode: QueryMode,
     ) -> PatternInterpreterResult<InterpreterFrame> {
-        Ok(QueryFrame::new(intersection).into())
+        Ok(QueryFrame::new_non_head(item, intersection, query_mode)?.into())
     }
 }
 
 impl TimingStrategy for TimeCatOrArrangeCycle {
-    type Item = Index<PatternNode>;
+    type Item = Index<ExprNode>;
 
     fn next_item(
         &mut self,
-        arenas: &impl PatternArenas,
+        arenas: &impl ExprArenas,
     ) -> PatternInterpreterResult<Option<TimingSource<ElemProps<Self::Item>>>>
     {
         let Some(index) = self.iter.next_in_arena(arenas)? else {
@@ -134,7 +127,7 @@ impl TimingStrategy for TimeCatOrArrangeCycle {
         };
 
         Ok(Some(TimingSource::ViaFrame(
-            ConcatFrame::GetTimedStep(GetTimedStep(index)).into(),
+            ConcatFrame::GetTimedStep(GetTimedStep::new(index, true)).into(),
         )))
     }
 
@@ -142,10 +135,7 @@ impl TimingStrategy for TimeCatOrArrangeCycle {
         &mut self,
         stack: &mut impl ValueStack,
     ) -> PatternInterpreterResult<ElemProps<Self::Item>> {
-        let TimedStep(elem_length, opt_child_index) = stack.pop()?;
-        let child_index = opt_child_index
-            .ok_or(PatternInterpreterError::ExpectedNonemptyTimedStep)?;
-
+        let TimedStep(elem_length, child_index) = stack.pop()?;
         let elem_props = if self.is_time_cat {
             // If we have a [TimeCat], then we simulate over each one cycle
             // in the [Multiple] and then scale each element individually
@@ -177,7 +167,7 @@ impl TimingStrategy for TimeCatOrArrangeCycle {
 
     fn total_props(
         &mut self,
-        _: &impl PatternArenas,
+        _: &impl ExprArenas,
     ) -> PatternInterpreterResult<TimingSource<ElemProps<()>>> {
         let elem_props = if self.is_time_cat {
             ElemProps {
@@ -198,41 +188,144 @@ impl TimingStrategy for TimeCatOrArrangeCycle {
 
     fn eval_item(
         &mut self,
-        intersection: PlayElemArgs<Self::Item>,
+        item: Self::Item,
+        intersection: PlayElemArgs<()>,
+        query_mode: QueryMode,
     ) -> PatternInterpreterResult<InterpreterFrame> {
-        Ok(QueryFrame::new(intersection).into())
+        Ok(QueryFrame::new_non_head(
+            CallArg::Index(item),
+            intersection,
+            query_mode,
+        )?
+        .into())
     }
 }
 
-impl EvaluateFrame for GetTotalCyclesFrame {
-    fn step(
-        &mut self,
-        value_stack: &mut impl ValueStack,
-        arenas: &impl PatternArenas,
-    ) -> InterpreterResult {
-        let total_length =
-            timed_step_total_cycle_length(self.multiple.clone(), arenas)?;
-        value_stack.push(total_length)?;
-        Ok(None)
+impl_frame!(
+    /// Gets the total number of cycles of a list of arguments, assuming these
+    /// arguments are stored as multiple arrays, each with two elements, and
+    /// the first element being a number (the cycle length of that element).
+    /// Places the total length onto the stack on completion.
+    #[derive(Debug, Clone)]
+    pub struct GetTotalCyclesFrame {
+        state: GetTotalCyclesState,
+    },
+    [] = [] + [],
+    /// The state for getting the total number of cycles.
+    #[derive(Debug, Clone)]
+    enum GetTotalCyclesState {},
+    [] = [],
+    [self, value_stack, arenas],
+    fn start(call_args: CallArgs) {
+        (middle { outer: call_args.iter(), acc: CycleTime::ZERO }, None)
+    },
+    fn middle(outer: CallArgsIter<ExprNode>, acc: CycleTime) {
+        let mut mut_outer = outer;
+        match mut_outer.next_in_arena(arenas)? {
+            Some(next) => {
+                (pending_timed_step { outer: mut_outer, elem: next, acc }, None)
+            }
+            None => (push_value { acc }, None),
+        }
+    },
+    /// Pending the timed step to be calculated using [GetTimedStep].
+    fn pending_timed_step(
+        outer: CallArgsIter<ExprNode>,
+        elem: CallArg,
+        acc: CycleTime,
+    ) {
+        (
+            pop_timed_step { outer, acc },
+            Some(
+                ConcatFrame::GetTimedStep(GetTimedStep::new(elem, false))
+                    .into(),
+            ),
+        )
+    },
+    /// Pop the cycle time that was pushed by [GetTimedStep].
+    fn pop_timed_step(outer: CallArgsIter<ExprNode>, acc: CycleTime) {
+        let cur = value_stack.pop::<CycleTime>()?;
+        (middle { outer, acc: acc.add(cur)? }, None)
+    },
+    /// At the end, push the total cycle time.
+    fn push_value(acc: CycleTime) {
+        value_stack.push(acc)?;
+        (finish, None)
     }
-}
+);
 
-impl EvaluateFrame for GetTimedStep {
-    fn step(
-        &mut self,
-        value_stack: &mut impl ValueStack,
-        arenas: &impl PatternArenas,
-    ) -> InterpreterResult {
-        let pattern = arenas
-            .map(self.0.clone(), PatternNode::clone)?
-            .pattern;
-        let Pattern::TimedStep(timed_step) = pattern else {
+impl_frame!(
+    /// Gets the timed step (i.e., an array with two elements: a cycle time,
+    /// and an element to play) mapping to a specific expression's index.
+    #[derive(derive_new::new, Debug, Clone)]
+    pub struct GetTimedStep {
+        #[new(value = "GetTimedStepState::start {}")]
+        state: GetTimedStepState,
+        /// The index or identifier that should point to a timed step.
+        call_arg: CallArg,
+        /// Should we push a full timed step (true)
+        /// or just the timed step's length (false)?
+        get_elem: bool,
+    },
+    [] = [] + [],
+    /// The state for getting the current timed step.
+    #[derive(Debug, Clone)]
+    enum GetTimedStepState {},
+    [] = [],
+    [self, value_stack, arenas],
+    /// Follow the index until we get an actual array.
+    fn start() {
+        // `elem` should point to an array with two elements: the first being
+        // the timed step's cycle time, and the second being the element.
+        // TODO: handle let-bindings, this will translate to a loop of finding
+        // where the `let` maps to and getting that index as the next value of
+        // `elem`.
+        let expr = match self.call_arg.clone() {
+            CallArg::Ident(_ident) => todo!(),
+            CallArg::Index(index) => {
+                arenas
+                    .map(index.clone(), Clone::clone)?
+                    .0
+                    .item
+            }
+        };
+        let Expr::Array { args } = expr else {
             return Err(PatternInterpreterError::ExpectedTimedStep);
         };
-        value_stack.push(timed_step)?;
-        Ok(None)
+        let mut inner_args = args.iter();
+        let Some(first_arg) = inner_args.next_in_arena(arenas)? else {
+            return Err(PatternInterpreterError::ExpectedNonemptyTimedStep);
+        };
+        let Some(second_arg) = inner_args.next_in_arena(arenas)? else {
+            return Err(
+                PatternInterpreterError::ExpectedTwoElementsInTimedStep,
+            );
+        };
+        (resolve_first { first_arg, second_arg }, None)
+    },
+    fn resolve_first(first_arg: Index<ExprNode>, second_arg: Index<ExprNode>) {
+        // Get the first element.
+        // TODO: we might also have let-bindings for the cycle time itself, or
+        // arithmetic expressions; this will be a second loop.
+        let cloned_first_arg = arenas
+            .map(first_arg, Clone::clone)?
+            .0
+            .item;
+        let Expr::Unit(ExprUnit::Number(time)) = cloned_first_arg else {
+            return Err(PatternInterpreterError::InvalidTimedStepTime);
+        };
+        (resolve_second { time, second_arg }, None)
+    },
+    fn resolve_second(time: CycleTime, second_arg: Index<ExprNode>) {
+        if self.get_elem {
+            // Construct the timed step.
+            value_stack.push(TimedStep(time, second_arg))?;
+        } else {
+            value_stack.push(time)?;
+        }
+        (finish, None)
     }
-}
+);
 
 impl_frame!(
     /// Given a list of timed steps, uses another frame to find the total length
@@ -240,6 +333,7 @@ impl_frame!(
     #[derive(derive_more::Debug, Clone)]
     pub struct PlayTimeCatOrArrangeFrame {
         state: PlayTimeCatOrArrangeState,
+        query_mode: QueryMode,
     },
     [] = [] + [],
     /// The state for playing `TimeCat` or `Arrange`.
@@ -251,39 +345,42 @@ impl_frame!(
     /// About to obtain the total number of cycles and begin the elements.
     fn start(
         play_args: PlayElemArgs<()>,
-        multiple: Multiple<PatternNode>,
+        call_args: CallArgs,
         is_time_cat: bool,
     ) {
         (
             pending_total_cycles {
                 play_args,
-                multiple: multiple.clone(),
+                call_args: call_args.clone(),
                 is_time_cat,
             },
             Some(
-                ConcatFrame::GetTotalCycles(GetTotalCyclesFrame { multiple })
-                    .into(),
+                ConcatFrame::GetTotalCycles(GetTotalCyclesFrame {
+                    state: GetTotalCyclesState::start { call_args },
+                })
+                .into(),
             ),
         )
     },
     /// Pending the total number of cycles to be calculated from another frame.
     fn pending_total_cycles(
         play_args: PlayElemArgs<()>,
-        multiple: Multiple<PatternNode>,
+        call_args: CallArgs,
         is_time_cat: bool,
     ) {
         let total_cycle_length = value_stack.pop()?;
         let multiple_length =
-            CycleTime::checked_from_int(i32::from(multiple.length()))?;
+            CycleTime::checked_from_int(i32::from(call_args.len()))?;
         (
             in_play_multiple {
                 play_multiple: PlayMultiple::new(
                     play_args.clone(),
+                    self.query_mode.clone(),
                     TimeCatOrArrangeCycle {
                         multiple_length,
                         total_cycle_length,
                         is_time_cat,
-                        iter: multiple.iter(),
+                        iter: call_args.iter(),
                     },
                     is_time_cat,
                 ),
@@ -305,20 +402,22 @@ impl_frame!(
 
 impl CatOrSeqFrame {
     fn new(
-        multiple: &Multiple<PatternNode>,
+        call_args: CallArgs,
         play_args: PlayElemArgs<()>,
+        query_mode: QueryMode,
         is_fast: bool,
     ) -> PatternInterpreterResult<Self> {
-        if multiple.is_empty() {
+        if call_args.is_empty() {
             return Err(PatternInterpreterError::MultipleEmpty);
         }
 
-        let length = CycleTime::checked_from_int(i32::from(multiple.length()))?;
+        let length = CycleTime::checked_from_int(i32::from(call_args.len()))?;
 
         Ok(Self(PlayMultiple::new(
             play_args,
+            query_mode,
             MultipleOfOneCycle {
-                iter: multiple.iter(),
+                iter: call_args.iter(),
                 total_cycle_length: length,
             },
             is_fast,
@@ -328,60 +427,75 @@ impl CatOrSeqFrame {
 
 impl ConcatFrame {
     pub fn new_cat(
-        multiple: &Multiple<PatternNode>,
+        call_args: CallArgs,
         play_args: PlayElemArgs<()>,
+        query_mode: QueryMode,
     ) -> PatternInterpreterResult<Self> {
-        Ok(Self::CatOrSeq(CatOrSeqFrame::new(multiple, play_args, false)?))
+        Ok(Self::CatOrSeq(CatOrSeqFrame::new(
+            call_args, play_args, query_mode, false,
+        )?))
     }
 
     pub fn new_seq(
-        multiple: &Multiple<PatternNode>,
+        call_args: CallArgs,
         play_args: PlayElemArgs<()>,
+        query_mode: QueryMode,
     ) -> PatternInterpreterResult<Self> {
-        Ok(Self::CatOrSeq(CatOrSeqFrame::new(multiple, play_args, true)?))
+        Ok(Self::CatOrSeq(CatOrSeqFrame::new(
+            call_args, play_args, query_mode, true,
+        )?))
     }
 
     pub fn new_stack(
-        multiple: &Multiple<PatternNode>,
+        call_args: CallArgs,
         play_args: PlayElemArgs<()>,
+        query_mode: QueryMode,
     ) -> PatternInterpreterResult<Self> {
-        if multiple.is_empty() {
+        if call_args.is_empty() {
             return Err(PatternInterpreterError::MultipleEmpty);
         }
 
-        Ok(Self::Stack(StackFrame(multiple.iter(), play_args)))
+        Ok(Self::Stack(StackFrame {
+            call_args_iter: call_args.iter(),
+            play_args,
+            query_mode,
+        }))
     }
 
     fn new_time_cat_or_arrange(
-        multiple: &Multiple<PatternNode>,
+        call_args: CallArgs,
         play_args: PlayElemArgs<()>,
+        query_mode: QueryMode,
         is_time_cat: bool,
     ) -> PatternInterpreterResult<Self> {
-        if multiple.is_empty() {
+        if call_args.is_empty() {
             return Err(PatternInterpreterError::MultipleEmpty);
         }
 
         Ok(Self::TimeCatOrArrange(PlayTimeCatOrArrangeFrame {
             state: PlayTimeCatOrArrangeState::start {
-                multiple: multiple.clone(),
+                call_args,
                 play_args,
                 is_time_cat,
             },
+            query_mode,
         }))
     }
 
     pub fn new_time_cat(
-        multiple: &Multiple<PatternNode>,
+        call_args: CallArgs,
         play_args: PlayElemArgs<()>,
+        query_mode: QueryMode,
     ) -> PatternInterpreterResult<Self> {
-        Self::new_time_cat_or_arrange(multiple, play_args, true)
+        Self::new_time_cat_or_arrange(call_args, play_args, query_mode, true)
     }
 
     pub fn new_arrange(
-        multiple: &Multiple<PatternNode>,
+        call_args: CallArgs,
         play_args: PlayElemArgs<()>,
+        query_mode: QueryMode,
     ) -> PatternInterpreterResult<Self> {
-        Self::new_time_cat_or_arrange(multiple, play_args, false)
+        Self::new_time_cat_or_arrange(call_args, play_args, query_mode, false)
     }
 }
 
@@ -389,13 +503,23 @@ impl EvaluateFrame for StackFrame {
     fn step(
         &mut self,
         _: &mut impl ValueStack,
-        arenas: &impl PatternArenas,
+        arenas: &impl ExprArenas,
     ) -> InterpreterResult {
-        let args = self.1.clone();
-        Ok(self
-            .0
+        let Some(call_arg) = self
+            .call_args_iter
             .next_in_arena(arenas)?
-            .map(|index| QueryFrame::new(args.map(|()| index)).into()))
+        else {
+            return Ok(None);
+        };
+
+        Ok(Some(
+            QueryFrame::new_non_head(
+                call_arg,
+                self.play_args.clone(),
+                self.query_mode.clone(),
+            )?
+            .into(),
+        ))
     }
 }
 
@@ -403,19 +527,15 @@ impl EvaluateFrame for ConcatFrame {
     fn step(
         &mut self,
         value_stack: &mut impl ValueStack,
-        arenas: &impl PatternArenas,
+        arenas: &impl ExprArenas,
     ) -> InterpreterResult {
         // TODO: Delegate this step.
         match self {
-            ConcatFrame::Stack(frame) => frame.step(value_stack, arenas),
-            ConcatFrame::CatOrSeq(frame) => frame.0.step(value_stack, arenas),
-            ConcatFrame::GetTimedStep(frame) => frame.step(value_stack, arenas),
-            ConcatFrame::TimeCatOrArrange(frame) => {
-                frame.step(value_stack, arenas)
-            }
-            ConcatFrame::GetTotalCycles(frame) => {
-                frame.step(value_stack, arenas)
-            }
+            Self::Stack(frame) => frame.step(value_stack, arenas),
+            Self::CatOrSeq(frame) => frame.0.step(value_stack, arenas),
+            Self::GetTimedStep(frame) => frame.step(value_stack, arenas),
+            Self::TimeCatOrArrange(frame) => frame.step(value_stack, arenas),
+            Self::GetTotalCycles(frame) => frame.step(value_stack, arenas),
         }
     }
 }

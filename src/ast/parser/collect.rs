@@ -1,30 +1,28 @@
-use crate::ast::pattern::PatternNode;
-use crate::ast::pattern::arenas::PatternArenas;
-use crate::ast::pattern::arenas::PatternArenasExt;
-use crate::ast::pattern::parser::ParsePatternError;
-use crate::ast::pattern::parser::ParsePatternResult;
-use crate::ast::time::CycleTime;
+use crate::ast::expr::ExprNode;
+use crate::ast::expr::linked::ExprArenas;
+use crate::ast::expr::parser::ParseExprError;
+use crate::ast::expr::parser::ParseExprResult;
 use crate::mem::Index;
 use crate::mem::LinkedContainer;
 use crate::mem::SharedArenaRef;
 use crate::mem::debug_unwrap;
 
 type ParentAndArena<'src, A> =
-    (Result<Index<PatternNode>, ParsePatternError>, SharedArenaRef<'src, A>);
+    (Result<Index<ExprNode>, ParseExprError>, SharedArenaRef<'src, A>);
 
-pub struct CollectIntoPattern<'src, A: PatternArenas> {
+pub struct CollectIntoExpr<'src, A: ExprArenas> {
     opt_parent_and_arena: Option<ParentAndArena<'src, A>>,
-    accum_err: Option<ParsePatternError>,
+    accum_err: Option<ParseExprError>,
     pushed_count: u16,
 }
 
-impl<'src, A: PatternArenas> Default for CollectIntoPattern<'src, A> {
+impl<'src, A: ExprArenas> Default for CollectIntoExpr<'src, A> {
     fn default() -> Self {
         Self { opt_parent_and_arena: None, accum_err: None, pushed_count: 0 }
     }
 }
 
-impl<'src, A: PatternArenas> Drop for CollectIntoPattern<'src, A> {
+impl<'src, A: ExprArenas> Drop for CollectIntoExpr<'src, A> {
     fn drop(&mut self) {
         let Some((opt_index, arena)) = self.opt_parent_and_arena.take() else {
             return;
@@ -37,7 +35,7 @@ impl<'src, A: PatternArenas> Drop for CollectIntoPattern<'src, A> {
             }
         };
         while let Some(next_count) = self.pushed_count.checked_sub(1) {
-            let pop_result = PatternNode::pop_child(
+            let pop_result = LinkedContainer::pop_child(
                 &mut arena.clone(),
                 &mut arena.clone(),
                 parent_index.clone(),
@@ -49,7 +47,7 @@ impl<'src, A: PatternArenas> Drop for CollectIntoPattern<'src, A> {
     }
 }
 
-impl<'src, A: PatternArenas> CollectIntoPattern<'src, A> {
+impl<'src, A: ExprArenas> CollectIntoExpr<'src, A> {
     fn set_parent_and_arena(
         &mut self,
         parent_and_arena: ParentAndArena<'src, A>,
@@ -57,27 +55,27 @@ impl<'src, A: PatternArenas> CollectIntoPattern<'src, A> {
         self.opt_parent_and_arena = Some(parent_and_arena);
     }
 
-    fn add_error(&mut self, error: ParsePatternError) {
+    fn add_error(&mut self, error: ParseExprError) {
         self.accum_err = Some(error);
     }
 
     pub fn parent_index_of(
-        opt_parent: &ParsePatternResult<'src, A>,
-    ) -> Result<Index<PatternNode>, ParsePatternError> {
+        opt_parent: &ParseExprResult<'src, A>,
+    ) -> Result<Index<ExprNode>, ParseExprError> {
         opt_parent
             .as_ref()
             .map_err(Clone::clone)
             .and_then(|parent| {
                 parent
                     .clone_index()?
-                    .ok_or(ParsePatternError::ExpectedSetParent)
+                    .ok_or(ParseExprError::ExpectedSetParent)
             })
     }
 
     pub fn into_result(
         &mut self,
-        opt_opt_parent: Option<ParsePatternResult<'src, A>>,
-    ) -> ParsePatternResult<'src, A> {
+        opt_opt_parent: Option<ParseExprResult<'src, A>>,
+    ) -> ParseExprResult<'src, A> {
         if let Some(error) = self.accum_err.take() {
             return Err(error);
         }
@@ -86,38 +84,22 @@ impl<'src, A: PatternArenas> CollectIntoPattern<'src, A> {
         // success.
         let _ = self.opt_parent_and_arena.take();
         opt_opt_parent
-            .ok_or(ParsePatternError::ExpectedSetParent)
+            .ok_or(ParseExprError::ExpectedSetParent)
             .flatten()
     }
 
     fn get_opt_parent_and_arena(
         &self,
-    ) -> Result<ParentAndArena<'src, A>, ParsePatternError> {
+    ) -> Result<ParentAndArena<'src, A>, ParseExprError> {
         self.opt_parent_and_arena
             .clone()
-            .ok_or(ParsePatternError::ExpectedSetParent)
+            .ok_or(ParseExprError::ExpectedSetParent)
     }
 
-    fn push_child_pattern(&mut self, opt_child: ParsePatternResult<'src, A>) {
+    fn push_child_expr(&mut self, opt_child: ParseExprResult<'src, A>) {
         let try_push = || {
             let (opt_index, mut arena) = self.get_opt_parent_and_arena()?;
-            arena.push_pattern_adapter(opt_index?, opt_child?)?;
-            Ok(())
-        };
-
-        if let Err(error) = try_push() {
-            self.add_error(error);
-        }
-    }
-
-    fn push_timed_step_pattern(
-        &mut self,
-        opt_time: Result<CycleTime, ParsePatternError>,
-        opt_child: ParsePatternResult<'src, A>,
-    ) {
-        let try_push = || {
-            let (opt_index, mut arena) = self.get_opt_parent_and_arena()?;
-            arena.push_timed_step_adapter(opt_index?, opt_time?, opt_child?)?;
+            arena.push_child_adapter(opt_index?, opt_child?)?;
             Ok(())
         };
 
@@ -127,41 +109,21 @@ impl<'src, A: PatternArenas> CollectIntoPattern<'src, A> {
     }
 }
 
-pub struct PatternToCollect<'src, A: PatternArenas> {
+pub struct ExprToCollect<'src, A: ExprArenas> {
     pub parent_and_arena: ParentAndArena<'src, A>,
-    pub opt_child: ParsePatternResult<'src, A>,
+    pub opt_child: ParseExprResult<'src, A>,
 }
 
-pub struct TimedStepToCollect<'src, A: PatternArenas> {
-    pub parent_and_arena: ParentAndArena<'src, A>,
-    pub opt_time: Result<CycleTime, ParsePatternError>,
-    pub opt_child: ParsePatternResult<'src, A>,
-}
-
-impl<'src, A: PatternArenas> Extend<PatternToCollect<'src, A>>
-    for CollectIntoPattern<'src, A>
+impl<'src, A: ExprArenas> Extend<ExprToCollect<'src, A>>
+    for CollectIntoExpr<'src, A>
 {
-    fn extend<T: IntoIterator<Item = PatternToCollect<'src, A>>>(
+    fn extend<T: IntoIterator<Item = ExprToCollect<'src, A>>>(
         &mut self,
         iter: T,
     ) {
         iter.into_iter().for_each(|item| {
             self.set_parent_and_arena(item.parent_and_arena);
-            self.push_child_pattern(item.opt_child);
-        })
-    }
-}
-
-impl<'src, A: PatternArenas> Extend<TimedStepToCollect<'src, A>>
-    for CollectIntoPattern<'src, A>
-{
-    fn extend<T: IntoIterator<Item = TimedStepToCollect<'src, A>>>(
-        &mut self,
-        iter: T,
-    ) {
-        iter.into_iter().for_each(|item| {
-            self.set_parent_and_arena(item.parent_and_arena);
-            self.push_timed_step_pattern(item.opt_time, item.opt_child);
+            self.push_child_expr(item.opt_child);
         })
     }
 }

@@ -39,7 +39,6 @@ impl<T: ArenaItem> Default for GrowableArena<T> {
 }
 
 impl<T: ArenaItem> GrowableArena<T> {
-    #[allow(unused)]
     pub fn new() -> Self {
         // Note that we are allowed to make an arena larger than u16::MAX slots
         // (but we will never be able to allocate into the excess portion).

@@ -1,8 +1,8 @@
 use core::borrow::Borrow;
 use core::cell::RefCell;
 
-use crate::ast::pattern::PatternNode;
-use crate::ast::pattern::arenas::PatternArenas;
+use crate::ast::expr::ExprNode;
+use crate::ast::expr::linked::ExprArenas;
 use crate::ast::time::CycleTime;
 use crate::interpreter::Interpreter;
 use crate::interpreter::frame::InterpreterFrame;
@@ -16,7 +16,6 @@ use crate::test::interpreter::logging::LoggingValueStack;
 
 mod arbitrary;
 mod logging;
-mod sequence;
 mod unittests;
 
 /// Performs a simulation on a pattern stored in `arenas` with given head index
@@ -30,8 +29,8 @@ fn test_expectations<
     SoundUnitsAtTime: IntoIterator<Item = impl Borrow<SoundUnit>> + Clone + 'a + 'b,
     SoundUnits: IntoIterator<Item = &'b (CycleTime, SoundUnitsAtTime)> + Clone,
 >(
-    arenas: &'a impl PatternArenas,
-    head_index: Index<PatternNode>,
+    arenas: &'a impl ExprArenas,
+    head_index: Index<ExprNode>,
     expected_sound_units: SoundUnits,
 ) {
     test_expectations_with_interpreter_setup(
@@ -113,8 +112,8 @@ fn test_expectations_with_interpreter_setup<
     SoundUnitsAtTime: IntoIterator<Item = impl Borrow<SoundUnit>> + Clone,
     SoundUnits: IntoIterator<Item = impl Borrow<(CycleTime, SoundUnitsAtTime)>> + Clone,
 >(
-    arenas: &impl PatternArenas,
-    head_index: Index<PatternNode>,
+    arenas: &impl ExprArenas,
+    head_index: Index<ExprNode>,
     expected_schedule_actions: SoundUnits,
     test_setup: impl TestSetupStrategy,
 ) {
@@ -129,12 +128,12 @@ fn test_expectations_with_interpreter_setup<
 
 fn test_expectations_with_interpreter_setup_and_start_time<
     'a,
-    Arenas: PatternArenas,
+    Arenas: ExprArenas,
     SoundUnitsAtTime: IntoIterator<Item = impl Borrow<SoundUnit>> + Clone,
     SoundUnits: IntoIterator<Item = impl Borrow<(CycleTime, SoundUnitsAtTime)>> + Clone,
 >(
     arenas: &'a Arenas,
-    head_index: Index<PatternNode>,
+    head_index: Index<ExprNode>,
     start_time: CycleTime,
     expected_schedule_actions: SoundUnits,
     test_setup: impl TestSetupStrategy,
@@ -148,7 +147,7 @@ fn test_expectations_with_interpreter_setup_and_start_time<
     let frame_arena_refcell = RefCell::new(&mut frame_arena);
     debug_assert_eq!(frame_arena_refcell.borrow().size(), Ok(0));
 
-    let mut interpreter = PatternInterpreter::new_with_refcell(
+    let mut interpreter = PatternInterpreter::new(
         head_index,
         arenas,
         &value_stack,

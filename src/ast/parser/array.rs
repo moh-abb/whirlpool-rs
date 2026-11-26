@@ -1,3 +1,4 @@
+use derive_where::derive_where;
 use heapless::Vec;
 
 trait ConvertConst {
@@ -11,9 +12,11 @@ impl<const N: usize> ConvertConst for ConstToU8<N> {
     type Output = u8;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone)]
+#[derive_where(PartialEq, Eq, PartialOrd, Ord; T)]
 pub struct ParserVec<T, const CAP: usize> {
     inner: Vec<T, CAP, <ConstToU8<CAP> as ConvertConst>::Output>,
+    #[derive_where(skip)]
     exceeded: bool,
     _verify: (),
 }

@@ -1,13 +1,14 @@
+use crate::ast::expr::ExprNode;
+use crate::ast::expr::builtin::BuiltinCall;
 use crate::ast::note::Note;
 use crate::ast::note::NoteLetter;
 use crate::ast::note::NoteUnit;
-use crate::ast::pattern::Pattern;
-use crate::ast::pattern::examples::binary_tree_depth_two;
-use crate::ast::pattern::examples::half_binary_tree_depth_two;
-use crate::ast::pattern::examples::multiple_of_three_units;
-use crate::ast::pattern::examples::multiple_of_unit_then_silence_then_unit;
 use crate::ast::time::CycleTime;
 use crate::synth::unit::SoundUnit;
+use crate::test::ast::examples::pattern::binary_tree_depth_two;
+use crate::test::ast::examples::pattern::half_binary_tree_depth_two;
+use crate::test::ast::examples::pattern::multiple_of_three_units;
+use crate::test::ast::examples::pattern::multiple_of_unit_then_silence_then_unit;
 use crate::test::interpreter::FullInterpreterSetup;
 use crate::test::interpreter::test_expectations;
 use crate::test::interpreter::test_expectations_with_interpreter_setup;
@@ -18,7 +19,7 @@ fn play_double_sequential_seqs_with_offset_and_multiplier(
     multiplier: CycleTime,
 ) {
     let note_unit =
-        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
+        |letter: NoteLetter| NoteUnit::Note(Note::new(letter));
     let multiple_length_product = CycleTime::unwrapped_from_int(4);
 
     let interpreter_time = |start_time| {
@@ -47,8 +48,11 @@ fn play_double_sequential_seqs_with_offset_and_multiplier(
         (interpreter_time(7), &make_scheduled_action(6, NoteLetter::C)[..]),
         (interpreter_time(8), &make_scheduled_action(7, NoteLetter::D)[..]),
     ];
-    let (arenas, head_index) =
-        binary_tree_depth_two(Pattern::Seq, Pattern::Seq, Pattern::Seq);
+    let (arenas, head_index) = binary_tree_depth_two(
+        ExprNode::new_builtin_call(BuiltinCall::Seq),
+        ExprNode::new_builtin_call(BuiltinCall::Seq),
+        ExprNode::new_builtin_call(BuiltinCall::Seq),
+    );
 
     test_expectations_with_interpreter_setup(
         &arenas,
@@ -113,7 +117,7 @@ fn play_double_seq_then_unit_with_multiplier(multiplier: CycleTime) {
     // ↓  ↓
     // A   B
     let note_unit =
-        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
+        |letter: NoteLetter| NoteUnit::Note(Note::new(letter));
     let multiple_length_product = CycleTime::unwrapped_from_int(4);
 
     let interpreter_time = |start_time| {
@@ -138,8 +142,10 @@ fn play_double_seq_then_unit_with_multiplier(multiplier: CycleTime) {
         (interpreter_time(7), &make_scheduled_action(6, 2, NoteLetter::C)[..]),
         (interpreter_time(8), &[][..]),
     ];
-    let (arenas, head_index) =
-        half_binary_tree_depth_two(Pattern::Seq, Pattern::Seq);
+    let (arenas, head_index) = half_binary_tree_depth_two(
+        ExprNode::new_builtin_call(BuiltinCall::Seq),
+        ExprNode::new_builtin_call(BuiltinCall::Seq),
+    );
     test_expectations_with_interpreter_setup(
         &arenas,
         head_index,
@@ -171,7 +177,7 @@ fn play_seq_of_three_units_with_offset_and_multiplier(
     // ↓ ↓ ↓
     // A  B  C
     let note_unit =
-        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
+        |letter: NoteLetter| NoteUnit::Note(Note::new(letter));
     let multiple_length = CycleTime::unwrapped_from_int(3);
 
     let make_scheduled_action = |start_time, letter: NoteLetter| {
@@ -196,7 +202,8 @@ fn play_seq_of_three_units_with_offset_and_multiplier(
         (interpreter_time(5), &make_scheduled_action(4, NoteLetter::B)[..]),
         (interpreter_time(6), &make_scheduled_action(5, NoteLetter::C)[..]),
     ];
-    let (arenas, head_index) = multiple_of_three_units(Pattern::Seq);
+    let (arenas, head_index) =
+        multiple_of_three_units(ExprNode::new_builtin_call(BuiltinCall::Seq));
     test_expectations_with_interpreter_setup(
         &arenas,
         head_index,
@@ -259,7 +266,7 @@ fn can_play_seq_of_unit_then_silence_then_unit() {
     // ↓ ↓ ↓
     // A  ~  C
     let note_unit =
-        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
+        |letter: NoteLetter| NoteUnit::Note(Note::new(letter));
     let multiple_length = CycleTime::unwrapped_from_int(3);
 
     let make_scheduled_action = |start_time, letter: NoteLetter| {
@@ -280,7 +287,8 @@ fn can_play_seq_of_unit_then_silence_then_unit() {
         (interpreter_time(5), &[][..]),
         (interpreter_time(6), &make_scheduled_action(5, NoteLetter::C)[..]),
     ];
-    let (arenas, head_index) =
-        multiple_of_unit_then_silence_then_unit(Pattern::Seq);
+    let (arenas, head_index) = multiple_of_unit_then_silence_then_unit(
+        ExprNode::new_builtin_call(BuiltinCall::Seq),
+    );
     test_expectations(&arenas, head_index, &expected_schedule_actions);
 }

@@ -1,15 +1,5 @@
-#![allow(unused)]
-
-use core::iter;
-use core::option;
-
-use fallible_iterator as fiter;
-use fallible_iterator::DoubleEndedFallibleIterator;
-use fallible_iterator::FallibleIterator;
-
 use crate::ast::expr::ExprNode;
 use crate::ast::expr::ident::Identifier;
-use crate::ast::expr::linked::ExprArenas;
 use crate::mem::Arena;
 use crate::mem::ArenaError;
 use crate::mem::ArenaItem;
@@ -26,13 +16,13 @@ pub enum CallArg {
     Index(Index<ExprNode>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CallArgs {
     head: Option<CallArg>,
     tail: Multiple<ExprNode>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CallArgsIter<Parent> {
     head: Option<CallArg>,
     tail: multiple::Iter<ExprNode, Parent>,
@@ -48,7 +38,11 @@ impl CallArgs {
     }
 
     pub fn len(&self) -> u16 {
-        u16::from(self.head.is_none()).saturating_add(self.tail.length())
+        u16::from(self.head.is_some()).saturating_add(self.tail.length())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.head.is_none() && self.tail.is_empty()
     }
 
     pub fn iter<Parent>(&self) -> CallArgsIter<Parent> {
@@ -78,9 +72,9 @@ where
             ) -> ArenaResult<Option<Index<ExprNode>>>
             + 'r,
     {
-        let mut fst = || Ok(self.head.take());
+        let fst = || Ok(self.head.take());
         let tail = &mut self.tail;
-        let mut snd = move || {
+        let snd = move || {
             advance_func(tail, child_arena)
                 .map(|opt_index| opt_index.map(CallArg::Index))
         };
@@ -101,8 +95,7 @@ where
         &mut self,
         arena: &impl Arena<Self::Input>,
     ) -> Result<Option<Self::Output>, Self::Error> {
-        let (mut fst, mut snd) =
-            self.fst_snd(arena, multiple::Iter::next_in_arena);
+        let (fst, snd) = self.fst_snd(arena, multiple::Iter::next_in_arena);
 
         if let Some(arg) = fst()? { Ok(Some(arg)) } else { snd() }
     }

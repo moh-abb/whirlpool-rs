@@ -1,4 +1,4 @@
-use crate::ast::pattern::arenas::PatternArenas;
+use crate::ast::expr::linked::ExprArenas;
 use crate::interpreter::concat::ConcatFrame;
 use crate::interpreter::error::PatternInterpreterResult;
 use crate::interpreter::leaf::LeafFrame;
@@ -32,7 +32,7 @@ pub(super) trait EvaluateFrame {
     fn step(
         &mut self,
         value_stack: &mut impl ValueStack,
-        arenas: &impl PatternArenas,
+        arenas: &impl ExprArenas,
     ) -> InterpreterResult;
 }
 
@@ -40,7 +40,7 @@ impl EvaluateFrame for InterpreterFrame {
     fn step(
         &mut self,
         value_stack: &mut impl ValueStack,
-        arenas: &impl PatternArenas,
+        arenas: &impl ExprArenas,
     ) -> InterpreterResult {
         // TODO: Automatically delegate this step.
         match &mut self.0 {

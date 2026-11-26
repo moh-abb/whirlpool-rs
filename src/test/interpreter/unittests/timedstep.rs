@@ -1,22 +1,22 @@
 //! Unit tests for [Pattern::Arrange] and [Pattern::TimeCat].
 
+use crate::ast::expr::ExprNode;
+use crate::ast::expr::builtin::BuiltinCall;
 use crate::ast::note::Note;
 use crate::ast::note::NoteLetter;
 use crate::ast::note::NoteUnit;
-use crate::ast::pattern::Pattern;
-use crate::ast::pattern::examples::half_binary_tree_depth_two_with_timed_steps;
-use crate::ast::pattern::examples::multiple_of_four_timed_steps;
 use crate::ast::time::CycleTime;
 use crate::ast::time::OverflowError;
 use crate::synth::unit::SoundUnit;
+use crate::test::ast::examples::pattern::half_binary_tree_depth_two_with_timed_steps;
+use crate::test::ast::examples::pattern::multiple_of_four_timed_steps;
 use crate::test::interpreter::test_expectations;
 
 fn play_nested_time_cats_with_elem_lengths(
     root_elem_lengths: [CycleTime; 2],
     child_elem_lengths: [CycleTime; 2],
 ) {
-    let note_unit =
-        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
+    let note_unit = |letter: NoteLetter| NoteUnit::Note(Note::new(letter));
     let proportion_of_root = |index: usize| {
         root_elem_lengths[index]
             / root_elem_lengths
@@ -62,13 +62,9 @@ fn play_nested_time_cats_with_elem_lengths(
         ]);
     }
 
-    let make_time_cat = |total_cycle_length, multiple| Pattern::TimeCat {
-        total_cycle_length,
-        multiple,
-    };
     let (arenas, head_index) = half_binary_tree_depth_two_with_timed_steps(
-        make_time_cat,
-        make_time_cat,
+        ExprNode::new_builtin_call(BuiltinCall::TimeCat),
+        ExprNode::new_builtin_call(BuiltinCall::TimeCat),
         root_elem_lengths,
         child_elem_lengths,
     );
@@ -100,8 +96,7 @@ fn can_play_nested_time_cats_with_nonequal_child_lengths() {
 }
 
 fn play_linear_time_cat_with_elem_lengths(elem_lengths: [CycleTime; 4]) {
-    let note_unit =
-        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
+    let note_unit = |letter: NoteLetter| NoteUnit::Note(Note::new(letter));
     let accum_lengths = elem_lengths.iter().copied().fold(
         vec![CycleTime::ZERO],
         |mut arr, x| {
@@ -142,12 +137,10 @@ fn play_linear_time_cat_with_elem_lengths(elem_lengths: [CycleTime; 4]) {
         expected_schedule_actions.extend(elems);
     }
 
-    let make_time_cat = |total_cycle_length, multiple| Pattern::TimeCat {
-        total_cycle_length,
-        multiple,
-    };
-    let (arenas, head_index) =
-        multiple_of_four_timed_steps(make_time_cat, elem_lengths);
+    let (arenas, head_index) = multiple_of_four_timed_steps(
+        ExprNode::new_builtin_call(BuiltinCall::TimeCat),
+        elem_lengths,
+    );
     test_expectations(&arenas, head_index, &expected_schedule_actions);
 }
 
@@ -205,8 +198,7 @@ fn can_play_linear_time_cat_with_complex_unequal_decimal_lengths() {
 
 #[test]
 fn can_play_nested_arranges() {
-    let note_unit =
-        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
+    let note_unit = |letter: NoteLetter| NoteUnit::Note(Note::new(letter));
     let start_time = |num: i32| CycleTime::unwrapped_from_int(num);
     let single_action = |unscaled_start_time, letter: NoteLetter| {
         [SoundUnit::new(
@@ -230,13 +222,9 @@ fn can_play_nested_arranges() {
         (start_time(12), &single_action(11, NoteLetter::C)[..]),
     ];
 
-    let make_arrange = |total_cycle_length, multiple| Pattern::Arrange {
-        total_cycle_length,
-        multiple,
-    };
     let (arenas, head_index) = half_binary_tree_depth_two_with_timed_steps(
-        make_arrange,
-        make_arrange,
+        ExprNode::new_builtin_call(BuiltinCall::Arrange),
+        ExprNode::new_builtin_call(BuiltinCall::Arrange),
         [CycleTime::ONE, CycleTime::unwrapped_from_int(2)],
         [CycleTime::ONE, CycleTime::ONE],
     );

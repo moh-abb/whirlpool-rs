@@ -1,5 +1,5 @@
+use crate::ast::expr::linked::ExprArenas;
 use crate::ast::note::NoteUnit;
-use crate::ast::pattern::arenas::PatternArenas;
 use crate::ast::time::CycleTime;
 use crate::interpreter::error::PatternInterpreterError;
 use crate::interpreter::error::PatternInterpreterResult;
@@ -8,6 +8,7 @@ use crate::interpreter::frame::InterpreterFrame;
 use crate::interpreter::frame::InterpreterResult;
 use crate::interpreter::props::ElemProps;
 use crate::interpreter::props::PlayElemArgs;
+use crate::interpreter::query::QueryMode;
 use crate::interpreter::repeat::PlayMultiple;
 use crate::interpreter::repeat::TimingSource;
 use crate::interpreter::repeat::TimingStrategy;
@@ -16,16 +17,19 @@ use crate::synth::unit::SoundUnit;
 
 #[derive(derive_more::From, Debug, Clone)]
 pub enum LeafFrame {
-    QueryNote(QueryNoteFrame),
-    PlayNote(PlayNoteFrame),
+    QueryUnit(QueryUnitFrame),
+    PlayUnit(PlayUnitFrame),
     Silence(SilenceFrame),
 }
 
 #[derive(Debug, Clone)]
-pub struct QueryNoteFrame(PlayMultiple<OneCycle>);
+pub struct QueryUnitFrame(PlayMultiple<OneCycle>);
 
 #[derive(Debug, Clone)]
-pub struct PlayNoteFrame(PlayElemArgs<NoteUnit>);
+pub struct PlayUnitFrame {
+    unit: NoteUnit,
+    play_args: PlayElemArgs<()>,
+}
 
 #[derive(Debug, Clone)]
 pub struct SilenceFrame;
@@ -38,7 +42,7 @@ impl TimingStrategy for OneCycle {
 
     fn next_item(
         &mut self,
-        _: &impl PatternArenas,
+        _: &impl ExprArenas,
     ) -> PatternInterpreterResult<Option<TimingSource<ElemProps<Self::Item>>>>
     {
         Ok(self.0.take().map(|elem| {
@@ -61,7 +65,7 @@ impl TimingStrategy for OneCycle {
 
     fn total_props(
         &mut self,
-        _: &impl PatternArenas,
+        _: &impl ExprArenas,
     ) -> PatternInterpreterResult<TimingSource<ElemProps<()>>> {
         Ok(TimingSource::Const(ElemProps {
             elem: (),
@@ -72,41 +76,47 @@ impl TimingStrategy for OneCycle {
 
     fn eval_item(
         &mut self,
-        intersection: PlayElemArgs<Self::Item>,
+        item: Self::Item,
+        intersection: PlayElemArgs<()>,
+        _query_mode: QueryMode,
     ) -> PatternInterpreterResult<InterpreterFrame> {
-        Ok(LeafFrame::from(PlayNoteFrame(intersection)).into())
+        Ok(LeafFrame::from(PlayUnitFrame {
+            unit: item,
+            play_args: intersection,
+        })
+        .into())
     }
 }
 
-impl EvaluateFrame for QueryNoteFrame {
+impl EvaluateFrame for QueryUnitFrame {
     fn step(
         &mut self,
         value_stack: &mut impl ValueStack,
-        arenas: &impl PatternArenas,
+        arenas: &impl ExprArenas,
     ) -> InterpreterResult {
         self.0.step(value_stack, arenas)
     }
 }
 
-impl EvaluateFrame for PlayNoteFrame {
+impl EvaluateFrame for PlayUnitFrame {
     fn step(
         &mut self,
         value_stack: &mut impl ValueStack,
-        _: &impl PatternArenas,
+        _: &impl ExprArenas,
     ) -> InterpreterResult {
-        let args = self.0.clone();
         // We could potentially cache the scheduled sound unit if this
         // affects performance.
-        let unit_duration = args.multiplier.recip()?;
+        let unit_duration = self.play_args.multiplier.recip()?;
         // Only play exact integer times, aligned to a single cycle
-        let start = args.interval.start();
+        let start = self.play_args.interval.start();
         if start != start.floor()? {
             return Ok(None);
         }
         let scaled_start = start
-            .add(args.offset)?
-            .div(args.multiplier)?;
-        let sound_unit = SoundUnit::new(args.elem, scaled_start, unit_duration);
+            .add(self.play_args.offset)?
+            .div(self.play_args.multiplier)?;
+        let sound_unit =
+            SoundUnit::new(self.unit.clone(), scaled_start, unit_duration);
         value_stack.push(sound_unit.clone())?;
         Ok(None)
     }
@@ -116,20 +126,22 @@ impl EvaluateFrame for SilenceFrame {
     fn step(
         &mut self,
         _: &mut impl ValueStack,
-        _: &impl PatternArenas,
+        _: &impl ExprArenas,
     ) -> InterpreterResult {
         Ok(None)
     }
 }
 
 impl LeafFrame {
-    pub fn new_note(
-        note: &NoteUnit,
+    pub fn new_unit(
+        note: NoteUnit,
         play_args: PlayElemArgs<()>,
+        query_mode: QueryMode,
     ) -> PatternInterpreterResult<Self> {
-        Ok(Self::QueryNote(QueryNoteFrame(PlayMultiple::new(
+        Ok(Self::QueryUnit(QueryUnitFrame(PlayMultiple::new(
             play_args,
-            OneCycle(Some(note.clone())),
+            query_mode,
+            OneCycle(Some(note)),
             false,
         ))))
     }
@@ -143,12 +155,12 @@ impl EvaluateFrame for LeafFrame {
     fn step(
         &mut self,
         value_stack: &mut impl ValueStack,
-        arenas: &impl PatternArenas,
+        arenas: &impl ExprArenas,
     ) -> InterpreterResult {
         match self {
-            LeafFrame::QueryNote(frame) => frame.step(value_stack, arenas),
-            LeafFrame::PlayNote(frame) => frame.step(value_stack, arenas),
-            LeafFrame::Silence(frame) => frame.step(value_stack, arenas),
+            Self::QueryUnit(frame) => frame.step(value_stack, arenas),
+            Self::PlayUnit(frame) => frame.step(value_stack, arenas),
+            Self::Silence(frame) => frame.step(value_stack, arenas),
         }
     }
 }

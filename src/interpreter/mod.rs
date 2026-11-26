@@ -1,7 +1,6 @@
 use crate::ast::time::CycleTime;
 
 mod borrow;
-mod call;
 mod concat;
 pub mod error;
 pub mod frame;

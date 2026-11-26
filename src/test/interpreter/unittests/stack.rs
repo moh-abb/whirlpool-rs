@@ -1,18 +1,19 @@
+use crate::ast::expr::ExprNode;
+use crate::ast::expr::builtin::BuiltinCall;
 use crate::ast::note::Note;
 use crate::ast::note::NoteLetter;
 use crate::ast::note::NoteUnit;
-use crate::ast::pattern::Pattern;
-use crate::ast::pattern::examples::binary_tree_depth_two;
-use crate::ast::pattern::examples::half_binary_tree_depth_two;
-use crate::ast::pattern::examples::multiple_of_three_units;
 use crate::ast::time::CycleTime;
 use crate::synth::unit::SoundUnit;
+use crate::test::ast::examples::pattern::binary_tree_depth_two;
+use crate::test::ast::examples::pattern::half_binary_tree_depth_two;
+use crate::test::ast::examples::pattern::multiple_of_three_units;
 use crate::test::interpreter::test_expectations;
 
 #[test]
 fn can_play_four_stacks() {
     let note_unit =
-        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
+        |letter: NoteLetter| NoteUnit::Note(Note::new(letter));
     let single_action = |start_time, letter: NoteLetter| {
         SoundUnit::new(
             note_unit(letter),
@@ -30,8 +31,11 @@ fn can_play_four_stacks() {
         (CycleTime::unwrapped_from_int(3), &make_scheduled_actions(2)[..]),
         (CycleTime::unwrapped_from_int(4), &make_scheduled_actions(3)[..]),
     ];
-    let (arenas, head_index) =
-        binary_tree_depth_two(Pattern::Stack, Pattern::Stack, Pattern::Stack);
+    let (arenas, head_index) = binary_tree_depth_two(
+        ExprNode::new_builtin_call(BuiltinCall::Stack),
+        ExprNode::new_builtin_call(BuiltinCall::Stack),
+        ExprNode::new_builtin_call(BuiltinCall::Stack),
+    );
     test_expectations(&arenas, head_index, &expected_schedule_actions);
 }
 
@@ -43,7 +47,7 @@ fn can_play_double_stack_with_unit() {
     // ↓   ↓
     // A    B
     let note_unit =
-        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
+        |letter: NoteLetter| NoteUnit::Note(Note::new(letter));
 
     let single_action = |start_time, letter: NoteLetter| {
         SoundUnit::new(
@@ -62,8 +66,10 @@ fn can_play_double_stack_with_unit() {
         (CycleTime::unwrapped_from_int(3), &make_scheduled_actions(2)[..]),
         (CycleTime::unwrapped_from_int(4), &make_scheduled_actions(3)[..]),
     ];
-    let (arenas, head_index) =
-        half_binary_tree_depth_two(Pattern::Stack, Pattern::Stack);
+    let (arenas, head_index) = half_binary_tree_depth_two(
+        ExprNode::new_builtin_call(BuiltinCall::Stack),
+        ExprNode::new_builtin_call(BuiltinCall::Stack),
+    );
     test_expectations(&arenas, head_index, &expected_schedule_actions);
 }
 
@@ -73,7 +79,7 @@ fn can_play_stack_of_three_units() {
     // ↓ ↓ ↓
     // A  B  C
     let note_unit =
-        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
+        |letter: NoteLetter| NoteUnit::Note(Note::new(letter));
 
     let single_action = |start_time, letter: NoteLetter| {
         SoundUnit::new(
@@ -94,7 +100,8 @@ fn can_play_stack_of_three_units() {
         (CycleTime::unwrapped_from_int(5), &make_scheduled_actions(4)[..]),
         (CycleTime::unwrapped_from_int(6), &make_scheduled_actions(5)[..]),
     ];
-    let (arenas, head_index) = multiple_of_three_units(Pattern::Stack);
+    let (arenas, head_index) =
+        multiple_of_three_units(ExprNode::new_builtin_call(BuiltinCall::Stack));
     test_expectations(&arenas, head_index, &expected_schedule_actions);
 }
 
@@ -106,7 +113,7 @@ fn can_play_stack_of_cats() {
     // ↓  ↓    ↓  ↓
     // A   B     C   D
     let note_unit =
-        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
+        |letter: NoteLetter| NoteUnit::Note(Note::new(letter));
 
     let single_action = |start_time, letter: NoteLetter| {
         SoundUnit::new(
@@ -129,7 +136,10 @@ fn can_play_stack_of_cats() {
         (CycleTime::unwrapped_from_int(5), &even_cycle_actions(4)[..]),
         (CycleTime::unwrapped_from_int(6), &odd_cycle_actions(5)[..]),
     ];
-    let (arenas, head_index) =
-        binary_tree_depth_two(Pattern::Stack, Pattern::Cat, Pattern::Cat);
+    let (arenas, head_index) = binary_tree_depth_two(
+        ExprNode::new_builtin_call(BuiltinCall::Stack),
+        ExprNode::new_builtin_call(BuiltinCall::Cat),
+        ExprNode::new_builtin_call(BuiltinCall::Cat),
+    );
     test_expectations(&arenas, head_index, &expected_schedule_actions);
 }

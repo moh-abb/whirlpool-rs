@@ -2,7 +2,6 @@ pub mod display;
 pub mod expr;
 pub mod note;
 pub mod parser;
-pub mod pattern;
 pub mod time;
 
 mod macros {

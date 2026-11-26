@@ -11,7 +11,7 @@ pub trait AstDisplay: fmt::Display {
         f: &mut fmt::Formatter<'_>,
         _flags: &AstDisplayFlags,
     ) -> Result<(), Self::Error> {
-        <Self as fmt::Display>::fmt(self, f)?;
+        self.fmt(f)?;
         Ok(())
     }
 }

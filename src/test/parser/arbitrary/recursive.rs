@@ -160,7 +160,7 @@ fn verify_parse_result(
         panic!(
             "Parsing {} gave parser error {:?}",
             String::from_utf8_lossy(input),
-            error,
+            error.map_position(|p| p.translate_position(input)),
         )
     });
     let parsed = opt_parsed.unwrap_or_else(|error| {

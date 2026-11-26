@@ -1,12 +1,19 @@
 use crate::ast::expr::Expr;
 use crate::ast::expr::ExprNode;
+use crate::ast::expr::adapter::ExprArenaAdapter;
 use crate::mem::Arena;
+use crate::mem::ArenaError;
 use crate::mem::ArenaItem;
+use crate::mem::ArenaResult;
 use crate::mem::Chain;
+use crate::mem::Cow;
 use crate::mem::Index;
+use crate::mem::LinkedContainer;
+use crate::mem::SharedArenaRef;
 use crate::mem::linked::ChildMut;
 use crate::mem::linked::ChildRef;
 use crate::mem::linked::Linked;
+use crate::mem::linked::LinkedNode;
 
 /// Convenience trait for arenas of expressions.
 pub trait ExprArenas: Arena<ExprNode> {}
@@ -51,5 +58,49 @@ where
             Expr::Lambda { expr, .. } => Some(ChildMut::Single(expr)),
             Expr::Unit(_) => None,
         }
+    }
+}
+
+/// Represents the error type when pushing back an element to an expression.
+#[derive(derive_more::From, Debug, Clone)]
+pub enum ExprPushBackError {
+    ArenaErr(ArenaError),
+    ExpectedFullAdapter,
+}
+
+impl<'r, A: ExprArenas> SharedArenaRef<'r, A> {
+    pub fn push_child_adapter(
+        &mut self,
+        parent_index: Index<ExprNode>,
+        mut child_adapter: ExprArenaAdapter<Self>,
+    ) -> Result<(), ExprPushBackError> {
+        let child_index = child_adapter
+            .clone_index()?
+            .ok_or(ExprPushBackError::ExpectedFullAdapter)?;
+
+        // Link the pattern to the provided parent.
+        let mut shared_arena_ref_1 = self.clone();
+        let mut shared_arena_ref_2 = self.clone();
+        LinkedContainer::push_child(
+            &mut shared_arena_ref_1,
+            &mut shared_arena_ref_2,
+            parent_index,
+            Cow::Indexed(child_index),
+        )?;
+
+        // Avoid dropping the newly-linked child
+        child_adapter.take_index()?;
+
+        Ok(())
+    }
+
+    pub fn push_to_adapter(
+        &mut self,
+        expr: Expr,
+    ) -> ArenaResult<ExprArenaAdapter<Self>> {
+        Ok(ExprArenaAdapter::new(
+            self.push(ExprNode(LinkedNode::new(expr)))?,
+            self.clone(),
+        ))
     }
 }

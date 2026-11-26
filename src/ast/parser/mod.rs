@@ -3,7 +3,7 @@
 use combine::Parser;
 use combine::Stream;
 
-pub(super) mod array;
+pub mod array;
 pub(super) mod collect;
 pub mod recursive;
 

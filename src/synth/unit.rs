@@ -10,7 +10,7 @@ pub struct SoundUnit {
 
 impl SoundUnit {
     pub fn unit(&self) -> NoteUnit {
-        self.unit
+        self.unit.clone()
     }
 
     pub fn start(&self) -> CycleTime {

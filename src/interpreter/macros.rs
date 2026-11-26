@@ -72,7 +72,7 @@ macro_rules! impl_frame {
             fn step(
                 $self_name: &mut Self,
                 $stack_name: &mut impl crate::interpreter::value::ValueStack,
-                $arenas_name: &impl crate::ast::pattern::arenas::PatternArenas,
+                $arenas_name: &impl crate::ast::expr::linked::ExprArenas,
             ) -> crate::interpreter::frame::InterpreterResult {
                 use $state_name::*;
                 loop {
@@ -91,7 +91,7 @@ macro_rules! impl_frame {
                     };
                     $self_name.$inst_state_name = next_state;
                     if let finish = &$self_name.state {
-                        break Ok(None);
+                        break Ok(opt_next_frame);
                     }
                     if let Some(frame) = opt_next_frame {
                         break Ok(Some(frame));

@@ -46,7 +46,7 @@ impl<'a, ArenasX: ExprArenas, ArenasY: ExprArenas>
                 other.index.clone(),
                 arenas_x,
                 arenas_y,
-                Ord::cmp,
+                |ExprNode(x), ExprNode(y)| x.item.cmp(&y.item),
                 ExprNode::clone,
             )
             .map_err(Into::into),

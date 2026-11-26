@@ -2,15 +2,10 @@ use core::fmt::Display;
 use std::cmp::Ordering;
 
 use crate::ast::expr::ExprNode;
+use crate::ast::expr::arbitrary::ArbExprError;
 use crate::ast::expr::cmp::ExprOrdAdapter;
 use crate::ast::expr::format::ExprDisplayAdapter;
 use crate::ast::expr::linked::ExprArenas;
-use crate::ast::pattern::PatternNode;
-use crate::ast::pattern::arbitrary::ArbPatternError;
-use crate::ast::pattern::arenas::PatternArenas;
-use crate::ast::pattern::cmp::PatternOrdAdapter;
-use crate::ast::pattern::format::PatternDisplayAdapter;
-use crate::mem::ArenaError;
 use crate::mem::GrowableArena;
 use crate::mem::Index;
 use crate::mem::SharedArenaRef;
@@ -19,7 +14,6 @@ use crate::mem::arena::test::ArenaTest2;
 use crate::mem::arena::test::arenas_test_run;
 use crate::mem::arena::test::double_arenas_test_run;
 use crate::test::ast::arbitrary::strategy::AnyExpressionStrategy;
-use crate::test::ast::arbitrary::strategy::AnyPatternStrategy;
 
 fn check_nodes_equal_to_itself<
     'r,
@@ -45,21 +39,6 @@ fn check_nodes_equal_to_itself<
 }
 
 struct EqualToItself;
-impl<Arenas: PatternArenas> ArenaTest<Index<PatternNode>, Arenas>
-    for EqualToItself
-{
-    fn run<'r>(
-        shared_arena_ref: SharedArenaRef<'r, Arenas>,
-        index: Index<PatternNode>,
-    ) {
-        check_nodes_equal_to_itself(
-            &shared_arena_ref,
-            index,
-            PatternOrdAdapter::new_left,
-            PatternOrdAdapter::new_right,
-        );
-    }
-}
 impl<Arenas: ExprArenas> ArenaTest<Index<ExprNode>, Arenas> for EqualToItself {
     fn run<'r>(
         shared_arena_ref: SharedArenaRef<'r, Arenas>,
@@ -122,24 +101,6 @@ fn check_nodes_equal_iff_repr_equal<
 }
 
 struct EqualIffReprEqual;
-impl<Arenas: PatternArenas> ArenaTest2<Index<PatternNode>, Arenas>
-    for EqualIffReprEqual
-{
-    fn run<'r>(
-        arenas: SharedArenaRef<'r, Arenas>,
-        index_x: Index<PatternNode>,
-        index_y: Index<PatternNode>,
-    ) {
-        check_nodes_equal_iff_repr_equal(
-            &arenas,
-            index_x,
-            index_y,
-            PatternOrdAdapter::new_left,
-            PatternOrdAdapter::new_right,
-            PatternDisplayAdapter::new,
-        );
-    }
-}
 impl<Arenas: ExprArenas> ArenaTest2<Index<ExprNode>, Arenas>
     for EqualIffReprEqual
 {
@@ -160,35 +121,13 @@ impl<Arenas: ExprArenas> ArenaTest2<Index<ExprNode>, Arenas>
 }
 
 #[test]
-fn pattern_is_equal_to_itself() {
-    arenas_test_run::<
-        _,
-        EqualToItself,
-        GrowableArena<PatternNode>,
-        AnyPatternStrategy,
-        ArbPatternError,
-    >()
-}
-
-#[test]
 fn expression_is_equal_to_itself() {
     arenas_test_run::<
         _,
         EqualToItself,
         GrowableArena<ExprNode>,
         AnyExpressionStrategy,
-        ArenaError,
-    >()
-}
-
-#[test]
-fn two_patterns_equal_if_and_only_if_display_equal() {
-    double_arenas_test_run::<
-        _,
-        EqualIffReprEqual,
-        GrowableArena<PatternNode>,
-        AnyPatternStrategy,
-        ArbPatternError,
+        ArbExprError,
     >()
 }
 
@@ -199,6 +138,6 @@ fn two_expressions_equal_if_and_only_if_display_equal() {
         EqualIffReprEqual,
         GrowableArena<ExprNode>,
         AnyExpressionStrategy,
-        ArenaError,
+        ArbExprError,
     >()
 }

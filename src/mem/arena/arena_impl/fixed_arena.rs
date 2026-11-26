@@ -41,7 +41,6 @@ impl<T: ArenaItem> IndexableMap<T> for BTreeMapAdapter<T> {
 
 impl<T: ArenaItem> FixableArena<T> {
     /// Creates a new [FixableArena], initially fixed.
-    #[allow(unused)]
     pub fn new(entries: impl IntoIterator<Item = (Index<T>, T)>) -> Self {
         // Note that we are allowed to make an arena larger than u16::MAX slots
         // (but we will never be able to allocate into the excess portion).
@@ -54,7 +53,7 @@ impl<T: ArenaItem> FixableArena<T> {
             let (index, _) = key_pair;
             usize::from(index.clone()) + 1
         };
-        let mut start_index = u16::try_from(
+        let start_index = u16::try_from(
             btree_map
                 .last_key_value()
                 .map_or(0, entry_to_index),
@@ -69,12 +68,10 @@ impl<T: ArenaItem> FixableArena<T> {
         Self { mutable: false, arena }
     }
 
-    #[allow(unused)]
     pub fn allow_alloc(&mut self) {
         self.mutable = true;
     }
 
-    #[allow(unused)]
     pub fn forbid_alloc(&mut self) {
         self.mutable = false;
     }

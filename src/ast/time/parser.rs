@@ -57,5 +57,6 @@ impl CycleTime {
             let result = CycleTime::from_ascii(slice)?;
             Ok(result)
         })
+        .expected("cycletime")
     }
 }
