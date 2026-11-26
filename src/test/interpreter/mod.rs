@@ -1,12 +1,8 @@
 use core::borrow::Borrow;
 use core::cell::RefCell;
-use core::fmt::Debug;
 
-use mockall::predicate;
-
-use crate::ast::note::NoteUnit;
-use crate::ast::pattern::PatternNode;
-use crate::ast::pattern::arenas::PatternArenas;
+use crate::ast::expr::ExprNode;
+use crate::ast::expr::linked::ExprArenas;
 use crate::ast::time::CycleTime;
 use crate::interpreter::Interpreter;
 use crate::interpreter::frame::InterpreterFrame;
@@ -15,22 +11,12 @@ use crate::mem::Arena;
 use crate::mem::GrowableArena;
 use crate::mem::Index;
 use crate::mem::structures::stack::StackChain;
-use crate::synth::scheduler::MockUnitScheduler;
 use crate::synth::unit::SoundUnit;
-use crate::test::interpreter::logging::LoggingScheduler;
+use crate::test::interpreter::logging::LoggingValueStack;
 
 mod arbitrary;
 mod logging;
-mod sequence;
 mod unittests;
-
-/// A triple of an expected scheduled start time, duration, and note unit.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub struct ScheduledExpectation {
-    pub start_time: CycleTime,
-    pub duration: CycleTime,
-    pub note_unit: NoteUnit,
-}
 
 /// Performs a simulation on a pattern stored in `arenas` with given head index
 /// `head_index`. For each element in `expected_actions`, the first denotes
@@ -40,17 +26,17 @@ pub struct ScheduledExpectation {
 fn test_expectations<
     'a,
     'b,
-    ExpectationsAtTime: IntoIterator<Item = impl Borrow<ScheduledExpectation>> + Clone + 'a + 'b,
-    Expectations: IntoIterator<Item = &'b (CycleTime, ExpectationsAtTime)> + Clone,
+    SoundUnitsAtTime: IntoIterator<Item = impl Borrow<SoundUnit>> + Clone + 'a + 'b,
+    SoundUnits: IntoIterator<Item = &'b (CycleTime, SoundUnitsAtTime)> + Clone,
 >(
-    arenas: &'a impl PatternArenas,
-    head_index: Index<PatternNode>,
-    expected_schedule_actions: Expectations,
+    arenas: &'a impl ExprArenas,
+    head_index: Index<ExprNode>,
+    expected_sound_units: SoundUnits,
 ) {
     test_expectations_with_interpreter_setup(
         arenas,
         head_index,
-        expected_schedule_actions,
+        expected_sound_units,
         EmptyInterpreterSetup,
     )
 }
@@ -58,18 +44,18 @@ fn test_expectations<
 pub trait TestSetupStrategy {
     fn setup_interpreter<
         Arenas,
-        Scheduler,
+        ValueStack,
         FrameArena,
-        SchedulerBorrow,
-        FrameArenaBorrow,
+        ValueStackBorrow,
+        FrameStackBorrow,
     >(
         self,
         interpreter: &mut PatternInterpreter<
             Arenas,
-            Scheduler,
+            ValueStack,
             FrameArena,
-            SchedulerBorrow,
-            FrameArenaBorrow,
+            ValueStackBorrow,
+            FrameStackBorrow,
         >,
     );
 }
@@ -81,17 +67,17 @@ pub struct FullInterpreterSetup {
 impl TestSetupStrategy for FullInterpreterSetup {
     fn setup_interpreter<
         Arenas,
-        Scheduler,
+        ValueStack,
         FrameArena,
-        SchedulerBorrow,
+        ValueStackBorrow,
         FrameArenaBorrow,
     >(
         self,
         interpreter: &mut PatternInterpreter<
             Arenas,
-            Scheduler,
+            ValueStack,
             FrameArena,
-            SchedulerBorrow,
+            ValueStackBorrow,
             FrameArenaBorrow,
         >,
     ) {
@@ -104,17 +90,17 @@ struct EmptyInterpreterSetup;
 impl TestSetupStrategy for EmptyInterpreterSetup {
     fn setup_interpreter<
         Arenas,
-        Scheduler,
+        ValueStack,
         FrameArena,
-        SchedulerBorrow,
+        ValueStackBorrow,
         FrameArenaBorrow,
     >(
         self,
         _: &mut PatternInterpreter<
             Arenas,
-            Scheduler,
+            ValueStack,
             FrameArena,
-            SchedulerBorrow,
+            ValueStackBorrow,
             FrameArenaBorrow,
         >,
     ) {
@@ -123,12 +109,12 @@ impl TestSetupStrategy for EmptyInterpreterSetup {
 }
 
 fn test_expectations_with_interpreter_setup<
-    ExpectationsAtTime: IntoIterator<Item = impl Borrow<ScheduledExpectation>> + Clone,
-    Expectations: IntoIterator<Item = impl Borrow<(CycleTime, ExpectationsAtTime)>> + Clone,
+    SoundUnitsAtTime: IntoIterator<Item = impl Borrow<SoundUnit>> + Clone,
+    SoundUnits: IntoIterator<Item = impl Borrow<(CycleTime, SoundUnitsAtTime)>> + Clone,
 >(
-    arenas: &impl PatternArenas,
-    head_index: Index<PatternNode>,
-    expected_schedule_actions: Expectations,
+    arenas: &impl ExprArenas,
+    head_index: Index<ExprNode>,
+    expected_schedule_actions: SoundUnits,
     test_setup: impl TestSetupStrategy,
 ) {
     test_expectations_with_interpreter_setup_and_start_time(
@@ -142,41 +128,37 @@ fn test_expectations_with_interpreter_setup<
 
 fn test_expectations_with_interpreter_setup_and_start_time<
     'a,
-    Arenas: PatternArenas,
-    ExpectationsAtTime: IntoIterator<Item = impl Borrow<ScheduledExpectation>> + Clone,
-    Expectations: IntoIterator<Item = impl Borrow<(CycleTime, ExpectationsAtTime)>> + Clone,
+    Arenas: ExprArenas,
+    SoundUnitsAtTime: IntoIterator<Item = impl Borrow<SoundUnit>> + Clone,
+    SoundUnits: IntoIterator<Item = impl Borrow<(CycleTime, SoundUnitsAtTime)>> + Clone,
 >(
     arenas: &'a Arenas,
-    head_index: Index<PatternNode>,
+    head_index: Index<ExprNode>,
     start_time: CycleTime,
-    expected_schedule_actions: Expectations,
+    expected_schedule_actions: SoundUnits,
     test_setup: impl TestSetupStrategy,
 ) {
-    let mut mock_scheduler = MockUnitScheduler::new();
-    let logging_scheduler =
-        RefCell::new(LoggingScheduler::new(&mut mock_scheduler));
-    let with_mock_scheduler = |f: &dyn Fn(&mut MockUnitScheduler)| {
-        let mut borrowed_logger = logging_scheduler.borrow_mut();
-        let borrowed_scheduler = borrowed_logger.get_mut_scheduler();
-        f(borrowed_scheduler)
-    };
+    let value_stack = RefCell::new(LoggingValueStack::new());
+    value_stack
+        .borrow_mut()
+        .set_logging_enabled(false);
 
-    let mut frame_arena =
-        GrowableArena::<StackChain<InterpreterFrame<'_, Arenas>>>::new();
+    let mut frame_arena = GrowableArena::<StackChain<InterpreterFrame>>::new();
     let frame_arena_refcell = RefCell::new(&mut frame_arena);
     debug_assert_eq!(frame_arena_refcell.borrow().size(), Ok(0));
 
-    let mut interpreter = PatternInterpreter::new_with_refcell(
+    let mut interpreter = PatternInterpreter::new(
         head_index,
         arenas,
-        &logging_scheduler,
+        &value_stack,
         &frame_arena_refcell,
     );
     test_setup.setup_interpreter(&mut interpreter);
 
     // Advance the interpreter to the start position.
     // First, ignore all possible played notes before the start position.
-    logging_scheduler
+    println!("Temporarily disabling value stack");
+    value_stack
         .borrow_mut()
         .set_inner_enabled(false);
 
@@ -187,48 +169,34 @@ fn test_expectations_with_interpreter_setup_and_start_time<
         });
     debug_assert_eq!(frame_arena_refcell.borrow().size(), Ok(0));
 
-    logging_scheduler
+    println!("Enabling value stack");
+    value_stack
         .borrow_mut()
         .set_inner_enabled(true);
 
     // Enable printing log messages, if desired.
-    logging_scheduler
+    value_stack
         .borrow_mut()
-        .set_logging(true);
-    let expect_note_unit = |expectation: ScheduledExpectation| {
-        let ScheduledExpectation { start_time, duration, note_unit } =
-            expectation;
-        let sound_unit = SoundUnit::new(note_unit, duration);
-        let add_expectation = |borrowed_scheduler: &mut MockUnitScheduler| {
-            let abs_diff = |x: CycleTime, y: CycleTime| {
-                if x <= y { y - x } else { x - y }
-            };
-            let approx_eq_start_time =
-                predicate::function(move |time: &CycleTime| {
-                    abs_diff(start_time, *time) <= CycleTime::EPSILON
-                });
-            borrowed_scheduler
-                .expect_add()
-                .with(predicate::eq(sound_unit.clone()), approx_eq_start_time)
-                .once()
-                .return_const(());
-        };
-        with_mock_scheduler(&add_expectation)
-    };
+        .set_logging_enabled(true);
 
     for borrow_scheduled_actions in expected_schedule_actions {
         let (next_cycle_time, expectations) = borrow_scheduled_actions.borrow();
         expectations
             .clone()
             .into_iter()
-            .for_each(|e| expect_note_unit(e.borrow().clone()));
+            .for_each(|unit| {
+                value_stack
+                    .borrow_mut()
+                    .expect_sound_unit(unit.borrow().clone())
+            });
+
         interpreter
             .update_time(*next_cycle_time)
             .unwrap_or_else(|err| {
                 panic!("Encountered error when updating to time {next_cycle_time:?}: {err:?}")
             });
 
-        with_mock_scheduler(&|player| player.checkpoint());
+        value_stack.borrow_mut().checkpoint();
     }
 
     debug_assert_eq!(frame_arena_refcell.borrow().size(), Ok(0));

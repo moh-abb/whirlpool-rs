@@ -1,10 +1,9 @@
-use core::cell::RefCell;
 use core::marker::PhantomData;
-use core::ops::ControlFlow;
 use core::ops::DerefMut;
 
-use crate::ast::pattern::PatternNode;
-use crate::ast::pattern::arenas::PatternArenas;
+use crate::ast::expr::ExprNode;
+use crate::ast::expr::call_arg::CallArg;
+use crate::ast::expr::linked::ExprArenas;
 use crate::ast::time::CycleTime;
 use crate::ast::time::interval::CycleInterval;
 use crate::interpreter::Interpreter;
@@ -12,138 +11,76 @@ use crate::interpreter::borrow::BorrowAdapter;
 use crate::interpreter::error::PatternInterpreterError;
 use crate::interpreter::frame::EvaluateFrame;
 use crate::interpreter::frame::InterpreterFrame;
-use crate::interpreter::frame::query_frame;
 use crate::interpreter::props::PlayElemArgs;
+use crate::interpreter::query::QueryFrame;
+use crate::interpreter::query::QueryMode;
+use crate::interpreter::value::ValueStack;
 use crate::mem::Arena;
 use crate::mem::Index;
 use crate::mem::Stack;
 use crate::mem::structures::stack::StackChain;
-use crate::synth::scheduler::UnitScheduler;
 
-/// An interpreter of [Pattern]s, which keeps track of a current time and
-/// plays units (traversing the [Pattern]'s tree) when new units are
-/// encountered.
+/// An interpreter of pattern expressions, which keeps track of a current time
+/// and plays units (traversing the AST) when new units are encountered.
+#[derive(derive_new::new)]
 pub struct PatternInterpreter<
     'a,
     Arenas,
-    Scheduler,
+    ValStack,
     FrameArena,
-    SchedulerBorrow,
+    ValStackBorrow,
     FrameArenaBorrow,
 > {
-    pattern_index: Index<PatternNode>,
+    expr_index: Index<ExprNode>,
     arenas: &'a Arenas,
-    scheduler: SchedulerBorrow,
+    value_stack: ValStackBorrow,
     frame_arena: FrameArenaBorrow,
+    #[new(value = "CycleTime::ZERO")]
     cur_time: CycleTime,
+    #[new(value = "CycleTime::ONE")]
     base_multiplier: CycleTime,
+    #[new(value = "CycleTime::ZERO")]
     base_offset: CycleTime,
-    phantom: PhantomData<(Scheduler, FrameArena)>,
+    phantom: PhantomData<(ValStack, FrameArena)>,
 }
 
-impl<'a, Arenas, Scheduler, FrameArena>
+impl<'a, Arenas, ValStack, FrameArena, ValStackBorrow, FrameArenaBorrow>
     PatternInterpreter<
         'a,
         Arenas,
-        Scheduler,
+        ValStack,
         FrameArena,
-        &'a mut Scheduler,
-        &'a mut FrameArena,
-    >
-{
-    /// Constructs an interpreter with the given root index, arenas (to
-    /// traverse the pattern structure), scheduler, and starting scope.
-    #[allow(unused)]
-    pub fn new(
-        pattern_index: Index<PatternNode>,
-        arenas: &'a Arenas,
-        scheduler: &'a mut Scheduler,
-        frame_arena: &'a mut FrameArena,
-    ) -> Self {
-        Self {
-            pattern_index,
-            arenas,
-            scheduler,
-            frame_arena,
-            cur_time: CycleTime::ZERO,
-            base_multiplier: CycleTime::ONE,
-            base_offset: CycleTime::ZERO,
-            phantom: PhantomData,
-        }
-    }
-}
-
-impl<'a, Arenas, Scheduler, FrameArena>
-    PatternInterpreter<
-        'a,
-        Arenas,
-        Scheduler,
-        FrameArena,
-        &'a RefCell<Scheduler>,
-        &'a RefCell<FrameArena>,
-    >
-{
-    /// Like [Self::new], but with a [RefCell] to allow for a mock scheduler
-    /// and mock scope.
-    #[allow(unused)]
-    pub fn new_with_refcell(
-        pattern_index: Index<PatternNode>,
-        arenas: &'a Arenas,
-        scheduler: &'a RefCell<Scheduler>,
-        frame_arena: &'a RefCell<FrameArena>,
-    ) -> Self {
-        Self {
-            pattern_index,
-            arenas,
-            scheduler,
-            frame_arena,
-            cur_time: CycleTime::ZERO,
-            base_multiplier: CycleTime::ONE,
-            base_offset: CycleTime::ZERO,
-            phantom: PhantomData,
-        }
-    }
-}
-
-impl<'a, Arenas, Scheduler, FrameArena, SchedulerBorrow, FrameArenaBorrow>
-    PatternInterpreter<
-        'a,
-        Arenas,
-        Scheduler,
-        FrameArena,
-        SchedulerBorrow,
+        ValStackBorrow,
         FrameArenaBorrow,
     >
 {
     #[cfg(test)]
-    #[allow(unused)]
     pub fn set_multiplier(&mut self, multiplier: CycleTime) {
         self.base_multiplier = multiplier;
     }
 
     #[cfg(test)]
-    #[allow(unused)]
     pub fn set_offset(&mut self, offset: CycleTime) {
         self.base_offset = offset;
     }
 }
 
-impl<'a, Arenas, Scheduler, FrameArena, SchedulerBorrow, FrameArenaBorrow>
+impl<'a, Arenas, ValStack, FrameArena, ValStackBorrow, FrameArenaBorrow>
     Interpreter
     for PatternInterpreter<
         'a,
         Arenas,
-        Scheduler,
+        ValStack,
         FrameArena,
-        SchedulerBorrow,
+        ValStackBorrow,
         FrameArenaBorrow,
     >
 where
-    Arenas: PatternArenas,
-    Scheduler: UnitScheduler,
-    SchedulerBorrow: BorrowAdapter<Scheduler>,
+    Arenas: ExprArenas,
+    ValStack: ValueStack,
+    ValStackBorrow: BorrowAdapter<ValStack>,
     FrameArenaBorrow: BorrowAdapter<FrameArena>,
-    FrameArena: Arena<StackChain<InterpreterFrame<'a, Arenas>>>,
+    FrameArena: Arena<StackChain<InterpreterFrame>>,
 {
     type Output = Result<(), PatternInterpreterError>;
 
@@ -152,39 +89,38 @@ where
     fn update_time(&mut self, next_time: CycleTime) -> Self::Output {
         // The time should be monotonically increasing.
         debug_assert!(next_time >= self.cur_time);
-        let mut borrowed_scheduler = self.scheduler.try_borrow_mut()?;
+        let mut borrowed_value_stack = self.value_stack.try_borrow_mut()?;
         let mut borrowed_arena = self.frame_arena.try_borrow_mut()?;
         let mut frames = Stack::new(borrowed_arena.deref_mut());
         // Add the start simulation arguments for the pattern.
-        frames.push(query_frame(PlayElemArgs {
-            elem: self.pattern_index.clone(),
-            interval: CycleInterval::new(self.cur_time, next_time),
-            offset: self.base_offset,
-            multiplier: self.base_multiplier,
-        }))?;
+        frames.push(
+            QueryFrame::new_head(
+                CallArg::Index(self.expr_index.clone()),
+                PlayElemArgs {
+                    elem: (),
+                    interval: CycleInterval::new(self.cur_time, next_time),
+                    offset: self.base_offset,
+                    multiplier: self.base_multiplier,
+                },
+                QueryMode::Note,
+            )?
+            .into(),
+        )?;
 
-        let mut yield_step_result = || loop {
+        loop {
             let opt_step_result = frames.map_mut(|frame| {
-                frame.step(borrowed_scheduler.deref_mut(), self.arenas)
+                frame.step(borrowed_value_stack.deref_mut(), self.arenas)
             })?;
             let Some(step_result) = opt_step_result else {
-                break Ok(());
+                // The stack is empty, so we are done.
+                break;
             };
-            let opt_new_frame = match step_result? {
-                ControlFlow::Break(opt_new_frame) => {
-                    frames.pop();
-                    opt_new_frame
-                }
-                ControlFlow::Continue(opt_new_frame) => opt_new_frame,
-            };
-            if let Some(new_frame) = opt_new_frame {
-                frames.push(new_frame)?;
-            }
-        };
 
-        if let Err(err) = yield_step_result() {
-            frames.clear()?;
-            return Err(err);
+            if let Some(new_frame) = step_result? {
+                frames.push(new_frame)?;
+            } else {
+                frames.pop()?;
+            }
         }
 
         self.cur_time = next_time;

@@ -1,0 +1,74 @@
+use derive_where::derive_where;
+
+use crate::ast::expr::ident::Identifier;
+use crate::ast::time::CycleTime;
+use crate::mem::Index;
+use crate::mem::Multiple;
+use crate::mem::linked::LinkedNode;
+
+pub mod adapter;
+pub mod arbitrary;
+pub mod builtin;
+pub mod call_arg;
+pub mod cmp;
+pub mod format;
+pub mod ident;
+pub mod linked;
+pub mod parser;
+
+#[derive(
+    derive_more::Display, Debug, Clone, PartialEq, Eq, PartialOrd, Ord,
+)]
+pub struct StringLiteral;
+
+#[derive(derive_more::From, Debug, Clone)]
+#[derive_where(PartialEq, Eq, PartialOrd, Ord)]
+pub enum Expr {
+    /// Function call; e.g. `cat(A5,B5,C5)`, or method, `xs.fast(2)`.
+    /// If the function is a method, then `receiver` is set to the name of the
+    /// item that the method is called on.
+    /// Formats:
+    /// - Non-method: `<ident>((<expr>,)*)`
+    /// - Method: `<expr>.<ident>((<expr>,)*)`
+    Call {
+        is_receiver: bool,
+        name: Identifier,
+        #[derive_where(skip)]
+        args: Multiple<ExprNode>,
+    },
+    /// Lambda function; e.g. `x=>cat(x,A5)`.
+    /// Format: `<ident>=><expr>`
+    Lambda {
+        param: Identifier,
+        #[derive_where(skip)]
+        expr: Option<Index<ExprNode>>,
+    },
+    /// Array literal; e.g. `[bd,sd,hh]`
+    /// Format: `[(<expr>,)*]`
+    Array {
+        #[derive_where(skip)]
+        args: Multiple<ExprNode>,
+    },
+    /// Expression unit; for details and format see [ExprUnit].
+    Unit(ExprUnit),
+}
+
+/// Expression unit; can be an identifier e.g. `cat` or `x`; a fixed-point
+/// cycle time number e.g. `-5.12`; or a singly-quoted string `'foo'`.
+#[derive(derive_more::From, Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ExprUnit {
+    /// Identifier.
+    /// Format: <ident>
+    Ident(Identifier),
+    /// Number represented as a cycle time.
+    /// Format: <number>
+    Number(CycleTime),
+    /// Singly quoted strings; i.e. 'https://...'
+    /// Should only be used for URLs.
+    /// Stores only the span of the inner portion.
+    /// Format: <string>
+    String(StringLiteral),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ExprNode(pub LinkedNode<Expr, Self, Self>);

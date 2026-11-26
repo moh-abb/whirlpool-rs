@@ -15,11 +15,7 @@ pub enum DisplayNoteUnitError {
 
 impl fmt::Display for NoteUnit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        debug_unwrap(<Self as AstDisplay>::fmt(
-            self,
-            f,
-            &AstDisplayFlags::default(),
-        ));
+        debug_unwrap(self.fmt_ast(f, &AstDisplayFlags::default()));
         Ok(())
     }
 }
@@ -27,13 +23,13 @@ impl fmt::Display for NoteUnit {
 impl AstDisplay for NoteUnit {
     type Error = DisplayNoteUnitError;
 
-    fn fmt(
+    fn fmt_ast(
         &self,
         f: &mut fmt::Formatter<'_>,
         _flags: &AstDisplayFlags,
     ) -> Result<(), Self::Error> {
         match self {
-            NoteUnit::WithOctave(Note { letter, octave }) => {
+            NoteUnit::Note(Note { letter, octave }) => {
                 let letter_map = [
                     (NoteLetter::A, "a"),
                     (NoteLetter::B, "b"),
@@ -56,7 +52,12 @@ impl AstDisplay for NoteUnit {
                     .ok_or(DisplayNoteUnitError::LetterMapFailed)?;
                 write!(f, "{letter_str}{octave}")?;
             }
-            NoteUnit::Number(note_number) => write!(f, "{note_number}")?,
+            NoteUnit::Number(cycle_time) => {
+                write!(f, "{cycle_time}")?;
+            }
+            NoteUnit::String(string_literal) => {
+                write!(f, "{string_literal}")?;
+            }
         }
         Ok(())
     }

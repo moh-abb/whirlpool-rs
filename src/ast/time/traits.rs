@@ -13,7 +13,7 @@ use crate::ast::time::CycleTime;
 use crate::ast::time::OverflowError;
 
 macro_rules! impl_unary_op {
-    ($tr:ty, $f1: ident, $f2: ident) => {
+    ($tr:ty, $f1:ident, $f2:ident) => {
         impl $tr for CycleTime {
             type Output = Self;
             fn $f1(self) -> Self::Output {
@@ -24,7 +24,7 @@ macro_rules! impl_unary_op {
 }
 
 macro_rules! impl_binary_op {
-    ($tr:ty, $f1: ident, $f2: ident) => {
+    ($tr:ty, $f1:ident, $f2:ident) => {
         impl $tr for CycleTime {
             type Output = Self;
             fn $f1(self, rhs: Self) -> Self::Output {

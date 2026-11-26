@@ -1,12 +1,12 @@
 pub mod display;
+pub mod expr;
 pub mod note;
 pub mod parser;
-pub mod pattern;
 pub mod time;
 
 mod macros {
     macro_rules! compose_result {
-        ($x: expr) => {
+        ($x:expr) => {
             match $x {
                 Err(e) => return Err(e),
                 Ok(x_inner) => x_inner,

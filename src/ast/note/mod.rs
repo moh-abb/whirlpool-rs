@@ -1,10 +1,11 @@
 use core::num::NonZeroU8;
 
+use crate::ast::expr::StringLiteral;
 use crate::ast::time::CycleTime;
 
 pub mod arbitrary;
 pub mod format;
-pub mod parser;
+pub mod resolve;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(proptest_derive::Arbitrary))]
@@ -47,8 +48,9 @@ pub enum NoteLetter {
 #[display("{_0}")]
 pub struct NoteNumber(pub CycleTime);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NoteUnit {
-    WithOctave(Note),
-    Number(NoteNumber),
+    Note(Note),
+    Number(CycleTime),
+    String(StringLiteral),
 }

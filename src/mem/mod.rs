@@ -24,6 +24,7 @@ pub use arena::arena_impl::shared_arena::SharedArenaRef;
 pub use arena::error::ArenaError;
 pub use arena::error::ArenaResult;
 pub use structures::chain::Chain;
+pub use structures::container::LinkedContainer;
 pub use structures::cow::Cow;
 pub use structures::index::Index;
 pub use structures::multiple::Multiple;

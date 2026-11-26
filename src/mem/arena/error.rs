@@ -29,6 +29,14 @@ const EXPECTED_PARENT: &str = "[Arena]: Expected parent for the given index";
 const EXPECTED_CHILDREN: &str =
     "[Arena]: Expected children for the given index";
 /// The message to use when attempting to access an element which is expected
+/// to be linked, and have a list of children, but none were found.
+const EXPECTED_MULTIPLE: &str =
+    "[Arena]: Expected list of children for the given index";
+/// The message to use when attempting to access an element which is expected
+/// to be linked, and have one singular child instead of zero children.
+const EXPECTED_EMPTY_CHILD: &str =
+    "[Arena]: Expected to have an unset child for the given index";
+/// The message to use when attempting to access an element which is expected
 /// to be linked, and have a sibling on a given end, but it was not found.
 const EXPECTED_SIBLING: &str =
     "[Arena]: Expected a sibling for the given index";
@@ -47,6 +55,8 @@ pub enum ArenaError {
     InvalidBorrow,
     ExpectedParent,
     ExpectedChildren,
+    ExpectedMultiple,
+    ExpectedEmptyChild,
     ExpectedSibling,
     InvariantBroken,
 }
@@ -63,6 +73,8 @@ impl Display for ArenaError {
             Self::InvalidBorrow => INVALID_BORROW,
             Self::ExpectedParent => EXPECTED_PARENT,
             Self::ExpectedChildren => EXPECTED_CHILDREN,
+            Self::ExpectedMultiple => EXPECTED_MULTIPLE,
+            Self::ExpectedEmptyChild => EXPECTED_EMPTY_CHILD,
             Self::ExpectedSibling => EXPECTED_SIBLING,
             Self::InvariantBroken => INVARIANT_BROKEN,
         };

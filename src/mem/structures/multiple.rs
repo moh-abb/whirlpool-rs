@@ -1,34 +1,31 @@
 use core::marker::PhantomData;
 use core::mem::swap;
 
+use derive_where::derive_where;
+
 use crate::mem::Arena;
 use crate::mem::ArenaError;
 use crate::mem::ArenaItem;
 use crate::mem::ArenaResult;
-use crate::mem::Cow;
 use crate::mem::Index;
+use crate::mem::arena::iterator::ArenaIterator;
 use crate::mem::linked::Linked;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(derive_more::Debug)]
+#[derive_where(Default, Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum StartEnd<Child> {
+    #[derive_where(default)]
     Empty,
-    Full { start: Index<Child>, end: Index<Child> },
-}
-
-impl<Child> Clone for StartEnd<Child> {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Empty => Self::Empty,
-            Self::Full { start, end } => {
-                Self::Full { start: start.clone(), end: end.clone() }
-            }
-        }
-    }
+    Full {
+        start: Index<Child>,
+        end: Index<Child>,
+    },
 }
 
 /// A structure for a doubly-linked list of multiple arena-allocated elements.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Multiple<Item: ArenaItem> {
+#[derive(derive_more::Debug)]
+#[derive_where(Default, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Multiple<Item> {
     length: u16,
     start_end: StartEnd<Item>,
 }
@@ -63,642 +60,127 @@ impl<Child: ArenaItem> Multiple<Child> {
         is_empty
     }
 
-    /// Removes the child element from the arena at the given position, also
-    /// unlinking it from its siblings, and returning the child.
-    ///
-    /// The child should currently have a set parent, and if the parent has
-    /// more than one child, the element should have at least one sibling.
-    pub fn remove<'a, Parent, ChildArena, ParentArena>(
-        child_arena: &mut ChildArena,
-        parent_arena: &mut ParentArena,
-        child_index: Index<Child>,
-    ) -> ArenaResult<Child>
-    where
-        Parent: ArenaItem,
-        ChildArena: Arena<Child>,
-        ParentArena: Arena<Parent>,
-        Child: Linked<Parent, ChildArena, ParentArena>,
-    {
-        // Take the child from the arena.
-        let mut child = child_arena.take(child_index.clone())?;
-        // Unlink the child from its siblings and parent.
-        let parent_index = child
-            .get_mut_parent()
-            .take()
-            .ok_or(ArenaError::ExpectedParent)?;
-        let siblings = child.get_mut_sibling_chain();
-        let opt_prev = siblings.prev.take();
-        let opt_next = siblings.next.take();
-        // Unlink the siblings from the child
-        if let Some(prev) = opt_prev.clone() {
-            child_arena.map_mut(prev, |elem| {
-                let opt_next = elem.get_mut_sibling_chain().next.take();
-                debug_assert_eq!(opt_next, Some(child_index.clone()));
-            })?;
-        }
-        if let Some(next) = opt_next.clone() {
-            child_arena.map_mut(next, |elem| {
-                let opt_prev = elem.get_mut_sibling_chain().prev.take();
-                debug_assert_eq!(opt_prev, Some(child_index.clone()));
-            })?;
-        }
-        // Update the start and end of the `Multiple`.
-        parent_arena.map_mut(parent_index, |parent| {
-            let multiple = <Child as Linked<_, _, _>>::get_mut_children(parent)
-                .ok_or(ArenaError::ExpectedChildren)?;
-            match &mut multiple.start_end {
-                StartEnd::Empty => {
-                    debug_assert!(false);
-                }
-                StartEnd::Full { start, end } if start == end => {
-                    // The list was originally a singleton but will now become
-                    // empty.
-                    debug_assert_eq!(&*start, &child_index);
-                    multiple.start_end = StartEnd::Empty;
-                }
-                StartEnd::Full { start, end } => {
-                    if *start == child_index {
-                        *start = opt_next.ok_or(ArenaError::ExpectedSibling)?;
-                    }
-                    if *end == child_index {
-                        *end = opt_prev.ok_or(ArenaError::ExpectedSibling)?;
-                    }
-                }
-            }
-            multiple.length -= 1;
-            Ok(())
-        })??;
-
-        Ok(child)
-    }
-
-    /// Verifies the properties of the [Multiple] before insertion.
-    /// See [insert] for more details.
-    #[inline]
-    fn verify_multiple_on_insert<'a, Parent, ChildArena, ParentArena>(
-        child_arena: &ChildArena,
-        parent_arena: &ParentArena,
-        parent_index: &Index<Parent>,
-        opt_prev: &Option<Index<Child>>,
-        opt_next: &Option<Index<Child>>,
-    ) where
-        Parent: ArenaItem,
-        ChildArena: Arena<Child>,
-        ParentArena: Arena<Parent>,
-        Child: Linked<Parent, ChildArena, ParentArena>,
-    {
-        // Verify both prev and next have the right parent.
-        let verify_parent = |child: &Index<_>| {
-            debug_assert_eq!(
-                child_arena
-                    .map(child.clone(), |child| { child.get_parent().clone() }),
-                Ok(Some(parent_index.clone()))
-            );
-        };
-        if let Some(prev) = opt_prev {
-            verify_parent(prev);
-        }
-        if let Some(next) = opt_next {
-            verify_parent(next);
-        }
-        // Check the different cases of the prev and next.
-        let verify_len_eq = |expected: _| {
-            debug_assert_eq!(
-                parent_arena.map(parent_index.clone(), |parent| {
-                    Child::get_children(parent).map(Self::length)
-                }),
-                Ok(Some(expected))
-            );
-        };
-        let verify_len_ne = |expected: _| {
-            debug_assert_ne!(
-                parent_arena.map(parent_index.clone(), |parent| {
-                    Child::get_children(parent).map(Self::length)
-                }),
-                Ok(Some(expected))
-            );
-        };
-        let verify_start_eq = |expected: Option<_>| {
-            debug_assert_eq!(
-                parent_arena.map(parent_index.clone(), |parent| {
-                    Child::get_children(parent).map(Self::start)
-                }),
-                Ok(Some(expected))
-            );
-        };
-        let verify_end_eq = |expected: Option<_>| {
-            debug_assert_eq!(
-                parent_arena.map(parent_index.clone(), |parent| {
-                    Child::get_children(parent).map(Self::end)
-                }),
-                Ok(Some(expected))
-            );
-        };
-        match (opt_prev.clone(), opt_next.clone()) {
-            (None, None) => {
-                // Multiple should be empty.
-                verify_start_eq(None);
-                verify_end_eq(None);
-                verify_len_eq(0);
-            }
-            (Some(prev), None) => {
-                // Should be appending to end.
-                verify_end_eq(Some(prev));
-            }
-            (None, Some(next)) => {
-                // Should be prepending to start.
-                verify_start_eq(Some(next));
-            }
-            (Some(prev), Some(next)) => {
-                // prev and next should be distinct.
-                debug_assert_ne!(prev, next);
-                // If we have two distinct elements, the list shouldn't be
-                // empty or have length 1.
-                verify_len_ne(0);
-                verify_len_ne(1);
-            }
-        }
-
-        let verify_elem_prev = |child: &Index<_>, expected_prev: Option<_>| {
-            debug_assert_eq!(
-                child_arena.map(child.clone(), |child| {
-                    child.get_sibling_chain().prev()
-                }),
-                Ok(expected_prev)
-            );
-        };
-        let verify_elem_next = |child: &Index<_>, expected_next: Option<_>| {
-            debug_assert_eq!(
-                child_arena.map(child.clone(), |child| {
-                    child.get_sibling_chain().next()
-                }),
-                Ok(expected_next)
-            );
-        };
-        match (opt_prev.clone(), opt_next.clone()) {
-            (Some(prev), Some(next)) => {
-                // Verify that prev->next == next and next->prev == prev.
-                verify_elem_prev(&next, Some(prev.clone()));
-                verify_elem_next(&prev, Some(next.clone()));
-            }
-            (None, Some(next)) => {
-                // The last element should not have a prev sibling.
-                verify_elem_prev(&next, None);
-            }
-            (Some(prev), None) => {
-                // The first element should not have a next sibling.
-                verify_elem_next(&prev, None);
-            }
-            (None, None) => (),
-        }
-    }
-
-    /// Allocates and inserts the element between `prev` and `next`, returning
-    /// the index pointing to `child`.
-    ///
+    /// Points the end of the list to `child_index`.
     /// Preconditions:
-    /// - `parent`, `prev` and `next` must all come from the same arena.
-    /// - `parent`, `prev` and `next` are all distinct.
-    /// - If both `prev` and `next` are Some, then both `prev` and `next` are
-    /// children of `parent`.
-    /// - `child` has no parent or siblings attached.
-    ///
-    /// Postcondition:
-    /// - If `child` is successfully allocated into the arena, and the
-    /// indices provided by `prev` and `next` are valid, then `child` will have
-    /// parent `parent` and siblings `prev` and `next`.
-    ///
-    /// Cases to consider:
-    /// - If both `prev` and `next` are None, then the `Multiple` must be empty.
-    /// - If `prev` is None but `next` is Some, then we must be inserting onto
-    /// the start of the [Multiple].
-    /// - If `prev` is Some and `next` is None, then we must be inserting onto
-    /// the end of the [Multiple].
-    /// - If both `prev` and `next` are Some, then `Multiple` must have size
-    /// greater than 1.
-    fn insert<'a, Parent, ChildArena, ParentArena>(
-        child_arena: &mut ChildArena,
-        parent_arena: &mut ParentArena,
-        parent_index: Index<Parent>,
-        opt_prev: Option<Index<Child>>,
-        opt_next: Option<Index<Child>>,
-        mut child_cow: Cow<Child>,
-    ) -> ArenaResult<Index<Child>>
-    where
-        Parent: ArenaItem,
-        ChildArena: Arena<Child>,
-        ParentArena: Arena<Parent>,
-        Child: Linked<Parent, ChildArena, ParentArena>,
-    {
-        // Check that the child is currently unlinked.
-        child_cow.map(child_arena, |child| {
-            debug_assert_eq!(child.get_parent(), &None);
-            debug_assert_eq!(child.get_sibling_chain().prev(), None);
-            debug_assert_eq!(child.get_sibling_chain().next(), None);
-        })?;
-        // Check the different cases of the prev and next.
-        Self::verify_multiple_on_insert(
-            child_arena,
-            parent_arena,
-            &parent_index,
-            &opt_prev,
-            &opt_next,
-        );
-
-        // Prepare the child to be added into the list by setting its elements.
-        // This way, if allocation succeeds, we don't have to modify the child
-        // element again.
-        child_cow.map_mut(child_arena, |child| {
-            *child.get_mut_parent() = Some(parent_index.clone());
-            let chain = child.get_mut_sibling_chain();
-            chain.prev = opt_prev.clone();
-            chain.next = opt_next.clone();
-        })?;
-
-        // Try to allocate the child element.
-        let child_index = match child_cow {
-            Cow::Indexed(index) => index,
-            Cow::Owned(child) => child_arena.push(child)?,
-        };
-
-        // Update the prev and next elements to point to the child.
-        if let Some(prev) = opt_prev.clone() {
-            child_arena.map_mut(prev, |elem| {
-                elem.get_mut_sibling_chain().next = Some(child_index.clone());
-            })?;
+    /// - `child_index.prev == self.end`
+    /// - `child_index.next == None`
+    /// - `child_index.parent == (the index of the entry that contains self)`
+    pub(super) fn push_back(&mut self, child_index: Index<Child>) {
+        match &mut self.start_end {
+            StartEnd::Empty => {
+                // The list will now become a singleton with both ends
+                // pointing to the element.
+                self.start_end = StartEnd::Full {
+                    start: child_index.clone(),
+                    end: child_index.clone(),
+                };
+            }
+            StartEnd::Full { end, .. } => {
+                *end = child_index.clone();
+            }
         }
-        if let Some(next) = opt_next.clone() {
-            child_arena.map_mut(next, |elem| {
-                elem.get_mut_sibling_chain().prev = Some(child_index.clone());
-            })?;
-        }
+        self.length = self.length.wrapping_add(1);
+    }
 
-        let update_parent_ends = |parent: &mut Parent| {
-            let multiple =
-                &mut <Child as Linked<_, _, _>>::get_mut_children(parent)
-                    .ok_or(ArenaError::ExpectedChildren)?;
-            match &mut multiple.start_end {
-                StartEnd::Empty => {
-                    // The list will now become a singleton with both ends
-                    // pointing to the element.
-                    multiple.start_end = StartEnd::Full {
-                        start: child_index.clone(),
-                        end: child_index.clone(),
-                    };
-                }
-                StartEnd::Full { start, end } => {
-                    match (opt_prev.clone(), opt_next.clone()) {
-                        (None, None) => debug_assert!(false),
-                        (None, Some(_)) => *start = child_index.clone(),
-                        (Some(_), None) => *end = child_index.clone(),
-                        (Some(_), Some(_)) => (),
-                    }
+    /// Points the end of the list to `opt_prev`.
+    /// Preconditions:
+    /// - `self.end.prev == opt_prev`
+    /// - If `self.length >= 2`, `opt_prev == Some(_)`
+    /// - If `self.length < 2`, `opt_prev == None`
+    /// To meet these preconditions, we need to unlink the current `end` of
+    /// `self` from its previous sibling and parent, and call with `end.prev`.
+    pub(super) fn pop_back(&mut self, opt_prev: Option<Index<Child>>) {
+        match &mut self.start_end {
+            StartEnd::Empty => {
+                debug_assert!(opt_prev.is_none());
+                return;
+            }
+            StartEnd::Full { start, end } if start == end => {
+                // The list was a singleton but will now become empty.
+                debug_assert!(opt_prev.is_none());
+                self.start_end = StartEnd::Empty;
+            }
+            StartEnd::Full { end, .. } => {
+                debug_assert!(opt_prev.is_some());
+                if let Some(prev) = opt_prev {
+                    *end = prev;
                 }
             }
-            multiple.length += 1;
-            Ok(())
-        };
-
-        // Update the ends of the parent.
-        parent_arena.map_mut(parent_index.clone(), update_parent_ends)??;
-        Ok(child_index)
-    }
-
-    fn get_end_in_arena<Parent, ChildArena, ParentArena>(
-        parent_arena: &ParentArena,
-        parent_index: Index<Parent>,
-        get_end: impl FnOnce(&Self) -> Option<Index<Child>>,
-    ) -> ArenaResult<Option<Index<Child>>>
-    where
-        Parent: ArenaItem,
-        ChildArena: Arena<Child>,
-        ParentArena: Arena<Parent>,
-        Child: Linked<Parent, ChildArena, ParentArena>,
-    {
-        parent_arena.map(parent_index.clone(), |parent| {
-            let multiple = <Child as Linked<_, _, _>>::get_children(parent)
-                .ok_or(ArenaError::ExpectedChildren)?;
-            Ok(get_end(multiple))
-        })?
-    }
-
-    /// Prepends a child to the front of its parent's list.
-    /// `child` must initially have no parent, and have no previous or
-    /// next element.
-    /// The child node will be allocated into the arena.
-    /// After prepending, the parent will see that it has a new start child
-    /// node, and the child will see that its parent is the one provided.
-    /// Returns the allocated child index.
-    pub fn push_front<Parent, ChildArena, ParentArena>(
-        child_arena: &mut ChildArena,
-        parent_arena: &mut ParentArena,
-        parent_index: Index<Parent>,
-        child_cow: Cow<Child>,
-    ) -> ArenaResult<Index<Child>>
-    where
-        Parent: ArenaItem,
-        ChildArena: Arena<Child>,
-        ParentArena: Arena<Parent>,
-        Child: Linked<Parent, ChildArena, ParentArena>,
-    {
-        let opt_start = Self::get_end_in_arena(
-            parent_arena,
-            parent_index.clone(),
-            Self::start,
-        )?;
-        Self::insert(
-            child_arena,
-            parent_arena,
-            parent_index,
-            None,
-            opt_start,
-            child_cow,
-        )
-    }
-
-    /// Appends a child to the end of its parent's list.
-    /// `child` must initially have no parent, and have no previous or
-    /// next element.
-    /// The child node will be allocated into the arena.
-    /// After appending, the parent will see that it has a new end child
-    /// node, and the child will see that its parent is the one provided.
-    /// Returns the allocated child index.
-    pub fn push_back<Parent, ChildArena, ParentArena>(
-        child_arena: &mut ChildArena,
-        parent_arena: &mut ParentArena,
-        parent_index: Index<Parent>,
-        child_cow: Cow<Child>,
-    ) -> ArenaResult<Index<Child>>
-    where
-        Parent: ArenaItem,
-        ChildArena: Arena<Child>,
-        ParentArena: Arena<Parent>,
-        Child: Linked<Parent, ChildArena, ParentArena>,
-    {
-        let opt_end = Self::get_end_in_arena(
-            parent_arena,
-            parent_index.clone(),
-            Self::end,
-        )?;
-        Self::insert(
-            child_arena,
-            parent_arena,
-            parent_index,
-            opt_end,
-            None,
-            child_cow,
-        )
-    }
-
-    /// Pops a child from the front of its parent's list.
-    /// After removal, `child` will see its parent be `None`,
-    /// and the parent will no longer have its start element as `child`.
-    /// Returns the optional removed child.
-    pub fn pop_front<Parent, ChildArena, ParentArena>(
-        child_arena: &mut ChildArena,
-        parent_arena: &mut ParentArena,
-        parent_index: Index<Parent>,
-    ) -> ArenaResult<Option<Child>>
-    where
-        Parent: ArenaItem,
-        ChildArena: Arena<Child>,
-        ParentArena: Arena<Parent>,
-        Child: Linked<Parent, ChildArena, ParentArena>,
-    {
-        let opt_front =
-            Self::get_end_in_arena(parent_arena, parent_index, Self::start)?;
-        let Some(front) = opt_front else {
-            return Ok(None);
-        };
-        Self::remove(child_arena, parent_arena, front).map(Some)
-    }
-
-    /// Pops a child from the end of its parent's list.
-    /// After removal, `child` will see its parent be the sentinel invalid
-    /// index, and the parent will no longer have its end element as `child`.
-    /// Returns the optional removed child.
-    pub fn pop_back<Parent, ChildArena, ParentArena>(
-        child_arena: &mut ChildArena,
-        parent_arena: &mut ParentArena,
-        parent_index: Index<Parent>,
-    ) -> ArenaResult<Option<Child>>
-    where
-        Parent: ArenaItem,
-        ChildArena: Arena<Child>,
-        ParentArena: Arena<Parent>,
-        Child: Linked<Parent, ChildArena, ParentArena>,
-    {
-        let opt_end =
-            Self::get_end_in_arena(parent_arena, parent_index, Self::end)?;
-        let Some(end) = opt_end else {
-            return Ok(None);
-        };
-        Self::remove(child_arena, parent_arena, end).map(Some)
-    }
-
-    fn iter_base<'a, Parent, ChildArena, ParentArena>(
-        &self,
-        child_arena: &'a ChildArena,
-    ) -> IterBase<'a, Child, Parent, ChildArena, ParentArena>
-    where
-        Parent: ArenaItem,
-        ChildArena: Arena<Child>,
-        ParentArena: Arena<Parent>,
-        Child: Linked<Parent, ChildArena, ParentArena>,
-    {
-        IterBase {
-            start_end: self.start_end.clone(),
-            child_arena,
-            phantom: PhantomData,
         }
+        self.length = self.length.wrapping_sub(1);
     }
 
-    pub fn checked_iter<'a, Parent, ChildArena, ParentArena>(
-        &self,
-        child_arena: &'a ChildArena,
-    ) -> IterChecked<'a, Child, Parent, ChildArena, ParentArena>
-    where
-        Parent: ArenaItem,
-        ChildArena: Arena<Child>,
-        ParentArena: Arena<Parent>,
-        Child: Linked<Parent, ChildArena, ParentArena>,
-    {
-        IterChecked { inner: self.iter_base(child_arena) }
-    }
-
-    pub fn unwrapped_iter<'a, Parent, ChildArena, ParentArena>(
-        &self,
-        child_arena: &'a ChildArena,
-    ) -> IterUnwrapped<'a, Child, Parent, ChildArena, ParentArena>
-    where
-        Parent: ArenaItem,
-        ChildArena: Arena<Child>,
-        ParentArena: Arena<Parent>,
-        Child: Linked<Parent, ChildArena, ParentArena>,
-    {
-        IterUnwrapped { inner: self.iter_base(child_arena) }
+    /// Returns a "bare iterator" yielding values of
+    /// `ArenaResult<Option<Index<Item>>>`, but needs the reference to the
+    /// arena to be provided manually to advance each time.
+    /// Saves on memory overhead of the pointer to the arena.
+    pub fn iter<Parent>(&self) -> Iter<Child, Parent> {
+        Iter { start_end: self.start_end.clone(), phantom: PhantomData }
     }
 }
 
-/// An iterator for which the elements consist of the pairs
-/// `(Index<Item>, Index<Chain<Item>>)`.
-#[derive(Debug, Clone)]
-struct IterBase<'a, Child, Parent, ChildArena, ParentArena> {
-    start_end: StartEnd<Child>,
+fn next_or_next_back<'a, Child, Parent, ChildArena>(
+    start_end: &mut StartEnd<Child>,
     child_arena: &'a ChildArena,
-    phantom: PhantomData<(Parent, ParentArena)>,
-}
-
-impl<'a, Child, Parent, ChildArena, ParentArena>
-    IterBase<'a, Child, Parent, ChildArena, ParentArena>
+    is_next_back: bool,
+) -> ArenaResult<Option<Index<Child>>>
 where
-    Child: ArenaItem,
+    Child: Linked<Parent>,
     Parent: ArenaItem,
     ChildArena: Arena<Child>,
-    ParentArena: Arena<Parent>,
-    Child: Linked<Parent, ChildArena, ParentArena>,
 {
-    fn next_or_next_back(
-        &mut self,
-        is_next_back: bool,
-    ) -> Option<ArenaResult<Index<Child>>> {
-        let cloned_start_end = self.start_end.clone();
-        let StartEnd::Full { start, end } = cloned_start_end else {
-            return None;
-        };
-        let (mut changing_end, mut constant_end) = (start, end);
-        if is_next_back {
-            swap(&mut changing_end, &mut constant_end);
-        }
+    let cloned_start_end = start_end.clone();
+    let StartEnd::Full { start, end } = cloned_start_end else {
+        return Ok(None);
+    };
+    let (mut changing_end, mut constant_end) = (start, end);
+    if is_next_back {
+        swap(&mut changing_end, &mut constant_end);
+    }
 
-        let result = self
-            .child_arena
-            .map(changing_end.clone(), |child| {
-                child.get_sibling_chain().clone()
-            })
-            .map(|chain| {
-                let old_end = changing_end.clone();
-                self.start_end = if is_next_back {
-                    if let Some(prev) = chain.prev {
-                        StartEnd::Full { start: constant_end, end: prev }
-                    } else {
-                        StartEnd::Empty
-                    }
+    let result = child_arena
+        .map(changing_end.clone(), |child| child.get_sibling_chain().clone())
+        .map(|chain| {
+            let old_end = changing_end.clone();
+            *start_end = if is_next_back {
+                if let Some(prev) = chain.prev {
+                    StartEnd::Full { start: constant_end, end: prev }
                 } else {
-                    if let Some(next) = chain.next {
-                        StartEnd::Full { start: next, end: constant_end }
-                    } else {
-                        StartEnd::Empty
-                    }
-                };
-                old_end
-            });
-        Some(result)
-    }
+                    StartEnd::Empty
+                }
+            } else {
+                if let Some(next) = chain.next {
+                    StartEnd::Full { start: next, end: constant_end }
+                } else {
+                    StartEnd::Empty
+                }
+            };
+            old_end
+        });
+    result.map(Some)
 }
 
-impl<'a, Child, Parent, ChildArena, ParentArena> Iterator
-    for IterBase<'a, Child, Parent, ChildArena, ParentArena>
-where
-    Child: ArenaItem,
-    Parent: ArenaItem,
-    ChildArena: Arena<Child>,
-    ParentArena: Arena<Parent>,
-    Child: Linked<Parent, ChildArena, ParentArena>,
-{
-    type Item = ArenaResult<Index<Child>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next_or_next_back(false)
-    }
-}
-
-impl<'a, Child, Parent, ChildArena, ParentArena> DoubleEndedIterator
-    for IterBase<'a, Child, Parent, ChildArena, ParentArena>
-where
-    Child: ArenaItem,
-    Parent: ArenaItem,
-    ChildArena: Arena<Child>,
-    ParentArena: Arena<Parent>,
-    Child: Linked<Parent, ChildArena, ParentArena>,
-{
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.next_or_next_back(true)
-    }
-}
-
-/// An iterator for which the elements consist of `Index<Item>`.
+/// An iterator for which the elements consist of
+/// `ArenaResult<Option<Index<Item>>>`.
 #[derive(Debug, Clone)]
-pub struct IterUnwrapped<'a, Child, Parent, ChildArena, ParentArena> {
-    inner: IterBase<'a, Child, Parent, ChildArena, ParentArena>,
+pub struct Iter<Child, Parent> {
+    start_end: StartEnd<Child>,
+    phantom: PhantomData<Parent>,
 }
 
-impl<'a, Child, Parent, ChildArena, ParentArena> Iterator
-    for IterUnwrapped<'a, Child, Parent, ChildArena, ParentArena>
+impl<'a, Child, Parent> ArenaIterator for Iter<Child, Parent>
 where
-    Child: ArenaItem,
+    Child: Linked<Parent>,
     Parent: ArenaItem,
-    ChildArena: Arena<Child>,
-    ParentArena: Arena<Parent>,
-    Child: Linked<Parent, ChildArena, ParentArena>,
 {
-    type Item = Index<Child>;
+    type Input = Child;
+    type Output = Index<Child>;
+    type Error = ArenaError;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner
-            .next()
-            .map(ArenaResult::unwrap)
-    }
-}
-
-impl<'a, Child, Parent, ChildArena, ParentArena> DoubleEndedIterator
-    for IterUnwrapped<'a, Child, Parent, ChildArena, ParentArena>
-where
-    Child: ArenaItem,
-    Parent: ArenaItem,
-    ChildArena: Arena<Child>,
-    ParentArena: Arena<Parent>,
-    Child: Linked<Parent, ChildArena, ParentArena>,
-{
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.inner
-            .next_back()
-            .map(ArenaResult::unwrap)
-    }
-}
-
-/// An iterator for which the elements consist of `ArenaResult<Index<Item>>`.
-#[derive(Debug, Clone)]
-pub struct IterChecked<'a, Child, Parent, ChildArena, ParentArena> {
-    inner: IterBase<'a, Child, Parent, ChildArena, ParentArena>,
-}
-
-impl<'a, Child, Parent, ChildArena, ParentArena> Iterator
-    for IterChecked<'a, Child, Parent, ChildArena, ParentArena>
-where
-    Child: ArenaItem,
-    Parent: ArenaItem,
-    ChildArena: Arena<Child>,
-    ParentArena: Arena<Parent>,
-    Child: Linked<Parent, ChildArena, ParentArena>,
-{
-    type Item = ArenaResult<Index<Child>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
-    }
-}
-
-impl<'a, Child, Parent, ChildArena, ParentArena> DoubleEndedIterator
-    for IterChecked<'a, Child, Parent, ChildArena, ParentArena>
-where
-    Child: ArenaItem,
-    Parent: ArenaItem,
-    ChildArena: Arena<Child>,
-    ParentArena: Arena<Parent>,
-    Child: Linked<Parent, ChildArena, ParentArena>,
-{
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.inner.next_back()
+    fn next_in_arena(
+        &mut self,
+        child_arena: &impl Arena<Self::Input>,
+    ) -> Result<Option<Self::Output>, Self::Error> {
+        next_or_next_back(&mut self.start_end, child_arena, false)
     }
 }

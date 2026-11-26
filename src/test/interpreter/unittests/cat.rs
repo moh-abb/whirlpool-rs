@@ -1,14 +1,15 @@
+use crate::ast::expr::ExprNode;
+use crate::ast::expr::builtin::BuiltinCall;
 use crate::ast::note::Note;
 use crate::ast::note::NoteLetter;
 use crate::ast::note::NoteUnit;
-use crate::ast::pattern::Pattern;
-use crate::ast::pattern::examples::binary_tree_depth_two;
-use crate::ast::pattern::examples::half_binary_tree_depth_two;
-use crate::ast::pattern::examples::multiple_of_three_units;
-use crate::ast::pattern::examples::multiple_of_unit_then_silence_then_unit;
 use crate::ast::time::CycleTime;
+use crate::synth::unit::SoundUnit;
+use crate::test::ast::examples::pattern::binary_tree_depth_two;
+use crate::test::ast::examples::pattern::half_binary_tree_depth_two;
+use crate::test::ast::examples::pattern::multiple_of_three_units;
+use crate::test::ast::examples::pattern::multiple_of_unit_then_silence_then_unit;
 use crate::test::interpreter::FullInterpreterSetup;
-use crate::test::interpreter::ScheduledExpectation;
 use crate::test::interpreter::test_expectations;
 use crate::test::interpreter::test_expectations_with_interpreter_setup;
 use crate::test::interpreter::unittests::NONZERO_OFFSET;
@@ -18,15 +19,14 @@ fn play_double_alternating_cats_with_offset_and_multiplier(
     multiplier: CycleTime,
 ) {
     let note_unit =
-        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
+        |letter: NoteLetter| NoteUnit::Note(Note::new(letter));
     let unit_duration = multiplier.recip().unwrap();
     let make_scheduled_action = |start_time, letter: NoteLetter| {
-        [ScheduledExpectation {
-            start_time: (CycleTime::unwrapped_from_int(start_time) + offset)
-                / multiplier,
-            duration: unit_duration,
-            note_unit: note_unit(letter),
-        }]
+        [SoundUnit::new(
+            note_unit(letter),
+            (CycleTime::unwrapped_from_int(start_time) + offset) / multiplier,
+            unit_duration,
+        )]
     };
     let times_and_actions = [
         &(1, make_scheduled_action(0, NoteLetter::A)),
@@ -41,8 +41,11 @@ fn play_double_alternating_cats_with_offset_and_multiplier(
     let expected_schedule_actions = times_and_actions.map(|(time, actions)| {
         (CycleTime::unwrapped_from_int(*time), &actions[..])
     });
-    let (arenas, head_index) =
-        binary_tree_depth_two(Pattern::Cat, Pattern::Cat, Pattern::Cat);
+    let (arenas, head_index) = binary_tree_depth_two(
+        ExprNode::new_builtin_call(BuiltinCall::Cat),
+        ExprNode::new_builtin_call(BuiltinCall::Cat),
+        ExprNode::new_builtin_call(BuiltinCall::Cat),
+    );
     test_expectations_with_interpreter_setup(
         &arenas,
         head_index,
@@ -106,15 +109,15 @@ fn play_double_cat_then_unit_with_multiplier(multiplier: CycleTime) {
     // ↓  ↓
     // A   B
     let note_unit =
-        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
+        |letter: NoteLetter| NoteUnit::Note(Note::new(letter));
 
     let unit_duration = multiplier.recip().unwrap();
     let make_scheduled_action = |start_time, letter: NoteLetter| {
-        [ScheduledExpectation {
-            start_time: CycleTime::unwrapped_from_int(start_time) / multiplier,
-            duration: unit_duration,
-            note_unit: note_unit(letter),
-        }]
+        [SoundUnit::new(
+            note_unit(letter),
+            CycleTime::unwrapped_from_int(start_time) / multiplier,
+            unit_duration,
+        )]
     };
     let times_and_actions = [
         &(1, make_scheduled_action(0, NoteLetter::A)),
@@ -129,8 +132,10 @@ fn play_double_cat_then_unit_with_multiplier(multiplier: CycleTime) {
     let expected_schedule_actions = times_and_actions.map(|(time, actions)| {
         (CycleTime::unwrapped_from_int(*time), &actions[..])
     });
-    let (arenas, head_index) =
-        half_binary_tree_depth_two(Pattern::Cat, Pattern::Cat);
+    let (arenas, head_index) = half_binary_tree_depth_two(
+        ExprNode::new_builtin_call(BuiltinCall::Cat),
+        ExprNode::new_builtin_call(BuiltinCall::Cat),
+    );
     test_expectations_with_interpreter_setup(
         &arenas,
         head_index,
@@ -162,15 +167,14 @@ fn play_cat_of_three_units_with_offset_and_multiplier(
     // ↓ ↓ ↓
     // A  B  C
     let note_unit =
-        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
+        |letter: NoteLetter| NoteUnit::Note(Note::new(letter));
 
     let make_scheduled_action = |start_time, letter: NoteLetter| {
-        [ScheduledExpectation {
-            start_time: (CycleTime::unwrapped_from_int(start_time) + offset)
-                / multiplier,
-            duration: multiplier.recip().unwrap(),
-            note_unit: note_unit(letter),
-        }]
+        [SoundUnit::new(
+            note_unit(letter),
+            (CycleTime::unwrapped_from_int(start_time) + offset) / multiplier,
+            multiplier.recip().unwrap(),
+        )]
     };
     let times_and_actions = [
         &(1, make_scheduled_action(0, NoteLetter::A)),
@@ -183,7 +187,8 @@ fn play_cat_of_three_units_with_offset_and_multiplier(
     let expected_schedule_actions = times_and_actions.map(|(time, actions)| {
         (CycleTime::unwrapped_from_int(*time), &actions[..])
     });
-    let (arenas, head_index) = multiple_of_three_units(Pattern::Cat);
+    let (arenas, head_index) =
+        multiple_of_three_units(ExprNode::new_builtin_call(BuiltinCall::Cat));
     test_expectations_with_interpreter_setup(
         &arenas,
         head_index,
@@ -246,14 +251,14 @@ fn can_play_cat_of_unit_then_silence_then_unit() {
     // ↓ ↓ ↓
     // A  ~  C
     let note_unit =
-        |letter: NoteLetter| NoteUnit::WithOctave(Note::new(letter));
+        |letter: NoteLetter| NoteUnit::Note(Note::new(letter));
 
     let make_scheduled_action = |start_time, letter: NoteLetter| {
-        [ScheduledExpectation {
-            start_time: CycleTime::unwrapped_from_int(start_time),
-            duration: CycleTime::ONE,
-            note_unit: note_unit(letter),
-        }]
+        [SoundUnit::new(
+            note_unit(letter),
+            CycleTime::unwrapped_from_int(start_time),
+            CycleTime::ONE,
+        )]
     };
     let times_and_actions = [
         &(1, make_scheduled_action(0, NoteLetter::A)),
@@ -264,7 +269,8 @@ fn can_play_cat_of_unit_then_silence_then_unit() {
     let expected_schedule_actions = times_and_actions.map(|(time, actions)| {
         (CycleTime::unwrapped_from_int(*time), &actions[..])
     });
-    let (arenas, head_index) =
-        multiple_of_unit_then_silence_then_unit(Pattern::Cat);
+    let (arenas, head_index) = multiple_of_unit_then_silence_then_unit(
+        ExprNode::new_builtin_call(BuiltinCall::Cat),
+    );
     test_expectations(&arenas, head_index, &expected_schedule_actions);
 }

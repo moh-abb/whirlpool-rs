@@ -11,7 +11,7 @@ use private::*;
 use crate::mem::Arena;
 use crate::mem::ArenaItem;
 use crate::mem::Index;
-use crate::mem::Multiple;
+use crate::mem::linked::ChildRef;
 use crate::mem::linked::Linked;
 use crate::mem::linked::traversal_state::TraversalState;
 
@@ -45,7 +45,7 @@ pub(super) mod private {
             where
                 Node: ArenaItem,
                 NodeArena: Arena<Node> + 'a,
-                Node: Linked<Node, NodeArena, NodeArena>,
+                Node: Linked<Node>,
                 TravState: TraversalState<Node, Visit = Self, Output = bool>
                 $body
         };
@@ -60,6 +60,12 @@ pub(super) mod private {
                 let continue_exit = |node: Index<Node>| {
                     Result::<_, TravState::Error>::Ok(Continue(ExitNode(node)))
                 };
+                let get_child_start = |child_ref: ChildRef<'_, Node>| {
+                    match child_ref {
+                        ChildRef::Multiple(multiple) => multiple.start(),
+                        ChildRef::Single(opt_index) => opt_index.clone(),
+                    }
+                };
                 // Enter the current node
                 let opt_next_state =
                     arena.$arena_map_func(node.clone(), |cur_node| {
@@ -71,10 +77,10 @@ pub(super) mod private {
                         }
                         // Get the first child, if there are any children
                         let opt_first_child =
-                            <Node as Linked<_, _, _>>::get_children(
+                            <Node as Linked<_>>::get_children(
                                 cur_node.deref(),
                             )
-                            .map(Multiple::start)
+                            .map(get_child_start)
                             .flatten();
                         let Some(child) = opt_first_child else {
                             // No children, so can only exit the node
@@ -103,7 +109,7 @@ pub(super) mod private {
             where
                 Node: ArenaItem,
                 NodeArena: Arena<Node> + 'a,
-                Node: Linked<Node, NodeArena, NodeArena>,
+                Node: Linked<Node>,
                 TravState: TraversalState<Node, Visit = Self, Output = bool>
                 $body
         };

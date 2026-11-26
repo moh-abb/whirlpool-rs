@@ -2,12 +2,15 @@ use crate::ast::time::CycleTime;
 
 mod borrow;
 mod concat;
-mod elements;
 pub mod error;
 pub mod frame;
 mod leaf;
+mod macros;
 pub mod pattern;
 pub mod props;
+mod query;
+mod repeat;
+pub mod value;
 
 pub trait Interpreter {
     type Output;

@@ -1,5 +1,8 @@
-use crate::ast::pattern::arenas::SumCycleLengthError;
+use crate::ast::expr::builtin::ResolveBuiltinCallError;
+use crate::ast::note::resolve::ResolveNoteError;
+use crate::ast::parser::array::ParserVecError;
 use crate::ast::time::OverflowError;
+use crate::interpreter::value::ValueStackError;
 use crate::mem::ArenaError;
 use crate::mem::structures::stack::StackError;
 
@@ -9,12 +12,22 @@ pub enum PatternInterpreterError {
     ArenaErr(ArenaError),
     OverflowErr(OverflowError),
     StackErr(StackError),
-    SumCycleLengthErr(SumCycleLengthError),
+    ParserVecErr(ParserVecError),
+    ResolveNoteErr(ResolveNoteError),
+    ResolveBuiltinCallErr(ResolveBuiltinCallError),
+    ValueStackErr(ValueStackError),
     MultipleEmpty,
     ExpectedTimedStep,
     ExpectedNormalPattern,
-    OverOneChildInTimedStep,
     ExpectedNonemptyTimedStep,
+    ExpectedTwoElementsInTimedStep,
+    UnexpectedPopElemProps,
+    UnexpectedIdentInQuery,
+    UnexpectedArrayInQuery,
+    UnexpectedLambdaInQuery,
+    UnexpectedNumberInQuery,
+    UnexpectedStringLiteralInQuery,
+    InvalidTimedStepTime,
 }
 
 pub type PatternInterpreterResult<T> = Result<T, PatternInterpreterError>;

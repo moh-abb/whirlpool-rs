@@ -1,141 +1,52 @@
-use core::ops::ControlFlow;
-
-use crate::ast::pattern::Pattern;
-use crate::ast::pattern::PatternNode;
-use crate::ast::pattern::arenas::PatternArenas;
+use crate::ast::expr::linked::ExprArenas;
 use crate::interpreter::concat::ConcatFrame;
-use crate::interpreter::error::PatternInterpreterError;
 use crate::interpreter::error::PatternInterpreterResult;
 use crate::interpreter::leaf::LeafFrame;
-use crate::interpreter::props::PlayElemArgs;
-use crate::mem::Index;
-use crate::synth::scheduler::UnitScheduler;
+use crate::interpreter::query::QueryFrame;
+use crate::interpreter::value::ValueStack;
 
-#[derive(derive_more::From, Debug)]
-enum FrameInner<'a, Arenas: PatternArenas> {
+#[derive(derive_more::From, Debug, Clone)]
+enum FrameInner {
     Query(QueryFrame),
-    Concat(ConcatFrame<'a, Arenas>),
+    Concat(ConcatFrame),
     Leaf(LeafFrame),
 }
 
-#[derive(Debug)]
-pub struct InterpreterFrame<'a, Arenas: PatternArenas>(FrameInner<'a, Arenas>);
+#[derive(Debug, Clone)]
+pub struct InterpreterFrame(FrameInner);
 
-/// Indicates the result of interpreting one frame.
-/// If we return `Err(err)` then this indicates that interpreting has failed
-/// with the given error. Otherwise, `Ok(Continue(None))` indicates to
-/// continue stepping without pushing any more frames onto the stack, and
-/// `Ok(Continue(Some(frame)))` indicates that `frame` should be pushed onto
-/// the stack. Likewise, `Break(None)` is a normal break (exit from the current
-/// frame), while `Break(Some(frame))` indicates to exit and remove this frame
-/// and push the next frame to replace it.
-pub type InterpreterResult<'a, Arenas> = PatternInterpreterResult<
-    ControlFlow<
-        Option<InterpreterFrame<'a, Arenas>>,
-        Option<InterpreterFrame<'a, Arenas>>,
-    >,
->;
-
-pub(super) trait EvaluateFrame<'a, Arenas: PatternArenas> {
-    fn step(
-        &mut self,
-        scheduler: &mut impl UnitScheduler,
-        arenas: &'a Arenas,
-    ) -> InterpreterResult<'a, Arenas>;
-}
-
-#[derive(Debug)]
-pub(super) struct QueryFrame {
-    play_args: PlayElemArgs<Index<PatternNode>>,
-}
-
-pub(super) fn query_frame<'a, Arenas: PatternArenas>(
-    play_args: PlayElemArgs<Index<PatternNode>>,
-) -> InterpreterFrame<'a, Arenas> {
-    InterpreterFrame((QueryFrame { play_args }).into())
-}
-
-impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas> for QueryFrame {
-    fn step(
-        &mut self,
-        _: &mut impl UnitScheduler,
-        arenas: &'a Arenas,
-    ) -> InterpreterResult<'a, Arenas> {
-        let index = self.play_args.elem.clone();
-        let play_args = self.play_args.clone().map(|_| ());
-        let cloned_pattern = arenas.map(index, Clone::clone)?.pattern;
-        let next_frame: FrameInner<'_, _> = match &cloned_pattern {
-            Pattern::Cat(multiple) => {
-                ConcatFrame::cat_frame(multiple, arenas, play_args)?.into()
-            }
-            Pattern::Seq(multiple) => {
-                ConcatFrame::seq_frame(multiple, arenas, play_args)?.into()
-            }
-            Pattern::Stack(multiple) => {
-                ConcatFrame::stack_frame(multiple, arenas, play_args)?.into()
-            }
-            Pattern::TimeCat { total_cycle_length, multiple } => {
-                ConcatFrame::time_cat_frame(
-                    multiple,
-                    total_cycle_length,
-                    arenas,
-                    play_args,
-                )?
-                .into()
-            }
-            Pattern::Arrange { total_cycle_length, multiple } => {
-                ConcatFrame::arrange_frame(
-                    multiple,
-                    total_cycle_length,
-                    arenas,
-                    play_args,
-                )?
-                .into()
-            }
-            Pattern::TimedStep(_) => {
-                // We shouldn't be querying a timed step without using the
-                // parent TimeCat or Arrange.
-                return Err(PatternInterpreterError::ExpectedNormalPattern);
-            }
-            Pattern::Note(note_unit) => {
-                LeafFrame::note_frame(note_unit, play_args)?.into()
-            }
-            Pattern::Silence => LeafFrame::silence()?.into(),
-        };
-        // Indicate to pop this frame and push the next frame.
-        Ok(ControlFlow::Break(Some(InterpreterFrame(next_frame))))
+impl<T: Into<FrameInner>> From<T> for InterpreterFrame {
+    fn from(value: T) -> Self {
+        Self(value.into())
     }
 }
 
-impl<'a, Arenas: PatternArenas> EvaluateFrame<'a, Arenas>
-    for InterpreterFrame<'a, Arenas>
-{
+/// Indicates the result of interpreting one frame.
+/// If we return `Err(err)`, then interpretation has failed with the given
+/// error. Otherwise `Ok(None)` indicates that interpretation of the current
+/// frame is complete, and `Ok(Some(frame))` indicates to keep this frame on
+/// the stack and interpret the new one on top.
+pub type InterpreterResult = PatternInterpreterResult<Option<InterpreterFrame>>;
+
+pub(super) trait EvaluateFrame {
     fn step(
         &mut self,
-        scheduler: &mut impl UnitScheduler,
-        arenas: &'a Arenas,
-    ) -> InterpreterResult<'a, Arenas> {
+        value_stack: &mut impl ValueStack,
+        arenas: &impl ExprArenas,
+    ) -> InterpreterResult;
+}
+
+impl EvaluateFrame for InterpreterFrame {
+    fn step(
+        &mut self,
+        value_stack: &mut impl ValueStack,
+        arenas: &impl ExprArenas,
+    ) -> InterpreterResult {
         // TODO: Automatically delegate this step.
         match &mut self.0 {
-            FrameInner::Query(frame) => frame.step(scheduler, arenas),
-            FrameInner::Concat(ConcatFrame::CatOrSeq(frame)) => {
-                frame.step(scheduler, arenas)
-            }
-            FrameInner::Concat(ConcatFrame::Stack(frame)) => {
-                frame.step(scheduler, arenas)
-            }
-            FrameInner::Concat(ConcatFrame::TimeCat(frame)) => {
-                frame.step(scheduler, arenas)
-            }
-            FrameInner::Concat(ConcatFrame::Arrange(frame)) => {
-                frame.step(scheduler, arenas)
-            }
-            FrameInner::Leaf(LeafFrame::Note(frame)) => {
-                frame.step(scheduler, arenas)
-            }
-            FrameInner::Leaf(LeafFrame::Silence(frame)) => {
-                frame.step(scheduler, arenas)
-            }
+            FrameInner::Query(frame) => frame.step(value_stack, arenas),
+            FrameInner::Concat(frame) => frame.step(value_stack, arenas),
+            FrameInner::Leaf(frame) => frame.step(value_stack, arenas),
         }
     }
 }

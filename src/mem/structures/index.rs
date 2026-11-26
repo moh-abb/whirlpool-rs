@@ -1,6 +1,7 @@
-use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::num::NonZeroU16;
+
+use derive_where::derive_where;
 
 type IndexInput = u16;
 type IndexInner = NonZeroU16;
@@ -10,20 +11,9 @@ const INVALID_INDEX_VALUE: u16 = u16::MAX;
 /// Because implicit copying can lead to hidden sharing of indices, which
 /// violates the model of items in arenas having only one owner, this type is
 /// not [Copy].
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(derive_more::Debug)]
+#[derive_where(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Index<T>(IndexInner, PhantomData<T>);
-
-impl<T> Debug for Index<T> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Index({})", self.0)
-    }
-}
-
-impl<T> Clone for Index<T> {
-    fn clone(&self) -> Self {
-        self.const_clone()
-    }
-}
 
 impl<T> Index<T> {
     #[inline(always)]
@@ -34,11 +24,6 @@ impl<T> Index<T> {
 
     pub const fn new_invalid() -> Self {
         Self::new(INVALID_INDEX_VALUE)
-    }
-
-    pub const fn const_clone(&self) -> Self {
-        let Self(inner, _) = self;
-        Index(*inner, PhantomData)
     }
 }
 

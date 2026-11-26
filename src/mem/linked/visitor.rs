@@ -35,7 +35,7 @@ pub fn visit_linked<TravState, Node, NodeArena>(
 ) -> Result<(), TravState::Error>
 where
     NodeArena: Arena<Node>,
-    Node: Linked<Node, NodeArena, NodeArena>,
+    Node: Linked<Node>,
     TravState: TraversalState<Node, Visit = VisitRef, Output = ()>,
 {
     uncond_visit_linked(start_index, start_state, arena)
@@ -51,7 +51,7 @@ pub fn visit_linked_mut<TravState, Node, NodeArena>(
 ) -> Result<(), TravState::Error>
 where
     NodeArena: Arena<Node>,
-    Node: Linked<Node, NodeArena, NodeArena>,
+    Node: Linked<Node>,
     TravState: TraversalState<Node, Visit = VisitMut, Output = ()>,
 {
     uncond_visit_linked(start_index, state, arena)
@@ -64,7 +64,7 @@ fn uncond_visit_linked<'a, 's, TravState, Node, NodeArena>(
 ) -> Result<(), TravState::Error>
 where
     NodeArena: Arena<Node>,
-    Node: Linked<Node, NodeArena, NodeArena> + 'a,
+    Node: Linked<Node> + 'a,
     TravState: TraversalState<Node, Output = ()>,
 {
     let mut uncond_state = UncondTravState(state);
@@ -87,7 +87,7 @@ pub fn controlled_visit_linked<'a, TravState, Node, NodeArena>(
 ) -> Result<(), TravState::Error>
 where
     NodeArena: Arena<Node>,
-    Node: Linked<Node, NodeArena, NodeArena> + 'a,
+    Node: Linked<Node> + 'a,
     TravState: TraversalState<Node, Output = bool>,
 {
     // The FSM state and traversal state take turns to update each other:
@@ -150,8 +150,8 @@ pub(super) fn controlled_visit_two_linked<'a, TravState, Node, AX, AY>(
 where
     AX: Arena<Node>,
     AY: Arena<Node>,
-    Node: Linked<Node, AX, AX> + 'a,
-    Node: Linked<Node, AY, AY> + 'a,
+    Node: Linked<Node> + 'a,
+    Node: Linked<Node> + 'a,
     TravState: TraversalState<Node, Output = bool>,
 {
     let mut fsm_state_x = EnterNode(start_index_x);

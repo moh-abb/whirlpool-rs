@@ -14,6 +14,7 @@ use crate::mem::linked::visitor::visit_linked;
 
 struct CycleFinderState<Node> {
     visited: BTreeSet<Node>,
+    log_enabled: bool,
 }
 
 impl<Node> TraversalState<Node> for CycleFinderState<Node>
@@ -28,7 +29,9 @@ where
         &mut self,
         cur_node: &Node,
     ) -> Result<Self::Output, Self::Error> {
-        println!("Entering node {cur_node:?}");
+        if self.log_enabled {
+            println!("Entering node {cur_node:?}");
+        }
         if self.visited.contains(cur_node) {
             panic!(
                 "Node has already been visited, all visited nodes: {:?}",
@@ -43,7 +46,9 @@ where
         &mut self,
         cur_node: &Node,
     ) -> Result<Self::Output, Self::Error> {
-        println!("Exiting node {cur_node:?}");
+        if self.log_enabled {
+            println!("Exiting node {cur_node:?}");
+        }
         Ok(())
     }
 
@@ -52,7 +57,9 @@ where
         index: Index<Node>,
         _: &impl Arena<Node>,
     ) -> Result<(), Self::Error> {
-        println!("Entered {index:?}");
+        if self.log_enabled {
+            println!("Entered {index:?}");
+        }
         Ok(())
     }
 
@@ -61,7 +68,9 @@ where
         index: Index<Node>,
         _: &impl Arena<Node>,
     ) -> Result<(), Self::Error> {
-        println!("Exited {index:?}");
+        if self.log_enabled {
+            println!("Exited {index:?}");
+        }
         Ok(())
     }
 }
@@ -69,8 +78,9 @@ where
 pub fn check_acyclic<Node, Arenas>(start_index: Index<Node>, arenas: &Arenas)
 where
     Arenas: Arena<Node>,
-    Node: Linked<Node, Arenas, Arenas> + Clone + Debug,
+    Node: Linked<Node> + Clone + Debug,
 {
-    let mut state = CycleFinderState { visited: BTreeSet::new() };
+    let mut state =
+        CycleFinderState { visited: BTreeSet::new(), log_enabled: false };
     visit_linked(start_index, &mut state, arenas).unwrap();
 }
